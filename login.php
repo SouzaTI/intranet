@@ -1,4 +1,23 @@
 <?php
+/**
+ * Página de Login da Intranet
+ * 
+ * Esta página é o novo padrão de autenticação de usuários do sistema Intranet.
+ * 
+ * Funcionalidades:
+ * - Recebe usuário e senha via formulário.
+ * - Valida as credenciais contra o banco de dados MySQL.
+ * - Utiliza password_verify para comparar a senha informada com o hash armazenado.
+ * - Em caso de sucesso, armazena informações do usuário na sessão e redireciona para index.php.
+ * - Exibe mensagens de erro para usuário ou senha incorretos.
+ * - Interface responsiva e estilizada.
+ * 
+ * Observações:
+ * - Certifique-se de que a tabela 'users' contenha os campos: id, username, password, role, profile_photo.
+ * - O arquivo utiliza variáveis de sessão para controle de acesso.
+ * - Página recomendada como padrão para login de todos os usuários da Intranet.
+ */
+
 session_start();
 $conn = new mysqli("localhost", "root", "", "intranet");
 
