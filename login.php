@@ -1,3 +1,5 @@
+// Teste de alteração
+
 <?php
 session_start();
 $conn = new mysqli("localhost", "root", "", "intranet");
@@ -131,3 +133,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </body>
 </html>
+
+
