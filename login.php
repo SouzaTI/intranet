@@ -1,21 +1,38 @@
-// Teste de alteração
-
 <?php
 session_start();
 $conn = new mysqli("localhost", "root", "", "intranet");
 
+$error = null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $conn->real_escape_string($_POST['username']);
+    $username = $_POST['username'];
     $password = $_POST['password'];
 
-    $sql = "SELECT * FROM users WHERE username='$username' LIMIT 1";
-    $result = $conn->query($sql);
+    // Usar prepared statements para prevenir SQL Injection
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
     if ($result && $user = $result->fetch_assoc()) {
         if (password_verify($password, $user['password'])) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['profile_photo'] = $user['profile_photo'];
+ 
+            // Carrega as permissões de seção do usuário
+            $user_id = $user['id'];
+            $allowed_sections = [];
+            $stmt_sections = $conn->prepare("SELECT section_name FROM user_sections WHERE user_id = ?");
+            $stmt_sections->bind_param("i", $user_id);
+            $stmt_sections->execute();
+            $result_sections = $stmt_sections->get_result();
+            while ($row = $result_sections->fetch_assoc()) {
+                $allowed_sections[] = $row['section_name'];
+            }
+            $_SESSION['allowed_sections'] = $allowed_sections;
+
             header("Location: index.php");
             exit();
         } else {
@@ -24,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $error = "Usuário não encontrado.";
     }
+    $stmt->close();
 }
 ?>
 <!DOCTYPE html>
@@ -133,5 +151,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </body>
 </html>
-
-
