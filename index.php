@@ -420,6 +420,7 @@ if ($result_normas) {
                                     <div class="flex items-end justify-between mt-auto">
                                         <span class="text-xs text-gray-500">Atualizado: '.date('d/m/Y', strtotime($row['data_upload'])).'</span>
                                         <div class="flex items-center gap-4">
+                                            <a href="uploads/'.$row['nome_arquivo'].'" target="_blank" class="text-gray-600 hover:text-blue-600" title="Visualizar"><i class="fas fa-eye"></i></a>
                                             <a href="uploads/'.$row['nome_arquivo'].'" download class="text-gray-600 hover:text-blue-600" title="Baixar"><i class="fas fa-download"></i></a>
                                         </div>
                                     </div>
@@ -651,7 +652,12 @@ if ($result_normas) {
                                             <div class="border-l-4 border-blue-500 pl-4">
                                                 <h4 class="font-semibold text-lg text-[#254c90]"><?php echo htmlspecialchars($arquivo['titulo']); ?></h4>
                                                 <p class="text-gray-700 mt-1"><?php echo htmlspecialchars($arquivo['descricao']); ?></p>
-                                                <a href="uploads/<?php echo htmlspecialchars($arquivo['nome_arquivo']); ?>" download class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">Baixar Documento &gt;</a>
+                                                <div class="mt-2">
+                                                    <a href="uploads/<?php echo htmlspecialchars($arquivo['nome_arquivo']); ?>" download class="text-indigo-600 hover:text-indigo-800 text-sm inline-block">Baixar Documento &gt;</a>
+                                                    <?php if (isset($arquivo['tipo']) && strtolower($arquivo['tipo']) === 'pdf'): ?>
+                                                        <a href="uploads/<?php echo htmlspecialchars($arquivo['nome_arquivo']); ?>" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm inline-block ml-4">Visualizar Online &gt;</a>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
                                         <?php endforeach; ?>
                                     </div>
