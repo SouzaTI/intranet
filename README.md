@@ -1,9 +1,9 @@
 ﻿# 🚀 Sistema de Intranet - Comercial Souza
 
-[!Status: Em Desenvolvimento](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
-[!PHP: 8.x](https://img.shields.io/badge/php-8.x-blue)
-[!Tecnologias: TailwindCSS, JS](https://img.shields.io/badge/tecnologias-TailwindCSS%20%26%20JS-green)
-[!Banco: MySQL](https://img.shields.io/badge/banco-MySQL-orange)
+![Status: Em Desenvolvimento](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
+![PHP: 8.x](https://img.shields.io/badge/php-8.x-blue)
+![Tecnologias: TailwindCSS, JS](https://img.shields.io/badge/tecnologias-TailwindCSS%20%26%20JS-green)
+![Banco: MySQL](https://img.shields.io/badge/banco-MySQL-orange)
 
 ---
 
@@ -80,27 +80,27 @@ intranet/
 
 ## 📸 Capturas de Tela
 
-*Substitua os links abaixo pelas URLs das imagens do seu projeto quando estiverem disponíveis.*
+*Para exibir as imagens, crie uma pasta `screenshots` no projeto e adicione os caminhos aqui. Exemplo: `!Tela de Login`*
 
 ### 1. 🔐 Tela de Login
 *Interface de entrada do sistema, com a identidade visual da empresa.*
-!Tela de Login
+<!-- Inserir imagem da tela de login aqui -->
 
 ### 2. 🖥️ Dashboard Principal
 *Visão geral com comunicados, carrossel de imagens e acesso rápido às funcionalidades.*
-!Dashboard Principal
+<!-- Inserir imagem do dashboard aqui -->
 
 ### 3. 📂 Gestão de Documentos
 *Seção para visualização e download de arquivos PDF e planilhas.*
-!Gestão de Documentos
+<!-- Inserir imagem da gestão de documentos aqui -->
 
 ### 4. 🗣️ Sugestões e Reclamações
 *Formulário para feedback dos colaboradores e tela de gerenciamento para administradores.*
-!Tela de Sugestões
+<!-- Inserir imagem da tela de sugestões aqui -->
 
 ### 5. ⚙️ Painel Administrativo
 *Área restrita para upload de arquivos e gerenciamento de configurações do sistema.*
-!Painel Administrativo
+<!-- Inserir imagem do painel administrativo aqui -->
 
 ---
 
