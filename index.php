@@ -187,6 +187,10 @@ if ($result_normas) {
                         <i class="fas fa-cog w-6"></i>
                         <span>Configurações</span>
                     </a>
+                    <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes'); return false;">
+                        <i class="fas fa-clipboard-list w-6"></i>
+                        <span>Registros de Sugestões</span>
+                    </a>
                 <?php endif; ?>
 
                 <!-- Links restantes -->
@@ -729,14 +733,44 @@ if ($result_normas) {
 </section>
                 <!-- Sugestões e Reclamações Section -->
                 <section id="sugestoes" class="hidden space-y-6">
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Sugestões e Reclamações</h2>
-        <p class="text-[#254c90] mb-4">Envie sua sugestão ou reclamação para ajudar a melhorar nosso ambiente de trabalho!</p>
-        <!-- Formulário ou instruções aqui -->
-    </div>
-</section>
-<!-- FAQ Section -->
-<section id="faq" class="hidden space-y-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-2xl font-bold text-[#254c90] mb-2">Sugestões e Reclamações</h2>
+                        <p class="text-[#254c90] mb-6">Sua opinião é muito importante para nós. Envie sua sugestão ou reclamação para ajudar a melhorar nosso ambiente de trabalho!</p>
+                        
+                        <form id="sugestaoForm" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-[#254c90] mb-1">Tipo de Mensagem</label>
+                                <select name="tipo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="sugestao">Sugestão</option>
+                                    <option value="reclamacao">Reclamação</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Seu E-mail (Opcional)</label>
+                                    <input type="email" name="email" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="seunome@comercialsouza.com.br">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Seu Telefone (Opcional)</label>
+                                    <input type="tel" name="telefone" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="(XX) XXXXX-XXXX">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#254c90] mb-1">Sua Mensagem</label>
+                                <textarea name="mensagem" rows="5" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="Digite sua mensagem aqui..." required></textarea>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="px-6 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                    Enviar Mensagem
+                                </button>
+                            </div>
+                        </form>
+                        <div id="sugestaoStatus" class="mt-4 text-center"></div>
+                    </div>
+                </section>
+                <!-- FAQ Section -->
+                <section id="faq" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-2xl font-bold text-[#254c90] mb-4">FAQ - Perguntas Frequentes</h2>
         <div class="space-y-4">
@@ -788,6 +822,17 @@ if ($result_normas) {
         </div>
     </div>
 </section>
+
+                <!-- Registros de Sugestões Section (Admin only) -->
+                <section id="registros_sugestoes" class="hidden space-y-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Registros de Sugestões e Reclamações</h2>
+                        <p class="text-[#254c90] mb-6">Acompanhe e gerencie as mensagens enviadas pelos colaboradores.</p>
+                        <div id="registros-container">
+                            <!-- O conteúdo da tabela será carregado aqui via JavaScript -->
+                        </div>
+                    </div>
+                </section>
 
                 <!-- Settings Section (Admin only) -->
                 <section id="settings" class="hidden space-y-6">
@@ -881,7 +926,8 @@ if ($result_normas) {
                 'upload': 'Upload de Arquivos',
                 'info-upload': 'Cadastrar Informação',
                 'about': 'Sobre Nós',
-                'settings': 'Configurações'
+                'settings': 'Configurações',
+                'registros_sugestoes': 'Registros de Sugestões'
             };
             document.getElementById('pageTitle').textContent = titles[sectionId] || 'Página Inicial';
 
@@ -907,6 +953,16 @@ if ($result_normas) {
                 });
                 // Adiciona destaque ao link do submenu clicado
                 document.querySelector(`.sidebar-link[data-setor-filter="${filter}"]`)?.classList.add('bg-[#1d3870]');
+            }
+
+            // Carrega dinamicamente a lista de sugestões para admins
+            if (sectionId === 'registros_sugestoes') {
+                const container = document.getElementById('registros-container');
+                container.innerHTML = '<p class="text-center text-[#254c90]">Carregando registros...</p>';
+                fetch('registros_sugestoes.php')
+                    .then(response => response.text())
+                    .then(html => container.innerHTML = html)
+                    .catch(() => container.innerHTML = '<p class="text-center text-red-500">Erro ao carregar os registros.</p>');
             }
         }
         document.getElementById('browseButton').addEventListener('click', function() {
@@ -1052,6 +1108,59 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     });
 });
 
+document.getElementById('sugestaoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = this;
+    var formData = new FormData(form);
+    var statusDiv = document.getElementById('sugestaoStatus');
+
+    statusDiv.innerHTML = '<p class="text-blue-600">Enviando...</p>';
+
+    fetch('salvar_sugestao.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusDiv.innerHTML = `<p class="text-green-600 font-semibold">${data.message}</p>`;
+            form.reset();
+        } else {
+            statusDiv.innerHTML = `<p class="text-red-600 font-semibold">${data.message}</p>`;
+        }
+    })
+    .catch(() => {
+        statusDiv.innerHTML = '<p class="text-red-600 font-semibold">Ocorreu um erro de conexão. Tente novamente.</p>';
+    });
+});
+
+// Event listener para a mudança de status da sugestão (usando delegação de evento)
+document.addEventListener('change', function(e) {
+    if (e.target && e.target.classList.contains('status-sugestao')) {
+        const selectElement = e.target;
+        const sugestaoId = selectElement.dataset.id;
+        const novoStatus = selectElement.value;
+        const feedbackSpan = selectElement.nextElementSibling;
+
+        feedbackSpan.textContent = 'Salvando...';
+
+        const formData = new FormData();
+        formData.append('sugestao_id', sugestaoId);
+        formData.append('novo_status', novoStatus);
+
+        fetch('atualizar_status_sugestao.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                feedbackSpan.textContent = 'Salvo!';
+                setTimeout(() => { feedbackSpan.textContent = ''; }, 2000); // Limpa a mensagem após 2 segundos
+            }
+        });
+    }
+});
 // Lógica para o menu de Normas e Procedimentos
 document.getElementById('normas-menu-toggle').addEventListener('click', function(e) {
     e.preventDefault();
@@ -1086,6 +1195,5 @@ function visualizarArquivo(url, tipo) {
 }
     </script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9613e4dce2355e0f',t:'MTc1Mjg2MTc4Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
