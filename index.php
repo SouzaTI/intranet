@@ -14,6 +14,33 @@ $pdfCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='pdf
 $excelCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='excel' OR tipo='planilha' OR tipo='Planilha Excel' OR tipo='xlsx' OR tipo='xls'")->fetch_assoc()['total'] ?? 0;
 // Conta Informações (Word, PowerPoint, outros, ou ajuste conforme sua regra)
 $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='word' OR tipo='ppt' OR tipo='informacao'")->fetch_assoc()['total'] ?? 0;
+
+// Busca todos os setores para o menu e formulários
+$setores = [];
+$result_setores = $conn->query("SELECT * FROM setores ORDER BY nome ASC");
+if ($result_setores) {
+    while ($setor = $result_setores->fetch_assoc()) {
+        $setores[] = $setor;
+    }
+}
+
+// Busca arquivos de Normas e Procedimentos e agrupa por setor
+$normas_por_setor = [];
+$sql_normas = "
+    SELECT a.*, s.nome as nome_setor
+    FROM arquivos a
+    LEFT JOIN setores s ON a.setor_id = s.id
+    WHERE a.departamento = 'Normas e Procedimentos'
+    ORDER BY s.nome, a.titulo ASC
+";
+$result_normas = $conn->query($sql_normas);
+if ($result_normas) {
+    while ($norma = $result_normas->fetch_assoc()) {
+        $nome_setor = $norma['nome_setor'] ?? 'Geral (Sem Setor)';
+        $normas_por_setor[$nome_setor][] = $norma;
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -131,21 +158,38 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
                     <i class="fas fa-question-circle w-6"></i>
                     <span>FAQ</span>
                 </a>
-                <a href="#" data-section="normas" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('normas'); return false;">
-                    <i class="fas fa-book w-6"></i>
-                    <span>Normas e Procedimentos</span>
-                </a>
+                <!-- Menu Normas e Procedimentos com Submenu -->
+                <div>
+                    <a href="#" id="normas-menu-toggle" class="sidebar-link w-full flex justify-between items-center py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white">
+                        <span class="flex items-center space-x-2">
+                            <i class="fas fa-book w-6"></i>
+                            <span>Normas e Procedimentos</span>
+                        </span>
+                        <i id="normas-arrow" class="fas fa-chevron-down text-xs transition-transform"></i>
+                    </a>
+                    <div id="normas-submenu" class="hidden text-sm mt-2 pl-8 space-y-2">
+                        <a href="#" class="sidebar-link block py-1.5 px-2 rounded hover:bg-[#1d3870] text-white" data-section="normas" onclick="showSection('normas', 'all'); return false;">Ver Todos</a>
+                        <?php foreach ($setores as $setor): ?>
+                            <a href="#" class="sidebar-link block py-1.5 px-2 rounded hover:bg-[#1d3870] text-white" data-section="normas" data-setor-filter="<?php echo htmlspecialchars($setor['nome']); ?>" onclick="showSection('normas', '<?php echo htmlspecialchars($setor['nome']); ?>'); return false;">
+                                <?php echo htmlspecialchars($setor['nome']); ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
-                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])): ?>
                     <a href="#" data-section="upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('upload'); return false;">
                         <i class="fas fa-upload w-6"></i>
                         <span>Upload de Arquivos</span>
                     </a>
-                    <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2">
+                    <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('settings'); return false;">
                         <i class="fas fa-cog w-6"></i>
                         <span>Configurações</span>
                     </a>
                 <?php endif; ?>
+
+                <!-- Links restantes -->
                 <a href="#" data-section="info-upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('info-upload'); return false;">
                     <i class="fas fa-bullhorn w-6"></i>
                     <span>Cadastrar Informação</span>
@@ -512,6 +556,7 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
                                             <option>Marketing</option>
                                             <option>Operações</option>
                                             <option>TI</option>
+                                            <option>Normas e Procedimentos</option>
                                             <option>Administrativo</option>
                                         </select>
                                     </div>
@@ -523,6 +568,16 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
                                             <option>Confidencial (Apenas gestores)</option>
                                         </select>
                                     </div>
+                                </div>
+                                <!-- Campo de Setor (visível apenas para Normas e Procedimentos) -->
+                                <div id="setor-field" class="hidden">
+                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Setor (Normas e Procedimentos)</label>
+                                    <select name="setor_id" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                        <option value="">Selecione um setor</option>
+                                        <?php foreach ($setores as $setor): ?>
+                                            <option value="<?php echo $setor['id']; ?>"><?php echo htmlspecialchars($setor['nome']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-[#254c90] mb-1">Descrição</label>
@@ -584,22 +639,27 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
                 <section id="normas" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-2xl font-bold text-[#254c90] mb-4">Normas e Procedimentos</h2>
-                        <p class="text-[#254c90] mb-4">
+                        <p class="text-[#254c90] mb-6">
                             Aqui você encontrará todas as normas, políticas e procedimentos importantes da Comercial Souza.
                         </p>
-                        <div class="space-y-6">
-                            <!-- Exemplo de item. No futuro, isso pode vir do banco de dados. -->
-                            <div class="border-l-4 border-blue-500 pl-4">
-                                <h3 class="font-semibold text-lg text-[#254c90]">Política de Home Office</h3>
-                                <p class="text-gray-700 mt-1">Documento detalhando as regras e diretrizes para o trabalho remoto, incluindo elegibilidade, horários e responsabilidades.</p>
-                                <a href="#" class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">Visualizar Documento &gt;</a>
-                            </div>
-                            <div class="border-l-4 border-green-500 pl-4">
-                                <h3 class="font-semibold text-lg text-[#254c90]">Código de Conduta e Ética</h3>
-                                <p class="text-gray-700 mt-1">Estabelece os princípios éticos e de conduta esperados de todos os colaboradores da empresa.</p>
-                                <a href="#" class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">Visualizar Documento &gt;</a>
-                            </div>
-                        </div>
+                        <?php if (count($normas_por_setor) > 0): ?>
+                            <?php foreach ($normas_por_setor as $nome_setor => $arquivos_do_setor): ?>
+                                <div class="setor-container" data-setor="<?php echo htmlspecialchars($nome_setor); ?>">
+                                    <h3 class="text-xl font-bold text-[#1d3870] mb-4 border-b-2 border-[#1d3870] pb-2"><?php echo htmlspecialchars($nome_setor); ?></h3>
+                                    <div class="space-y-4 mb-8">
+                                        <?php foreach ($arquivos_do_setor as $arquivo): ?>
+                                            <div class="border-l-4 border-blue-500 pl-4">
+                                                <h4 class="font-semibold text-lg text-[#254c90]"><?php echo htmlspecialchars($arquivo['titulo']); ?></h4>
+                                                <p class="text-gray-700 mt-1"><?php echo htmlspecialchars($arquivo['descricao']); ?></p>
+                                                <a href="uploads/<?php echo htmlspecialchars($arquivo['nome_arquivo']); ?>" download class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">Baixar Documento &gt;</a>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <p class="text-gray-500">Nenhum documento de normas e procedimentos foi cadastrado ainda.</p>
+                        <?php endif; ?>
                     </div>
                 </section>
                 <!-- Informações/Avisos Section -->
@@ -722,6 +782,49 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
         </div>
     </div>
 </section>
+
+                <!-- Settings Section (Admin only) -->
+                <section id="settings" class="hidden space-y-6">
+                    <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])): ?>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Card para Adicionar Setor -->
+                            <div class="bg-white rounded-lg shadow p-6">
+                                <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Adicionar Novo Setor</h3>
+                                <form action="gerenciar_setores.php" method="POST" class="space-y-4">
+                                    <input type="hidden" name="action" value="add">
+                                    <div>
+                                        <label for="nome_setor" class="block text-sm font-medium text-[#254c90]">Nome do Setor</label>
+                                        <input type="text" id="nome_setor" name="nome_setor" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                    </div>
+                                    <div class="flex justify-end">
+                                        <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Adicionar Setor</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Card para Listar e Remover Setores -->
+                            <div class="bg-white rounded-lg shadow p-6">
+                                <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Setores Cadastrados</h3>
+                                <ul class="space-y-3 max-h-96 overflow-y-auto">
+                                    <?php foreach ($setores as $setor): ?>
+                                        <li class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                                            <span class="text-[#254c90]"><?php echo htmlspecialchars($setor['nome']); ?></span>
+                                            <form action="gerenciar_setores.php" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este setor? Os documentos associados não serão apagados, mas ficarão sem setor.');">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="setor_id" value="<?php echo $setor['id']; ?>">
+                                                <button type="submit" class="text-red-500 hover:text-red-700" title="Excluir Setor">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-red-500">Acesso negado.</p>
+                    <?php endif; ?>
+                </section>
             </main>
         </div>
     </div>
@@ -754,7 +857,7 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
         document.getElementById('closeSidebar').addEventListener('click', function() {
             document.getElementById('sidebar').classList.add('-translate-x-full');
         });
-        function showSection(sectionId) {
+        function showSection(sectionId, filter = null) {
             // Esconde todas as seções
             document.querySelectorAll('main > section').forEach(section => {
                 section.classList.add('hidden');
@@ -771,18 +874,33 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
                 'normas': 'Normas e Procedimentos',
                 'upload': 'Upload de Arquivos',
                 'info-upload': 'Cadastrar Informação',
-                'about': 'Sobre Nós'
+                'about': 'Sobre Nós',
+                'settings': 'Configurações'
             };
             document.getElementById('pageTitle').textContent = titles[sectionId] || 'Página Inicial';
 
             // Remove destaque de todos os links
             document.querySelectorAll('.sidebar-link').forEach(link => {
                 link.classList.remove('bg-[#1d3870]');
+                // Fecha o submenu de normas se clicar em outro link
+                if (link.id !== 'normas-menu-toggle') {
+                    document.getElementById('normas-submenu').classList.add('hidden');
+                    document.getElementById('normas-arrow').classList.remove('rotate-180');
+                }
             });
             // Adiciona destaque ao link ativo
             const activeLink = document.querySelector('.sidebar-link[data-section="' + sectionId + '"]');
             if (activeLink) {
                 activeLink.classList.add('bg-[#1d3870]');
+            }
+
+            // Filtra a seção de normas se um filtro for passado
+            if (sectionId === 'normas' && filter) {
+                document.querySelectorAll('#normas .setor-container').forEach(container => {
+                    container.style.display = (filter === 'all' || container.dataset.setor === filter) ? 'block' : 'none';
+                });
+                // Adiciona destaque ao link do submenu clicado
+                document.querySelector(`.sidebar-link[data-setor-filter="${filter}"]`)?.classList.add('bg-[#1d3870]');
             }
         }
         document.getElementById('browseButton').addEventListener('click', function() {
@@ -927,6 +1045,24 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         alert('Erro ao enviar arquivo.');
     });
 });
+
+// Lógica para o menu de Normas e Procedimentos
+document.getElementById('normas-menu-toggle').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('normas-submenu').classList.toggle('hidden');
+    document.getElementById('normas-arrow').classList.toggle('rotate-180');
+});
+
+// Lógica para mostrar/esconder o campo de setor no formulário de upload
+document.querySelector('select[name="departamento"]').addEventListener('change', function() {
+    const setorField = document.getElementById('setor-field');
+    if (this.value === 'Normas e Procedimentos') {
+        setorField.classList.remove('hidden');
+    } else {
+        setorField.classList.add('hidden');
+    }
+});
+
 function visualizarArquivo(url, tipo) {
     // Mostra o container do visualizador
     document.getElementById('excel-viewer').classList.remove('hidden');
