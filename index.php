@@ -1,6 +1,17 @@
 <?php
 session_start();
 require_once 'conexao.php'; // ajuste o nome se for diferente
+
+// Função para verificar permissão de visualização de seção
+function can_view_section($section_name) {
+    // Admins e God podem ver tudo
+    if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
+        return true;
+    }
+    // Usuários normais verificam a lista de permissões na sessão
+    return isset($_SESSION['allowed_sections']) && in_array($section_name, $_SESSION['allowed_sections']);
+}
+
 // Verifica se o usuário está logado
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -38,6 +49,34 @@ if ($result_normas) {
     while ($norma = $result_normas->fetch_assoc()) {
         $nome_setor = $norma['nome_setor'] ?? 'Geral (Sem Setor)';
         $normas_por_setor[$nome_setor][] = $norma;
+    }
+}
+
+// Lista de todas as seções disponíveis para o painel de permissões
+$available_sections = [
+    'dashboard' => 'Página Inicial',
+    'documents' => 'Documentos PDF',
+    'spreadsheets' => 'Planilhas',
+    'information' => 'Informações (Visualização)',
+    'sugestoes' => 'Sugestões e Reclamações (Envio)',
+    'faq' => 'FAQ',
+    'normas' => 'Normas e Procedimentos',
+    'about' => 'Sobre Nós',
+    // Seções de Admin
+    'upload' => 'Upload de Arquivos (Admin)',
+    'info-upload' => 'Cadastrar Informação (Admin)',
+    'registros_sugestoes' => 'Registros de Sugestões (Admin)',
+    'settings' => 'Configurações (Admin)',
+];
+
+// Busca todos os usuários para a aba de permissões (apenas para admins)
+$usuarios = [];
+if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
+    $result_usuarios = $conn->query("SELECT id, username, department, role FROM users ORDER BY username ASC");
+    if ($result_usuarios) {
+        while ($usuario = $result_usuarios->fetch_assoc()) {
+            $usuarios[] = $usuario;
+        }
     }
 }
 
@@ -134,31 +173,44 @@ if ($result_normas) {
             </div>
             <nav class="mt-10">
                 <div class="px-4 py-2 uppercase text-xs font-semibold">Menu Principal</div>
+                <?php if (can_view_section('dashboard')): ?>
                 <a href="#" data-section="dashboard" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('dashboard'); return false;">
                     <i class="fas fa-home w-6"></i>
                     <span>Página Inicial</span>
                 </a>
+                <?php endif; ?>
+                <?php if (can_view_section('documents')): ?>
                 <a href="#" data-section="documents" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('documents'); return false;">
                     <i class="fas fa-file-pdf w-6"></i>
                     <span>Documentos PDF</span>
                 </a>
+                <?php endif; ?>
+                <?php if (can_view_section('spreadsheets')): ?>
                 <a href="#" data-section="spreadsheets" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('spreadsheets'); return false;">
                     <i class="fas fa-file-excel w-6"></i>
                     <span>Planilhas</span>
                 </a>
+                <?php endif; ?>
+                <?php if (can_view_section('information')): ?>
                 <a href="#" data-section="information" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('information'); return false;">
                     <i class="fas fa-info-circle w-6"></i>
                     <span>Informações</span>
                 </a>
+                <?php endif; ?>
+                <?php if (can_view_section('sugestoes')): ?>
                 <a href="#" data-section="sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sugestoes'); return false;">
                     <i class="fas fa-comment-dots w-6"></i>
                     <span>Sugestões e Reclamações</span>
                 </a>
+                <?php endif; ?>
+                <?php if (can_view_section('faq')): ?>
                 <a href="#" data-section="faq" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('faq'); return false;">
                     <i class="fas fa-question-circle w-6"></i>
                     <span>FAQ</span>
                 </a>
+                <?php endif; ?>
                 <!-- Menu Normas e Procedimentos com Submenu -->
+                <?php if (can_view_section('normas')): ?>
                 <div>
                     <a href="#" id="normas-menu-toggle" class="sidebar-link w-full flex justify-between items-center py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white">
                         <span class="flex items-center space-x-2">
@@ -176,17 +228,22 @@ if ($result_normas) {
                         <?php endforeach; ?>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
-                <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])): ?>
+                <?php if (can_view_section('upload')): ?>
                     <a href="#" data-section="upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('upload'); return false;">
                         <i class="fas fa-upload w-6"></i>
                         <span>Upload de Arquivos</span>
                     </a>
+                <?php endif; ?>
+                <?php if (can_view_section('settings')): ?>
                     <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('settings'); return false;">
                         <i class="fas fa-cog w-6"></i>
                         <span>Configurações</span>
                     </a>
+                <?php endif; ?>
+                <?php if (can_view_section('registros_sugestoes')): ?>
                     <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes'); return false;">
                         <i class="fas fa-clipboard-list w-6"></i>
                         <span>Registros de Sugestões</span>
@@ -194,14 +251,18 @@ if ($result_normas) {
                 <?php endif; ?>
 
                 <!-- Links restantes -->
+                <?php if (can_view_section('info-upload')): ?>
                 <a href="#" data-section="info-upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('info-upload'); return false;">
                     <i class="fas fa-bullhorn w-6"></i>
                     <span>Cadastrar Informação</span>
                 </a>
+                <?php endif; ?>
+                <?php if (can_view_section('about')): ?>
                 <a href="#" data-section="about" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('about'); return false;">
                     <i class="fas fa-users w-6"></i>
                     <span>Sobre Nós</span>
                 </a>
+                <?php endif; ?>
             </nav>
         </div>
 
@@ -836,47 +897,133 @@ if ($result_normas) {
 
                 <!-- Settings Section (Admin only) -->
                 <section id="settings" class="hidden space-y-6">
-                    <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])): ?>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Card para Adicionar Setor -->
-                            <div class="bg-white rounded-lg shadow p-6">
-                                <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Adicionar Novo Setor</h3>
-                                <form action="gerenciar_setores.php" method="POST" class="space-y-4">
-                                    <input type="hidden" name="action" value="add">
-                                    <div>
-                                        <label for="nome_setor" class="block text-sm font-medium text-[#254c90]">Nome do Setor</label>
-                                        <input type="text" id="nome_setor" name="nome_setor" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                    </div>
-                                    <div class="flex justify-end">
-                                        <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Adicionar Setor</button>
-                                    </div>
-                                </form>
-                            </div>
+                <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])): ?>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <!-- Abas de Navegação -->
+                        <div class="border-b border-gray-200 mb-6">
+                            <nav class="flex space-x-4" aria-label="Tabs">
+                                <button class="settings-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-[#254c90] text-[#254c90]" data-tab="menu">
+                                    Menu/Sub-Menu
+                                </button>
+                                <button class="settings-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="users">
+                                    Usuários/Permissões
+                                </button>
+                            </nav>
+                        </div>
 
-                            <!-- Card para Listar e Remover Setores -->
-                            <div class="bg-white rounded-lg shadow p-6">
-                                <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Setores Cadastrados</h3>
-                                <ul class="space-y-3 max-h-96 overflow-y-auto">
-                                    <?php foreach ($setores as $setor): ?>
-                                        <li class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                                            <span class="text-[#254c90]"><?php echo htmlspecialchars($setor['nome']); ?></span>
-                                            <form action="gerenciar_setores.php" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este setor? Os documentos associados não serão apagados, mas ficarão sem setor.');">
-                                                <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="setor_id" value="<?php echo $setor['id']; ?>">
-                                                <button type="submit" class="text-red-500 hover:text-red-700" title="Excluir Setor">
-                                                    <i class="fas fa-trash-alt"></i>
-                                                </button>
-                                            </form>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
+                        <!-- Conteúdo da Aba: Menu/Sub-Menu -->
+                        <div id="settings-tab-menu" class="settings-tab-content">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Card para Adicionar Setor -->
+                                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                                    <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Adicionar Novo Setor</h3>
+                                    <form action="gerenciar_setores.php" method="POST" class="space-y-4">
+                                        <input type="hidden" name="action" value="add">
+                                        <div>
+                                            <label for="nome_setor" class="block text-sm font-medium text-[#254c90]">Nome do Setor</label>
+                                            <input type="text" id="nome_setor" name="nome_setor" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                        </div>
+                                        <div class="flex justify-end">
+                                            <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Adicionar Setor</button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <!-- Card para Listar e Remover Setores -->
+                                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                                    <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Setores Cadastrados</h3>
+                                    <ul class="space-y-3 max-h-96 overflow-y-auto">
+                                        <?php foreach ($setores as $setor): ?>
+                                            <li class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                                                <span class="text-[#254c90]"><?php echo htmlspecialchars($setor['nome']); ?></span>
+                                                <form action="gerenciar_setores.php" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este setor? Os documentos associados não serão apagados, mas ficarão sem setor.');">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="setor_id" value="<?php echo $setor['id']; ?>">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700" title="Excluir Setor">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
-                    <?php else: ?>
-                        <p class="text-red-500">Acesso negado.</p>
-                    <?php endif; ?>
+
+                        <!-- Conteúdo da Aba: Usuários/Permissões -->
+                        <div id="settings-tab-users" class="settings-tab-content hidden">
+                            <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Gerenciar Usuários e Permissões</h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full bg-white">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
+                                            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Departamento</th>
+                                            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Nível</th>
+                                            <th class="py-2 px-4 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        <?php foreach ($usuarios as $usuario): ?>
+                                            <tr>
+                                                <td class="py-3 px-4 text-sm text-gray-800 font-medium"><?= htmlspecialchars($usuario['username']) ?></td>
+                                                <td class="py-3 px-4 text-sm text-gray-600"><?= htmlspecialchars($usuario['department']) ?></td>
+                                                <td class="py-3 px-4 text-sm text-gray-600"><?= ucfirst(htmlspecialchars($usuario['role'])) ?></td>
+                                                <td class="py-3 px-4 text-sm text-center"><button class="open-permissions-modal px-3 py-1 bg-[#254c90] text-white text-xs font-semibold rounded-md hover:bg-[#1d3870]" data-userid="<?= $usuario['id'] ?>" data-username="<?= htmlspecialchars($usuario['username']) ?>">Gerenciar</button></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <p class="text-red-500">Acesso negado.</p>
+                <?php endif; ?>
                 </section>
             </main>
+        </div>
+    </div>
+    <!-- Modal de Permissões -->
+    <div id="permissionsModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl transform transition-all scale-95 opacity-0">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-semibold text-[#254c90]">Gerenciar Permissões: <span id="modalUsername" class="font-bold"></span></h3>
+                <button id="closePermissionsModal" class="text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <form id="permissionsForm" action="update_user_permissions.php" method="POST">
+                <input type="hidden" name="user_id" id="modalUserId">
+                <div class="space-y-6">
+                    <!-- Nível de Acesso (Role) -->
+                    <div>
+                        <label class="block text-sm font-medium text-[#254c90] mb-2">Nível de Acesso Principal</label>
+                        <select name="role" id="modalUserRole" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                            <option value="user">Usuário</option>
+                            <option value="admin">Admin</option>
+                            <option value="god">God</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Admin e God têm acesso a todas as telas por padrão.</p>
+                    </div>
+                    <!-- Permissões de Tela (Sections) -->
+                    <div id="sectionsPermissionsContainer">
+                        <label class="block text-sm font-medium text-[#254c90] mb-2">Acesso às Telas (para nível "Usuário")</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 border p-4 rounded-md max-h-64 overflow-y-auto">
+                            <?php foreach ($available_sections as $key => $label): ?>
+                                <div>
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="checkbox" name="sections[]" value="<?= $key ?>" class="form-checkbox h-5 w-5 text-[#254c90] rounded border-gray-300 focus:ring-[#1d3870]">
+                                        <span class="text-gray-700"><?= htmlspecialchars($label) ?></span>
+                                    </label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-6 pt-4 border-t">
+                    <button type="button" id="cancelPermissions" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md mr-2 hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Salvar Permissões</button>
+                </div>
+            </form>
         </div>
     </div>
     <!-- Success Modal -->
@@ -926,8 +1073,8 @@ if ($result_normas) {
                 'upload': 'Upload de Arquivos',
                 'info-upload': 'Cadastrar Informação',
                 'about': 'Sobre Nós',
-                'settings': 'Configurações',
-                'registros_sugestoes': 'Registros de Sugestões'
+                'registros_sugestoes': 'Registros de Sugestões',
+                'settings': 'Configurações'
             };
             document.getElementById('pageTitle').textContent = titles[sectionId] || 'Página Inicial';
 
@@ -1072,6 +1219,19 @@ if ($result_normas) {
             });
             const dashboardLink = document.querySelector('.sidebar-link[data-section="dashboard"]');
             if (dashboardLink) dashboardLink.classList.add('bg-[#1d3870]');
+
+            // Check for section in URL to auto-open
+            const urlParams = new URLSearchParams(window.location.search);
+            const section = urlParams.get('section');
+            const tab = urlParams.get('tab');
+            if (section) {
+                showSection(section);
+                // If it's the settings section and a tab is specified, click the tab button
+                if (section === 'settings' && tab) {
+                    const tabButton = document.querySelector(`.settings-tab-btn[data-tab="${tab}"]`);
+                    tabButton?.click();
+                }
+            }
         });
         // Dropdown do perfil
         document.getElementById('profileDropdownBtn').addEventListener('click', function(e) {
@@ -1161,12 +1321,103 @@ document.addEventListener('change', function(e) {
         });
     }
 });
+
+// Lógica para abas da seção de Configurações
+const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
+const settingsTabContents = document.querySelectorAll('.settings-tab-content');
+
+settingsTabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+
+        // Atualiza a aparência dos botões
+        settingsTabBtns.forEach(b => {
+            b.classList.remove('border-[#254c90]', 'text-[#254c90]');
+            b.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+        });
+        btn.classList.add('border-[#254c90]', 'text-[#254c90]');
+        btn.classList.remove('border-transparent', 'text-gray-500');
+
+        // Mostra/esconde o conteúdo das abas
+        settingsTabContents.forEach(content => {
+            if (content.id === `settings-tab-${tab}`) {
+                content.classList.remove('hidden');
+            } else {
+                content.classList.add('hidden');
+            }
+        });
+    });
+});
 // Lógica para o menu de Normas e Procedimentos
 document.getElementById('normas-menu-toggle').addEventListener('click', function(e) {
     e.preventDefault();
     document.getElementById('normas-submenu').classList.toggle('hidden');
     document.getElementById('normas-arrow').classList.toggle('rotate-180');
 });
+
+// Lógica do Modal de Permissões
+const permissionsModal = document.getElementById('permissionsModal');
+const modalContent = permissionsModal.querySelector('.transform');
+const openModalBtns = document.querySelectorAll('.open-permissions-modal');
+const closeModalBtn = document.getElementById('closePermissionsModal');
+const cancelBtn = document.getElementById('cancelPermissions');
+const modalUserId = document.getElementById('modalUserId');
+const modalUsername = document.getElementById('modalUsername');
+const modalUserRole = document.getElementById('modalUserRole');
+const sectionsContainer = document.getElementById('sectionsPermissionsContainer');
+const sectionCheckboxes = permissionsModal.querySelectorAll('input[name="sections[]"]');
+
+function openPermissionsModal() {
+    permissionsModal.classList.remove('hidden');
+    setTimeout(() => {
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+function closePermissionsModal() {
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        permissionsModal.classList.add('hidden');
+    }, 200);
+}
+
+openModalBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const userId = btn.dataset.userid;
+        const username = btn.dataset.username;
+
+        modalUserId.value = userId;
+        modalUsername.textContent = username;
+
+        // Limpa o formulário antes de carregar novos dados
+        sectionCheckboxes.forEach(cb => cb.checked = false);
+        modalUserRole.value = 'user';
+
+        // Busca as permissões atuais do usuário via AJAX
+        fetch(`get_user_permissions.php?user_id=${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) { alert(data.error); return; }
+                
+                modalUserRole.value = data.role;
+                data.sections.forEach(sectionName => {
+                    const checkbox = permissionsModal.querySelector(`input[value="${sectionName}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+                sectionsContainer.style.display = (data.role === 'user') ? 'block' : 'none';
+                openPermissionsModal();
+            });
+    });
+});
+
+modalUserRole.addEventListener('change', () => {
+    sectionsContainer.style.display = (modalUserRole.value === 'user') ? 'block' : 'none';
+});
+
+closeModalBtn.addEventListener('click', closePermissionsModal);
+cancelBtn.addEventListener('click', closePermissionsModal);
 
 // Lógica para mostrar/esconder o campo de setor no formulário de upload
 document.querySelector('select[name="departamento"]').addEventListener('change', function() {
