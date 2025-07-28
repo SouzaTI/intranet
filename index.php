@@ -131,6 +131,10 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
                     <i class="fas fa-question-circle w-6"></i>
                     <span>FAQ</span>
                 </a>
+                <a href="#" data-section="normas" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('normas'); return false;">
+                    <i class="fas fa-book w-6"></i>
+                    <span>Normas e Procedimentos</span>
+                </a>
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
                 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                     <a href="#" data-section="upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('upload'); return false;">
@@ -576,6 +580,28 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
         </form>
     </div>
                 </section>
+                <!-- Normas e Procedimentos Section -->
+                <section id="normas" class="hidden space-y-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Normas e Procedimentos</h2>
+                        <p class="text-[#254c90] mb-4">
+                            Aqui você encontrará todas as normas, políticas e procedimentos importantes da Comercial Souza.
+                        </p>
+                        <div class="space-y-6">
+                            <!-- Exemplo de item. No futuro, isso pode vir do banco de dados. -->
+                            <div class="border-l-4 border-blue-500 pl-4">
+                                <h3 class="font-semibold text-lg text-[#254c90]">Política de Home Office</h3>
+                                <p class="text-gray-700 mt-1">Documento detalhando as regras e diretrizes para o trabalho remoto, incluindo elegibilidade, horários e responsabilidades.</p>
+                                <a href="#" class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">Visualizar Documento &gt;</a>
+                            </div>
+                            <div class="border-l-4 border-green-500 pl-4">
+                                <h3 class="font-semibold text-lg text-[#254c90]">Código de Conduta e Ética</h3>
+                                <p class="text-gray-700 mt-1">Estabelece os princípios éticos e de conduta esperados de todos os colaboradores da empresa.</p>
+                                <a href="#" class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">Visualizar Documento &gt;</a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
                 <!-- Informações/Avisos Section -->
                 <section id="info-upload" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -740,9 +766,14 @@ $infoCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='wo
                 'documents': 'Documentos PDF',
                 'spreadsheets': 'Planilhas',
                 'information': 'Informações',
-                'upload': 'Upload de Arquivos'
+                'sugestoes': 'Sugestões e Reclamações',
+                'faq': 'FAQ',
+                'normas': 'Normas e Procedimentos',
+                'upload': 'Upload de Arquivos',
+                'info-upload': 'Cadastrar Informação',
+                'about': 'Sobre Nós'
             };
-            document.getElementById('pageTitle').textContent = titles[sectionId];
+            document.getElementById('pageTitle').textContent = titles[sectionId] || 'Página Inicial';
 
             // Remove destaque de todos os links
             document.querySelectorAll('.sidebar-link').forEach(link => {
