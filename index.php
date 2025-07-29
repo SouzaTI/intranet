@@ -58,6 +58,7 @@ $available_sections = [
     'documents' => 'Documentos PDF',
     'spreadsheets' => 'Planilhas',
     'information' => 'Informações (Visualização)',
+    'matriz_comunicacao' => 'Matriz de Comunicação',
     'sugestoes' => 'Sugestões e Reclamações (Envio)',
     'faq' => 'FAQ',
     'normas' => 'Normas e Procedimentos',
@@ -79,6 +80,69 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
         }
     }
 }
+
+// --- Início da Lógica para Matriz de Comunicação ---
+$funcionarios_matriz = [];
+$total_paginas_matriz = 1;
+$pagina_atual_matriz = 1;
+$query_string_matriz = '';
+
+// Define os filtros possíveis.
+$filtros_disponiveis_matriz = ['nome', 'setor', 'email', 'ramal'];
+$condicoes_matriz = [];
+$parametros_matriz = [];
+$tipos_parametros_matriz = '';
+
+foreach ($filtros_disponiveis_matriz as $filtro) {
+    if (!empty($_GET[$filtro])) {
+        if ($filtro === 'setor') {
+            // Para o filtro de setor (agora um select), usamos correspondência exata
+            $condicoes_matriz[] = "`setor` = ?";
+            $parametros_matriz[] = $_GET[$filtro];
+        } else {
+            // Para outros filtros, mantemos a busca parcial com LIKE
+            $condicoes_matriz[] = "`$filtro` LIKE ?";
+            $parametros_matriz[] = '%' . $_GET[$filtro] . '%';
+        }
+        $tipos_parametros_matriz .= 's';
+    }
+}
+
+// Monta a query de contagem
+$sql_count_matriz = "SELECT COUNT(*) FROM matriz_comunicacao";
+if (count($condicoes_matriz) > 0) {
+    $sql_count_matriz .= " WHERE " . implode(' AND ', $condicoes_matriz);
+}
+
+$stmt_count = $conn->prepare($sql_count_matriz);
+if (count($parametros_matriz) > 0) {
+    $stmt_count->bind_param($tipos_parametros_matriz, ...$parametros_matriz);
+}
+$stmt_count->execute();
+$total_resultados_matriz = $stmt_count->get_result()->fetch_row()[0];
+
+// Define variáveis de paginação
+$resultados_por_pagina_matriz = 20; // Você pode ajustar este valor
+$total_paginas_matriz = $total_resultados_matriz > 0 ? ceil($total_resultados_matriz / $resultados_por_pagina_matriz) : 1;
+$pagina_atual_matriz = isset($_GET['pagina']) && is_numeric($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+$pagina_atual_matriz = max(1, min($pagina_atual_matriz, $total_paginas_matriz));
+$offset_matriz = ($pagina_atual_matriz - 1) * $resultados_por_pagina_matriz;
+
+// Monta a query principal
+$sql_matriz = "SELECT id, nome, setor, email, ramal FROM matriz_comunicacao";
+if (count($condicoes_matriz) > 0) {
+    $sql_matriz .= " WHERE " . implode(' AND ', $condicoes_matriz);
+}
+$sql_matriz .= " ORDER BY nome ASC LIMIT ?, ?";
+$parametros_matriz[] = $offset_matriz;
+$parametros_matriz[] = $resultados_por_pagina_matriz;
+$tipos_parametros_matriz .= 'ii';
+$stmt_main = $conn->prepare($sql_matriz);
+$stmt_main->bind_param($tipos_parametros_matriz, ...$parametros_matriz);
+$stmt_main->execute();
+$result_matriz = $stmt_main->get_result();
+$funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
+// --- Fim da Lógica para Matriz de Comunicação ---
 
 ?>
 <!DOCTYPE html>
@@ -157,6 +221,35 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
         }
         .text-main { color: #254c90; }
         .bg-main { background: #254c90; }
+
+        /* Ajuste de cor de hover para a Matriz de Comunicação */
+        #matriz_comunicacao table tbody tr:hover {
+            background-color: #f1f5f9 !important; /* Cor cinza-azulado bem clara */
+        }
+        .cell-content-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        .edit-trigger {
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            cursor: pointer;
+            color: #3b82f6; /* Azul */
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+        tr:hover .edit-trigger { opacity: 1; }
+        .cell-content[contenteditable="true"] {
+            background-color: #e0e7ff !important;
+            outline: 2px solid #4f46e5; /* Indigo */
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+        td.cell-saving { background-color: #fefce8 !important; } /* Amarelo */
+        td.cell-success { background-color: #dcfce7 !important; transition: background-color 0.5s; } /* Verde */
+        td.cell-error { background-color: #fee2e2 !important; transition: background-color 0.5s; } /* Vermelho */
     </style>
 </head>
 <body>
@@ -195,6 +288,12 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
                 <a href="#" data-section="information" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('information'); return false;">
                     <i class="fas fa-info-circle w-6"></i>
                     <span>Informações</span>
+                </a>
+                <?php endif; ?>
+                <?php if (can_view_section('matriz_comunicacao')): ?>
+                <a href="#" data-section="matriz_comunicacao" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('matriz_comunicacao'); return false;">
+                    <i class="fas fa-address-book w-6"></i>
+                    <span>Matriz de Comunicação</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('sugestoes')): ?>
@@ -981,6 +1080,150 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
                     <p class="text-red-500">Acesso negado.</p>
                 <?php endif; ?>
                 </section>
+
+                <!-- Matriz de Comunicação Section -->
+                <section id="matriz_comunicacao" class="hidden space-y-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Matriz de Comunicação</h2>
+                        
+                        <!-- Formulário de Filtros -->
+                        <form action="index.php" method="GET" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 flex flex-wrap items-end gap-4">
+                            <input type="hidden" name="section" value="matriz_comunicacao">
+                            <div>
+                                <label for="nome" class="block text-sm font-medium text-gray-700">Nome:</label>
+                                <input type="text" id="nome" name="nome" value="<?= htmlspecialchars($_GET['nome'] ?? '') ?>" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                            </div>
+                            <div>
+                                <label for="setor" class="block text-sm font-medium text-gray-700">Setor:</label>
+                                <select id="setor" name="setor" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-gray-700" style="min-width: 180px;">
+                                    <option value="">Todos os setores</option>
+                                    <?php
+                                    // Busca os setores distintos diretamente da tabela para popular o filtro
+                                    $result_setores_matriz = $conn->query("SELECT DISTINCT setor FROM matriz_comunicacao WHERE setor IS NOT NULL AND setor != '' ORDER BY setor ASC");
+                                    if ($result_setores_matriz) {
+                                        while ($setor_item = $result_setores_matriz->fetch_assoc()) {
+                                            $nome_setor = htmlspecialchars($setor_item['setor']);
+                                            $selected = (isset($_GET['setor']) && $_GET['setor'] === $setor_item['setor']) ? 'selected' : '';
+                                            echo "<option value=\"{$nome_setor}\" {$selected}>{$nome_setor}</option>";
+                                        }
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700">E-mail:</label>
+                                <input type="text" id="email" name="email" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                            </div>
+                            <div>
+                                <label for="ramal" class="block text-sm font-medium text-gray-700">Ramal:</label>
+                                <input type="text" id="ramal" name="ramal" value="<?= htmlspecialchars($_GET['ramal'] ?? '') ?>" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]" title="Aplicar filtros de busca"><i class="fas fa-search"></i> Pesquisar</button>
+                                <a href="index.php?section=matriz_comunicacao" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700" title="Remover todos os filtros">Limpar</a>
+                                <?php if (in_array($_SESSION['role'], ['admin', 'god'])): ?>
+                                    <button type="button" id="btn-adicionar-funcionario" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" title="Adicionar novo registro"><i class="fas fa-plus"></i> Adicionar Novo</button>
+                                <?php endif; ?>
+                            </div>
+                        </form>
+
+                        <!-- Formulário para Adicionar Novo Funcionário (oculto por padrão) -->
+                        <div id="form-adicionar-funcionario" class="hidden bg-gray-100 p-6 rounded-lg border border-gray-300 my-6">
+                            <h3 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Novo Funcionário</h3>
+                            <form action="adicionar_funcionario_matriz.php" method="POST" class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="novo_nome" class="block text-sm font-medium text-gray-700">Nome:</label>
+                                        <input type="text" id="novo_nome" name="nome" required class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
+                                    </div>
+                                    <div>
+                                        <label for="novo_setor" class="block text-sm font-medium text-gray-700">Setor:</label>
+                                        <input type="text" id="novo_setor" name="setor" required class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
+                                    </div>
+                                    <div>
+                                        <label for="novo_email" class="block text-sm font-medium text-gray-700">E-mail:</label>
+                                        <input type="email" id="novo_email" name="email" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
+                                    </div>
+                                    <div>
+                                        <label for="novo_ramal" class="block text-sm font-medium text-gray-700">Ramal:</label>
+                                        <input type="text" id="novo_ramal" name="ramal" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" id="btn-cancelar-adicao" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Cancelar</button>
+                                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Salvar Funcionário</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Tabela de Resultados -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white">
+                                <thead class="bg-[#254c90] text-white">
+                                    <tr>
+                                        <th class="py-3 px-4 text-left">Nome</th>
+                                        <th class="py-3 px-4 text-left">Setor</th>
+                                        <th class="py-3 px-4 text-left">E-mail</th>
+                                        <th class="py-3 px-4 text-left">Ramal</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    <?php if (count($funcionarios_matriz) > 0): ?>
+                                        <?php foreach ($funcionarios_matriz as $funcionario): ?>
+                                            <?php $is_admin = in_array($_SESSION['role'], ['admin', 'god']); ?>
+                                            <tr data-id="<?= $funcionario['id'] ?>">
+                                                <td class="py-3 px-4" data-column="nome">
+                                                    <div class="cell-content-wrapper">
+                                                        <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
+                                                        <?php if ($is_admin): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3 px-4" data-column="setor">
+                                                    <div class="cell-content-wrapper">
+                                                        <span class="cell-content"><?= htmlspecialchars($funcionario['setor']) ?></span>
+                                                        <?php if ($is_admin): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3 px-4" data-column="email">
+                                                    <div class="cell-content-wrapper">
+                                                        <span class="cell-content"><?= htmlspecialchars($funcionario['email']) ?></span>
+                                                        <?php if ($is_admin): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3 px-4" data-column="ramal">
+                                                    <div class="cell-content-wrapper">
+                                                        <span class="cell-content"><?= htmlspecialchars($funcionario['ramal']) ?></span>
+                                                        <?php if ($is_admin): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="4" class="py-4 px-4 text-center text-gray-500">Nenhum resultado encontrado.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Controles de Paginação -->
+                        <div class="mt-6 flex justify-center">
+                            <nav class="flex items-center space-x-2">
+                                <?php
+                                if ($total_paginas_matriz > 1):
+                                    $query_params = $_GET;
+                                    for ($i = 1; $i <= $total_paginas_matriz; $i++):
+                                        $query_params['pagina'] = $i;
+                                        $link = 'index.php?' . http_build_query($query_params);
+                                        $active_class = ($i == $pagina_atual_matriz) ? 'bg-[#254c90] text-white' : 'bg-white text-[#254c90] hover:bg-gray-100';
+                                ?>
+                                    <a href="<?= $link ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm <?= $active_class ?>"><?= $i ?></a>
+                                <?php endfor; endif; ?>
+                            </nav>
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
@@ -1067,6 +1310,7 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
                 'documents': 'Documentos PDF',
                 'spreadsheets': 'Planilhas',
                 'information': 'Informações',
+                'matriz_comunicacao': 'Matriz de Comunicação',
                 'sugestoes': 'Sugestões e Reclamações',
                 'faq': 'FAQ',
                 'normas': 'Normas e Procedimentos',
@@ -1428,6 +1672,75 @@ document.querySelector('select[name="departamento"]').addEventListener('change',
         setorField.classList.add('hidden');
     }
 });
+
+// Lógica para mostrar/esconder formulário de adicionar funcionário
+const btnAdicionar = document.getElementById('btn-adicionar-funcionario');
+const formAdicionar = document.getElementById('form-adicionar-funcionario');
+const btnCancelarAdicao = document.getElementById('btn-cancelar-adicao');
+
+if (btnAdicionar && formAdicionar && btnCancelarAdicao) {
+    btnAdicionar.addEventListener('click', () => {
+        formAdicionar.classList.remove('hidden');
+    });
+
+    btnCancelarAdicao.addEventListener('click', () => {
+        formAdicionar.classList.add('hidden');
+    });
+}
+
+// Lógica para edição na Matriz de Comunicação com ícone de lápis
+const matrizSection = document.getElementById('matriz_comunicacao');
+
+matrizSection.addEventListener('click', function(e) {
+    // Ativa a edição ao clicar no lápis
+    if (e.target && e.target.classList.contains('edit-trigger')) {
+        const wrapper = e.target.closest('.cell-content-wrapper');
+        const contentSpan = wrapper.querySelector('.cell-content');
+
+        contentSpan.setAttribute('contenteditable', 'true');
+        contentSpan.focus();
+
+        // Seleciona o texto para facilitar a edição
+        const range = document.createRange();
+        range.selectNodeContents(contentSpan);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+});
+
+matrizSection.addEventListener('blur', function(e) {
+    // Salva a alteração quando o foco é perdido (blur)
+    if (e.target && e.target.classList.contains('cell-content') && e.target.isContentEditable) {
+        const contentSpan = e.target;
+        const td = contentSpan.closest('td');
+        const tr = contentSpan.closest('tr');
+
+        const id = tr.dataset.id;
+        const column = td.dataset.column;
+        const value = contentSpan.textContent.trim();
+
+        contentSpan.setAttribute('contenteditable', 'false');
+
+        td.classList.remove('cell-success', 'cell-error');
+        td.classList.add('cell-saving');
+
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('column', column);
+        formData.append('value', value);
+
+        fetch('atualizar_matriz.php', { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                td.classList.remove('cell-saving');
+                td.classList.add(data.success ? 'cell-success' : 'cell-error');
+                if (!data.success) alert(data.message || 'Erro ao salvar.');
+                setTimeout(() => td.classList.remove('cell-success', 'cell-error'), 2000);
+            })
+            .catch(() => alert('Erro de conexão.'));
+    }
+}, true); // Usa a fase de captura para garantir que o evento seja pego
 
 function visualizarArquivo(url, tipo) {
     // Mostra o container do visualizador
