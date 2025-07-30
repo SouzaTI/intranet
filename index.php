@@ -280,6 +280,65 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
         td.cell-saving { background-color: #fefce8 !important; } /* Amarelo */
         td.cell-success { background-color: #dcfce7 !important; transition: background-color 0.5s; } /* Verde */
         td.cell-error { background-color: #fee2e2 !important; transition: background-color 0.5s; } /* Vermelho */
+
+        /* Estilo de Abas de Pasta */
+        .folder-tab {
+            background-color: #e9eef5; /* Cor de pasta inativa (cinza-azulado claro) */
+            color: #4b5563;
+            padding: 10px 20px;
+            border: 1px solid #d1d5db;
+            border-bottom: none;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            margin-right: 2px;
+            position: relative;
+            top: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+        }
+        .folder-tab:hover {
+            background-color: #f4f6f9;
+        }
+        .folder-tab.active {
+            background-color: #ffffff;
+            color: #254c90;
+            font-weight: 600;
+            z-index: 2;
+        }
+        .folder-tab-content-container {
+            border: 1px solid #d1d5db;
+            border-radius: 0 8px 8px 8px;
+            padding: 1.5rem;
+            margin-top: -1px;
+            background-color: #ffffff;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Estilo de Botões de Filtro (Pílula) */
+        .filter-pill-btn {
+            padding: 6px 16px;
+            border-radius: 9999px; /* pill shape */
+            font-size: 0.875rem; /* 14px */
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .filter-pill-btn.inactive {
+            background-color: #e9eef5; /* cinza-azulado claro */
+            color: #374151; /* gray-700 */
+        }
+        .filter-pill-btn.inactive:hover {
+            background-color: #dbeafe; /* blue-200 */
+            color: #1d4ed8; /* blue-700 */
+            transform: translateY(-1px);
+        }
+        .filter-pill-btn.active {
+            background-color: #254c90; /* Cor principal */
+            color: #ffffff;
+            box-shadow: 0 4px 14px 0 rgba(37, 76, 144, 0.39);
+        }
     </style>
 </head>
 <body>
@@ -428,6 +487,23 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 </div>
             </header>
             <!-- Main Content Area -->
+            <div class="p-4">
+                <?php if (isset($_GET['status']) && isset($_GET['msg'])): ?>
+                    <?php
+                        $status_class = $_GET['status'] === 'success' 
+                            ? 'bg-green-100 border-green-500 text-green-700' 
+                            : 'bg-red-100 border-red-500 text-red-700';
+                        $icon_class = $_GET['status'] === 'success'
+                            ? 'fa-check-circle'
+                            : 'fa-exclamation-triangle';
+                    ?>
+                    <div id="status-message" class="<?= $status_class ?> border-l-4 p-4 mb-4 rounded-r-lg" role="alert">
+                        <p class="font-bold flex items-center"><i class="fas <?= $icon_class ?> mr-2"></i> <?= $_GET['status'] === 'success' ? 'Sucesso' : 'Erro' ?></p>
+                        <p><?= htmlspecialchars($_GET['msg']) ?></p>
+                    </div>
+                <?php endif; ?>
+            </div>
+
             <main class="flex-1 overflow-y-auto bg-[#f8f9fb] p-4">
                 <!-- Dashboard Section -->
                 <section id="dashboard" class="space-y-6">
@@ -672,21 +748,21 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 </section>
                 <!-- Information Section -->
                 <section id="information" class="hidden">
-                    <div class="bg-white rounded-lg shadow p-6">
+                    <div>
                         <!-- Abas de Navegação -->
-                        <div class="border-b border-gray-200 mb-6">
-                            <nav class="flex space-x-4" aria-label="Tabs">
-                                <button class="info-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-[#254c90] text-[#254c90]" data-tab="comunicados">
-                                    Comunicados
+                        <nav class="flex" aria-label="Tabs">
+                            <button class="folder-tab active" data-tab="comunicados">
+                                <i class="fas fa-bullhorn mr-2"></i>Comunicados
+                            </button>
+                            <?php if (can_view_section('matriz_comunicacao')): ?>
+                            <button class="folder-tab" data-tab="matriz">
+                                <i class="fas fa-sitemap mr-2"></i>Matriz de Comunicação
                                 </button>
-                                <?php if (can_view_section('matriz_comunicacao')): ?>
-                                <button class="info-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="matriz">
-                                    Matriz de Comunicação
-                                </button>
-                                <?php endif; ?>
-                            </nav>
-                        </div>
+                            <?php endif; ?>
+                        </nav>
 
+                        <!-- Container para o conteúdo das abas -->
+                        <div class="folder-tab-content-container shadow">
                         <!-- Conteúdo da Aba: Comunicados -->
                         <div id="info-tab-comunicados" class="info-tab-content space-y-6">
                             <div class="bg-white rounded-lg shadow mb-6">
@@ -743,6 +819,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                             <?php include 'partials/matriz_comunicacao_content.php'; ?>
                         </div>
                         <?php endif; ?>
+                        </div>
                     </div>
                 </section>
                 <!-- Upload Section -->
@@ -1077,22 +1154,22 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <!-- Settings Section (Admin only) -->
                 <section id="settings" class="hidden space-y-6">
                 <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])): ?>
-                    <div class="bg-white rounded-lg shadow p-6">
+                    <div>
                         <!-- Abas de Navegação -->
-                        <div class="border-b border-gray-200 mb-6">
-                            <nav class="flex space-x-4" aria-label="Tabs">
-                                <button class="settings-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-[#254c90] text-[#254c90]" data-tab="menu">
-                                    Menu/Sub-Menu
-                                </button>
-                                <button class="settings-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="users">
-                                    Usuários/Permissões
-                                </button>
-                                <button class="settings-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="acesso">
-                                    Acesso
-                                </button>
-                            </nav>
-                        </div>
+                        <nav class="flex" aria-label="Tabs">
+                            <button class="folder-tab active" data-tab="menu">
+                                <i class="fas fa-list-ul mr-2"></i>Menu/Sub-Menu
+                            </button>
+                            <button class="folder-tab" data-tab="users">
+                                <i class="fas fa-users-cog mr-2"></i>Usuários/Permissões
+                            </button>
+                            <button class="folder-tab" data-tab="acesso">
+                                <i class="fas fa-shield-alt mr-2"></i>Acesso
+                            </button>
+                        </nav>
 
+                        <!-- Container para o conteúdo das abas -->
+                        <div class="folder-tab-content-container shadow">
                         <!-- Conteúdo da Aba: Menu/Sub-Menu -->
                         <div id="settings-tab-menu" class="settings-tab-content">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1217,6 +1294,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                     </ul>
                                 </div>
                             </div>
+                        </div>
                         </div>
                     </div>
                 <?php else: ?>
@@ -1625,6 +1703,12 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     // O click() já alterna a visibilidade e o estilo do botão
                     if (tabButton) tabButton.click();
                 }
+
+                // Limpa os parâmetros da URL para que o F5 funcione como esperado
+                if (window.history.replaceState) {
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                }
             }
         });
         // Dropdown do perfil
@@ -1717,53 +1801,43 @@ document.addEventListener('change', function(e) {
 });
 
 // Lógica para abas da seção de Informações
-const infoTabBtns = document.querySelectorAll('.info-tab-btn');
-const infoTabContents = document.querySelectorAll('.info-tab-content');
+const infoTabBtns = document.querySelectorAll('#information .folder-tab');
+const infoTabContents = document.querySelectorAll('#information .info-tab-content');
 
 infoTabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         const tabName = btn.dataset.tab;
 
-        // Atualiza a aparência dos botões
+        // Atualiza a aparência dos botões de pasta
         infoTabBtns.forEach(b => {
-            b.classList.remove('border-[#254c90]', 'text-[#254c90]');
-            b.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            b.classList.remove('active');
         });
-        btn.classList.add('border-[#254c90]', 'text-[#254c90]');
-        btn.classList.remove('border-transparent', 'text-gray-500');
+        btn.classList.add('active');
 
         // Mostra/esconde o conteúdo das abas
         infoTabContents.forEach(content => {
-            const contentName = content.id.replace('info-tab-', '');
-            // A função toggle esconde o elemento se a condição for verdadeira, e mostra se for falsa.
-            content.classList.toggle('hidden', contentName !== tabName);
+            content.classList.toggle('hidden', content.id !== `info-tab-${tabName}`);
         });
     });
 });
 
-// Lógica para abas da seção de Configurações
-const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
-const settingsTabContents = document.querySelectorAll('.settings-tab-content');
+// Lógica para abas da seção de Configurações (estilo pasta)
+const settingsTabBtns = document.querySelectorAll('#settings .folder-tab');
+const settingsTabContents = document.querySelectorAll('#settings .settings-tab-content');
 
 settingsTabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         const tab = btn.dataset.tab;
 
-        // Atualiza a aparência dos botões
+        // Atualiza a aparência dos botões de pasta
         settingsTabBtns.forEach(b => {
-            b.classList.remove('border-[#254c90]', 'text-[#254c90]');
-            b.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            b.classList.remove('active');
         });
-        btn.classList.add('border-[#254c90]', 'text-[#254c90]');
-        btn.classList.remove('border-transparent', 'text-gray-500');
+        btn.classList.add('active');
 
         // Mostra/esconde o conteúdo das abas
         settingsTabContents.forEach(content => {
-            if (content.id === `settings-tab-${tab}`) {
-                content.classList.remove('hidden');
-            } else {
-                content.classList.add('hidden');
-            }
+            content.classList.toggle('hidden', content.id !== `settings-tab-${tab}`);
         });
     });
 });
@@ -2053,13 +2127,13 @@ if (filtroSetorBotoesContainer) {
                 hiddenInput.value = setor;
             }
 
-            // 2. Atualiza a aparência dos botões
+            // 2. Atualiza a aparência dos botões de pílula
             document.querySelectorAll('.filtro-setor-btn').forEach(btn => {
-                btn.classList.remove('bg-[#254c90]', 'text-white');
-                btn.classList.add('bg-white', 'text-[#254c90]', 'hover:bg-gray-100');
+                btn.classList.remove('active');
+                btn.classList.add('inactive');
             });
-            e.target.classList.add('bg-[#254c90]', 'text-white');
-            e.target.classList.remove('bg-white', 'text-[#254c90]', 'hover:bg-gray-100');
+            e.target.classList.add('active');
+            e.target.classList.remove('inactive');
 
             // 3. Dispara a busca AJAX submetendo o formulário
             if (formFiltroMatrizTab) {
