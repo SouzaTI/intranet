@@ -1066,19 +1066,56 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <!-- FAQ Section -->
                 <section id="faq" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-2xl font-bold text-[#254c90] mb-4">FAQ - Perguntas Frequentes</h2>
-        <div class="space-y-4">
-            <div class="faq-item">
-                <div class="font-semibold text-[#254c90]">1. Como faço para resetar minha senha?</div>
-                <div class="text-gray-700">Para resetar sua senha, vá até a página de login e clique em "Esqueci minha senha". Siga as instruções enviadas para seu e-mail.</div>
+        <h2 class="text-3xl font-bold text-[#254c90] mb-6 border-b pb-3">FAQ - Perguntas Frequentes</h2>
+        
+        <div class="space-y-8">
+            <!-- Categoria: Acesso e Navegação -->
+            <div>
+                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Acesso e Navegação</h3>
+                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
+                    <div class="faq-item">
+                        <div class="font-semibold text-[#254c90]">1. Como acesso a intranet?</div>
+                        <p class="text-gray-700 mt-1">Você pode acessar a intranet usando seu nome de usuário e senha, os mesmos utilizados para login nos computadores da empresa.</p>
+                    </div>
+                    <div class="faq-item">
+                        <div class="font-semibold text-[#254c90]">2. Esqueci minha senha. O que eu faço?</div>
+                        <p class="text-gray-700 mt-1">Caso tenha esquecido sua senha, por favor, entre em contato com o departamento de TI para solicitar a redefinição.</p>
+                    </div>
+                    <div class="faq-item">
+                        <div class="font-semibold text-[#254c90]">3. Como encontro o que preciso na intranet?</div>
+                        <p class="text-gray-700 mt-1">Utilize o menu lateral à esquerda para navegar entre as principais seções. Para uma busca mais específica, use a barra de "Buscar..." no topo da página.</p>
+                    </div>
+                </div>
             </div>
-            <div class="faq-item">
-                <div class="font-semibold text-[#254c90]">2. Onde encontro os documentos da empresa?</div>
-                <div class="text-gray-700">Os documentos da empresa estão disponíveis na seção "Documentos PDF" e "Planilhas" do sistema.</div>
+
+            <!-- Categoria: Documentos e Arquivos -->
+            <div>
+                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Documentos e Arquivos</h3>
+                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
+                    <div class="faq-item">
+                        <div class="font-semibold text-[#254c90]">4. Onde encontro as Normas e Procedimentos da empresa?</div>
+                        <p class="text-gray-700 mt-1">No menu lateral, clique em "Normas e Procedimentos". Você pode clicar em "Ver Todos" ou selecionar um setor específico para filtrar os documentos.</p>
+                    </div>
+                    <div class="faq-item">
+                        <div class="font-semibold text-[#254c90]">5. Onde encontro formulários, relatórios e outros documentos?</div>
+                        <p class="text-gray-700 mt-1">Documentos em formato PDF estão na seção "Documentos PDF" e planilhas estão em "Planilhas". Use a busca dentro de cada seção para encontrar o que precisa.</p>
+                    </div>
+                </div>
             </div>
-            <div class="faq-item">
-                <div class="font-semibold text-[#254c90]">3. Como posso entrar em contato com o suporte?</div>
-                <div class="text-gray-700">Para entrar em contato com o suporte, envie um e-mail para suporte@exemplo.com ou ligue para (11) 1234-5678.</div>
+
+            <!-- Categoria: Comunicação e Contatos -->
+            <div>
+                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Comunicação e Contatos</h3>
+                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
+                    <div class="faq-item">
+                        <div class="font-semibold text-[#254c90]">6. Como encontro o ramal ou e-mail de um colega?</div>
+                        <p class="text-gray-700 mt-1">Acesse a seção "Informações" no menu e clique na aba "Matriz de Comunicação". Lá você pode pesquisar por nome, setor, e-mail ou ramal.</p>
+                    </div>
+                    <div class="faq-item">
+                        <div class="font-semibold text-[#254c90]">7. Onde vejo os comunicados oficiais da empresa?</div>
+                        <p class="text-gray-700 mt-1">Os comunicados mais recentes e importantes estão na Página Inicial e também na seção "Informações", na aba "Comunicados".</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
