@@ -63,6 +63,7 @@ $available_sections = [
     'faq' => 'FAQ',
     'normas' => 'Normas e Procedimentos',
     'about' => 'Sobre Nós',
+    'sistema' => 'Sistema',
     // Seções de Admin
     'upload' => 'Upload de Arquivos (Admin)',
     'info-upload' => 'Cadastrar Informação (Admin)',
@@ -78,6 +79,35 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
         while ($usuario = $result_usuarios->fetch_assoc()) {
             $usuarios[] = $usuario;
         }
+    }
+}
+
+// Busca sistemas externos para a página de Sistemas
+$sistemas_externos = [];
+$user_department = $_SESSION['department'] ?? null;
+$user_role = $_SESSION['role'] ?? 'user';
+
+// Se o usuário for admin ou god, mostra todos os sistemas. Senão, filtra por departamento.
+if (in_array($user_role, ['admin', 'god'])) {
+    $sql_sistemas = "SELECT * FROM sistemas_externos ORDER BY nome ASC";
+    $result_sistemas = $conn->query($sql_sistemas);
+} else {
+    // A consulta para usuários normais filtra por departamento ou por atalhos globais (departamento IS NULL)
+    $sql_sistemas = "SELECT * FROM sistemas_externos WHERE departamento = ? OR departamento IS NULL ORDER BY nome ASC";
+    $stmt_sistemas = $conn->prepare($sql_sistemas);
+    if ($stmt_sistemas) {
+        $stmt_sistemas->bind_param("s", $user_department);
+        $stmt_sistemas->execute();
+        $result_sistemas = $stmt_sistemas->get_result();
+        $stmt_sistemas->close();
+    } else {
+        $result_sistemas = false; // Garante que a variável exista em caso de falha na preparação
+    }
+}
+
+if ($result_sistemas) {
+    while ($sistema = $result_sistemas->fetch_assoc()) {
+        $sistemas_externos[] = $sistema;
     }
 }
 
@@ -315,6 +345,12 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         <?php endforeach; ?>
                     </div>
                 </div>
+                <?php endif; ?>
+                <?php if (can_view_section('sistema')): ?>
+                <a href="#" data-section="sistema" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sistema'); return false;">
+                    <i class="fas fa-desktop w-6"></i>
+                    <span>Sistemas</span>
+                </a>
                 <?php endif; ?>
 
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
@@ -1004,6 +1040,29 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
     </div>
 </section>
 
+<!-- Sistemas Section -->
+<section id="sistema" class="hidden space-y-6">
+    <h2 class="text-2xl font-bold text-[#254c90]">Acesso Rápido aos Sistemas</h2>
+    <?php if (count($sistemas_externos) > 0): ?>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <?php foreach ($sistemas_externos as $sistema): ?>
+                <a href="<?= htmlspecialchars($sistema['link']) ?>" target="_blank" rel="noopener noreferrer" class="document-card bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-transform transform hover:-translate-y-1">
+                    <i class="<?= htmlspecialchars($sistema['icon_class']) ?> text-4xl text-[#254c90] mb-3"></i>
+                    <h3 class="font-semibold text-lg text-[#1d3870]"><?= htmlspecialchars($sistema['nome']) ?></h3>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php else: ?>
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+            <i class="fas fa-info-circle text-3xl text-gray-400 mb-3"></i>
+            <p class="text-[#254c90]">
+                Nenhum atalho de sistema foi cadastrado ainda.
+            </p>
+            <p class="text-sm text-gray-500 mt-1">Peça a um administrador para adicionar os atalhos na tela de Configurações.</p>
+        </div>
+    <?php endif; ?>
+</section>
+
                 <!-- Registros de Sugestões Section (Admin only) -->
                 <section id="registros_sugestoes" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
@@ -1027,6 +1086,9 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 </button>
                                 <button class="settings-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="users">
                                     Usuários/Permissões
+                                </button>
+                                <button class="settings-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="acesso">
+                                    Acesso
                                 </button>
                             </nav>
                         </div>
@@ -1094,6 +1156,66 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        <!-- Conteúdo da Aba: Acesso -->
+                        <div id="settings-tab-acesso" class="settings-tab-content hidden">
+                            <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Gerenciar Acesso</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <!-- Card para Adicionar Atalho de Sistema -->
+                                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                                    <h4 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Novo Atalho de Sistema</h4>
+                                    <form action="gerenciar_sistemas.php" method="POST" class="space-y-4">
+                                        <input type="hidden" name="action" value="add">
+                                        <div>
+                                            <label for="nome_sistema" class="block text-sm font-medium text-[#254c90]">Nome do Sistema</label>
+                                            <input type="text" id="nome_sistema" name="nome" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                        </div>
+                                        <div>
+                                            <label for="link_sistema" class="block text-sm font-medium text-[#254c90]">Link do Sistema</label>
+                                            <input type="url" id="link_sistema" name="link" required placeholder="https://..." class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                        </div>
+                                        <div>
+                                            <label for="departamento_sistema" class="block text-sm font-medium text-[#254c90]">Departamento (Opcional)</label>
+                                            <select id="departamento_sistema" name="departamento" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                                <option value="">Todos os Departamentos</option>
+                                                <?php
+                                                $result_deps = $conn->query("SELECT DISTINCT department FROM users WHERE department IS NOT NULL AND department != '' ORDER BY department ASC");
+                                                while ($dep = $result_deps->fetch_assoc()) echo '<option value="'.htmlspecialchars($dep['department']).'">'.htmlspecialchars($dep['department']).'</option>';
+                                                ?>
+                                            </select>
+                                            <p class="text-xs text-gray-500 mt-1">Selecione um departamento ou deixe em "Todos".</p>
+                                        </div>
+                                        <div>
+                                            <label for="icon_sistema" class="block text-sm font-medium text-[#254c90]">Ícone (Font Awesome)</label>
+                                            <input type="text" id="icon_sistema" name="icon_class" placeholder="Ex: fas fa-cogs" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                            <p class="text-xs text-gray-500 mt-1">Opcional. Veja os ícones em <a href="https://fontawesome.com/v6/search" target="_blank" class="text-blue-500 underline">fontawesome.com</a>.</p>
+                                        </div>
+                                        <div class="flex justify-end">
+                                            <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Adicionar Atalho</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <!-- Card para Listar Atalhos -->
+                                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                                    <h4 class="text-lg font-semibold text-[#254c90] mb-4">Atalhos Cadastrados</h4>
+                                    <ul class="space-y-3 max-h-96 overflow-y-auto">
+                                        <?php foreach ($sistemas_externos as $sistema): ?>
+                                            <li class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                                                <div>
+                                                    <span class="text-[#254c90] font-medium"><i class="<?= htmlspecialchars($sistema['icon_class']) ?> mr-2 text-gray-500"></i><?= htmlspecialchars($sistema['nome']) ?></span>
+                                                    <span class="block text-xs text-gray-500 ml-6"><?= htmlspecialchars($sistema['departamento'] ?? 'Visível para Todos') ?></span>
+                                                </div>
+                                                <form action="gerenciar_sistemas.php" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este atalho?');">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="sistema_id" value="<?= $sistema['id'] ?>">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700" title="Excluir Atalho"><i class="fas fa-trash-alt"></i></button>
+                                                </form>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1336,7 +1458,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 'faq': 'FAQ',
                 'normas': 'Normas e Procedimentos',
                 'upload': 'Upload de Arquivos',
-                'info-upload': 'Cadastrar Informação',
+                'info-upload': 'Cadastrar Informação',                
+                'sistema': 'Sistemas',
                 'about': 'Sobre Nós',
                 'registros_sugestoes': 'Registros de Sugestões',
                 'settings': 'Configurações'
