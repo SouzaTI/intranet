@@ -1210,7 +1210,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 <i class="fas fa-users-cog mr-2"></i>Usuários/Permissões
                             </button>
                             <button class="folder-tab" data-tab="acesso">
-                                <i class="fas fa-shield-alt mr-2"></i>Acesso
+                                <i class="fas fa-shield-alt mr-2"></i>Acessos
                             </button>
                         </nav>
 
@@ -1284,7 +1284,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 
                         <!-- Conteúdo da Aba: Acesso -->
                         <div id="settings-tab-acesso" class="settings-tab-content hidden">
-                            <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Gerenciar Acesso</h3>
+                            <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Gerenciar Acessos</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <!-- Card para Adicionar Atalho de Sistema -->
                                 <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
@@ -1740,12 +1740,12 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 showSection(section);
                 // If it's the settings section and a tab is specified, click the tab button
                 if (section === 'settings' && tab) {
-                    const tabButton = document.querySelector(`.settings-tab-btn[data-tab="${tab}"]`);
+                    const tabButton = document.querySelector(`#settings .folder-tab[data-tab="${tab}"]`);
                     tabButton?.click();
                 }
                 // Adicionado para abrir a aba correta na seção de Informações
                 if (section === 'information' && tab) {
-                    const tabButton = document.querySelector(`.info-tab-btn[data-tab="${tab}"]`);
+                    const tabButton = document.querySelector(`#information .folder-tab[data-tab="${tab}"]`);
                     // O click() já alterna a visibilidade e o estilo do botão
                     if (tabButton) tabButton.click();
                 }
