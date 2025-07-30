@@ -207,7 +207,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
         }
         /* Sobrescreve o hover para os cards de documento/atalho para usar amarelo */
         .document-card:hover {
-            background-color: #b4aa37ff !important;
+            background-color: #f5c4c4ff !important;
         }
         .rounded-full, .rounded-lg, .rounded-md {
             border-radius: 0.5rem !important;
