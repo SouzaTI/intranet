@@ -23,9 +23,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $stmt = $conn->prepare("INSERT INTO sistemas_externos (nome, link, icon_class, departamento) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("ssss", $nome, $link, $icon_class, $departamento);
         if ($stmt->execute()) {
-            // Sucesso
+            $status = "success";
+            $msg = "Atalho adicionado com sucesso!";
         } else {
-            // Erro
+            $status = "error";
+            $msg = "Erro ao adicionar o atalho.";
         }
         $stmt->close();
 
@@ -35,15 +37,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $stmt = $conn->prepare("DELETE FROM sistemas_externos WHERE id = ?");
         $stmt->bind_param("i", $sistema_id);
         if ($stmt->execute()) {
-            // Sucesso
+            $status = "success";
+            $msg = "Atalho excluído com sucesso!";
         } else {
-            // Erro
+            $status = "error";
+            $msg = "Erro ao excluir o atalho.";
         }
         $stmt->close();
     }
 }
 
 // Redireciona de volta para a aba de acesso nas configurações
-header("Location: index.php?section=settings&tab=acesso");
+header("Location: index.php?section=settings&tab=acesso&status=$status&msg=" . urlencode($msg));
 exit();
 ?>
