@@ -205,6 +205,10 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
         .hover\:bg-indigo-700:hover, .hover\:bg-indigo-600:hover, .hover\:bg-indigo-900:hover, .hover\:bg-gray-100:hover, .hover\:bg-gray-300:hover, .hover\:bg-gray-50:hover {
             background-color: #1d3870 !important;
         }
+        /* Sobrescreve o hover para os cards de documento/atalho para usar amarelo */
+        .document-card:hover {
+            background-color: #b4aa37ff !important;
+        }
         .rounded-full, .rounded-lg, .rounded-md {
             border-radius: 0.5rem !important;
         }
@@ -254,8 +258,13 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 
         /* Ajuste de cor de hover para a Matriz de Comunicação */
         #matriz_comunicacao table tbody tr:hover {
-            background-color: #f1f5f9 !important; /* Cor cinza-azulado bem clara */
+            background-color: #ced9e4ff !important; /* Cor cinza-azulado bem clara */
         }
+        /* Ajuste de cor de hover para a tabela da Matriz na aba Informações */
+        #info-tab-matriz table tbody tr:hover {
+            background-color: #a9e0ceff !important; 
+        }
+
         .cell-content-wrapper {
             display: flex;
             justify-content: space-between;
@@ -266,14 +275,14 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             opacity: 0;
             transition: opacity 0.2s ease-in-out;
             cursor: pointer;
-            color: #3b82f6; /* Azul */
+            color: #97abccff; /* Azul */
             font-size: 0.8rem;
             margin-left: 8px;
         }
         tr:hover .edit-trigger { opacity: 1; }
         .cell-content[contenteditable="true"] {
-            background-color: #e0e7ff !important;
-            outline: 2px solid #4f46e5; /* Indigo */
+            background-color: #8a99ccff !important;
+            outline: 2px solid #b8b7f5ff; /* Indigo */
             border-radius: 4px;
             padding: 2px 4px;
         }
@@ -1160,7 +1169,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
     <?php if (count($sistemas_externos) > 0): ?>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <?php foreach ($sistemas_externos as $sistema): ?>
-                <a href="<?= htmlspecialchars($sistema['link']) ?>" target="_blank" rel="noopener noreferrer" class="document-card bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-transform transform hover:-translate-y-1">
+            <a href="<?= htmlspecialchars($sistema['link']) ?>" target="_blank" rel="noopener noreferrer" class="document-card bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-transform transform hover:-translate-y-1">
                     <i class="<?= htmlspecialchars($sistema['icon_class']) ?> text-4xl text-[#254c90] mb-3"></i>
                     <h3 class="font-semibold text-lg text-[#1d3870]"><?= htmlspecialchars($sistema['nome']) ?></h3>
                 </a>
