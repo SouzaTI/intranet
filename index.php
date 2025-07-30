@@ -290,12 +290,6 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     <span>Informações</span>
                 </a>
                 <?php endif; ?>
-                <?php if (can_view_section('matriz_comunicacao')): ?>
-                <a href="#" data-section="matriz_comunicacao" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('matriz_comunicacao'); return false;">
-                    <i class="fas fa-address-book w-6"></i>
-                    <span>Matriz de Comunicação</span>
-                </a>
-                <?php endif; ?>
                 <?php if (can_view_section('sugestoes')): ?>
                 <a href="#" data-section="sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sugestoes'); return false;">
                     <i class="fas fa-comment-dots w-6"></i>
@@ -640,53 +634,79 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     </div>
                 </section>
                 <!-- Information Section -->
-                <section id="information" class="hidden space-y-6">
-                    <div class="bg-white rounded-lg shadow mb-6">
-        <div class="p-4 border-b font-semibold text-lg text-[#254c90]">Comunicados Importantes</div>
-        <div class="p-4 space-y-4">
-            <?php
-            $hoje = date('Y-m-d');
-            $result = $conn->query("SELECT * FROM informacoes WHERE categoria='Comunicados Importantes' AND (data_inicial IS NULL OR data_inicial <= '$hoje') AND (data_final IS NULL OR data_final >= '$hoje') ORDER BY data_publicacao DESC");
-            if ($result && $result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    $cor = $row['cor'] ?? 'blue';
-                    $corBarra = [
-                        'blue' => 'border-blue-500',
-                        'green' => 'border-green-500',
-                        'orange' => 'border-orange-500'
-                    ][$cor] ?? 'border-blue-500';
-                    echo '<div class="border-l-4 '.$corBarra.' pl-4">
-                        <div class="font-semibold text-[#254c90]">'.$row['titulo'].'</div>
-                        <div class="text-gray-700">'.$row['descricao'].'</div>
-                        <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: '.date('d/m/Y', strtotime($row['data_publicacao'])).'</div>
-                    </div>';
-                }
-            } else {
-                echo '<div class="text-gray-500">Nenhum comunicado importante cadastrado.</div>';
-            }
-            ?>
-        </div>
-    </div>
-    <div class="bg-white rounded-lg shadow">
-        <div class="p-4 border-b font-semibold text-lg text-[#254c90]">Informações Úteis</div>
-        <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <?php
-            $result = $conn->query("SELECT * FROM informacoes WHERE categoria='Informações Úteis' ORDER BY data_publicacao DESC");
-            if ($result && $result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    echo '<div class="border rounded-lg p-4 bg-gray-50">
-                        <div class="font-semibold text-[#254c90]">'.$row['titulo'].'</div>
-                        <div class="text-gray-700">'.$row['descricao'].'</div>
-                        <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: '.date('d/m/Y', strtotime($row['data_publicacao'])).'</div>
-                        <a href="#" class="text-indigo-600 text-xs mt-2 inline-block">Ver detalhes &gt;</a>
-                    </div>';
-                }
-            } else {
-                echo '<div class="text-gray-500">Nenhuma informação útil cadastrada.</div>';
-            }
-            ?>
-        </div>
-    </div>
+                <section id="information" class="hidden">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <!-- Abas de Navegação -->
+                        <div class="border-b border-gray-200 mb-6">
+                            <nav class="flex space-x-4" aria-label="Tabs">
+                                <button class="info-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-[#254c90] text-[#254c90]" data-tab="comunicados">
+                                    Comunicados
+                                </button>
+                                <?php if (can_view_section('matriz_comunicacao')): ?>
+                                <button class="info-tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="matriz">
+                                    Matriz de Comunicação
+                                </button>
+                                <?php endif; ?>
+                            </nav>
+                        </div>
+
+                        <!-- Conteúdo da Aba: Comunicados -->
+                        <div id="info-tab-comunicados" class="info-tab-content space-y-6">
+                            <div class="bg-white rounded-lg shadow mb-6">
+                                <div class="p-4 border-b font-semibold text-lg text-[#254c90]">Comunicados Importantes</div>
+                                <div class="p-4 space-y-4">
+                                    <?php
+                                    $hoje = date('Y-m-d');
+                                    $result = $conn->query("SELECT * FROM informacoes WHERE categoria='Comunicados Importantes' AND (data_inicial IS NULL OR data_inicial <= '$hoje') AND (data_final IS NULL OR data_final >= '$hoje') ORDER BY data_publicacao DESC");
+                                    if ($result && $result->num_rows > 0) {
+                                        while ($row = $result->fetch_assoc()) {
+                                            $cor = $row['cor'] ?? 'blue';
+                                            $corBarra = [
+                                                'blue' => 'border-blue-500',
+                                                'green' => 'border-green-500',
+                                                'orange' => 'border-orange-500'
+                                            ][$cor] ?? 'border-blue-500';
+                                            echo '<div class="border-l-4 '.$corBarra.' pl-4">
+                                                <div class="font-semibold text-[#254c90]">'.htmlspecialchars($row['titulo']).'</div>
+                                                <div class="text-gray-700">'.nl2br(htmlspecialchars($row['descricao'])).'</div>
+                                                <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: '.date('d/m/Y', strtotime($row['data_publicacao'])).'</div>
+                                            </div>';
+                                        }
+                                    } else {
+                                        echo '<div class="text-gray-500">Nenhum comunicado importante cadastrado.</div>';
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg shadow">
+                                <div class="p-4 border-b font-semibold text-lg text-[#254c90]">Informações Úteis</div>
+                                <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <?php
+                                    $result = $conn->query("SELECT * FROM informacoes WHERE categoria='Informações Úteis' ORDER BY data_publicacao DESC");
+                                    if ($result && $result->num_rows > 0) {
+                                        while ($row = $result->fetch_assoc()) {
+                                            echo '<div class="border rounded-lg p-4 bg-gray-50">
+                                                <div class="font-semibold text-[#254c90]">'.htmlspecialchars($row['titulo']).'</div>
+                                                <div class="text-gray-700">'.nl2br(htmlspecialchars($row['descricao'])).'</div>
+                                                <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: '.date('d/m/Y', strtotime($row['data_publicacao'])).'</div>
+                                                <a href="#" class="text-indigo-600 text-xs mt-2 inline-block">Ver detalhes &gt;</a>
+                                            </div>';
+                                        }
+                                    } else {
+                                        echo '<div class="text-gray-500">Nenhuma informação útil cadastrada.</div>';
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Conteúdo da Aba: Matriz de Comunicação -->
+                        <?php if (can_view_section('matriz_comunicacao')): ?>
+                        <div id="info-tab-matriz" class="info-tab-content hidden">
+                            <?php include 'partials/matriz_comunicacao_content.php'; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
                 </section>
                 <!-- Upload Section -->
                 <section id="upload" class="hidden space-y-6">
@@ -1475,6 +1495,12 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     const tabButton = document.querySelector(`.settings-tab-btn[data-tab="${tab}"]`);
                     tabButton?.click();
                 }
+                // Adicionado para abrir a aba correta na seção de Informações
+                if (section === 'information' && tab) {
+                    const tabButton = document.querySelector(`.info-tab-btn[data-tab="${tab}"]`);
+                    // O click() já alterna a visibilidade e o estilo do botão
+                    if (tabButton) tabButton.click();
+                }
             }
         });
         // Dropdown do perfil
@@ -1564,6 +1590,31 @@ document.addEventListener('change', function(e) {
             }
         });
     }
+});
+
+// Lógica para abas da seção de Informações
+const infoTabBtns = document.querySelectorAll('.info-tab-btn');
+const infoTabContents = document.querySelectorAll('.info-tab-content');
+
+infoTabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tabName = btn.dataset.tab;
+
+        // Atualiza a aparência dos botões
+        infoTabBtns.forEach(b => {
+            b.classList.remove('border-[#254c90]', 'text-[#254c90]');
+            b.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+        });
+        btn.classList.add('border-[#254c90]', 'text-[#254c90]');
+        btn.classList.remove('border-transparent', 'text-gray-500');
+
+        // Mostra/esconde o conteúdo das abas
+        infoTabContents.forEach(content => {
+            const contentName = content.id.replace('info-tab-', '');
+            // A função toggle esconde o elemento se a condição for verdadeira, e mostra se for falsa.
+            content.classList.toggle('hidden', contentName !== tabName);
+        });
+    });
 });
 
 // Lógica para abas da seção de Configurações
@@ -1688,6 +1739,21 @@ if (btnAdicionar && formAdicionar && btnCancelarAdicao) {
     });
 }
 
+// Lógica para mostrar/esconder formulário de adicionar funcionário NA ABA INFORMAÇÕES
+const btnAdicionarTab = document.getElementById('btn-adicionar-funcionario-tab');
+const formAdicionarTab = document.getElementById('form-adicionar-funcionario-tab');
+const btnCancelarAdicaoTab = document.getElementById('btn-cancelar-adicao-tab');
+
+if (btnAdicionarTab && formAdicionarTab && btnCancelarAdicaoTab) {
+    btnAdicionarTab.addEventListener('click', () => {
+        formAdicionarTab.classList.remove('hidden');
+    });
+
+    btnCancelarAdicaoTab.addEventListener('click', () => {
+        formAdicionarTab.classList.add('hidden');
+    });
+}
+
 // Lógica para edição na Matriz de Comunicação com ícone de lápis
 const matrizSection = document.getElementById('matriz_comunicacao');
 
@@ -1741,6 +1807,143 @@ matrizSection.addEventListener('blur', function(e) {
             .catch(() => alert('Erro de conexão.'));
     }
 }, true); // Usa a fase de captura para garantir que o evento seja pego
+
+// Lógica para edição na Matriz de Comunicação DENTRO DA ABA INFORMAÇÕES
+const informationSection = document.getElementById('information');
+
+if (informationSection) {
+    // Usamos delegação de evento no container da seção 'information'
+    informationSection.addEventListener('click', function(e) {
+        // Ativa a edição ao clicar no lápis
+        if (e.target && e.target.classList.contains('edit-trigger')) {
+            const wrapper = e.target.closest('.cell-content-wrapper');
+            const contentSpan = wrapper.querySelector('.cell-content');
+
+            contentSpan.setAttribute('contenteditable', 'true');
+            contentSpan.focus();
+
+            const range = document.createRange();
+            range.selectNodeContents(contentSpan);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    });
+
+    informationSection.addEventListener('blur', function(e) {
+        // Salva a alteração quando o foco é perdido (blur)
+        if (e.target && e.target.classList.contains('cell-content') && e.target.isContentEditable) {
+            const contentSpan = e.target;
+            const td = contentSpan.closest('td');
+            const tr = contentSpan.closest('tr');
+
+            const id = tr.dataset.id;
+            const column = td.dataset.column;
+            const value = contentSpan.textContent.trim();
+
+            contentSpan.setAttribute('contenteditable', 'false');
+            td.classList.add('cell-saving');
+
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('column', column);
+            formData.append('value', value);
+
+            fetch('atualizar_matriz.php', { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    td.classList.remove('cell-saving');
+                    td.classList.add(data.success ? 'cell-success' : 'cell-error');
+                    if (!data.success) alert(data.message || 'Erro ao salvar.');
+                    setTimeout(() => td.classList.remove('cell-success', 'cell-error'), 2000);
+                })
+                .catch(() => {
+                    td.classList.remove('cell-saving');
+                    td.classList.add('cell-error');
+                    alert('Erro de conexão.');
+                    setTimeout(() => td.classList.remove('cell-error'), 2000);
+                });
+        }
+    }, true); // Usa a fase de captura para garantir que o evento seja pego
+}
+
+// Lógica para filtro AJAX na aba da Matriz de Comunicação
+const formFiltroMatrizTab = document.getElementById('form-filtro-matriz-tab');
+const matrizTbody = document.getElementById('matriz-comunicacao-tbody');
+const matrizPagination = document.getElementById('matriz-comunicacao-pagination');
+
+// Função para executar a busca AJAX
+function executarBuscaMatriz(url) {
+    // Adiciona um indicador visual de carregamento
+    if (matrizTbody) {
+        matrizTbody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">Buscando...</td></tr>';
+    }
+    if (matrizPagination) {
+        matrizPagination.innerHTML = '';
+    }
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (matrizTbody) matrizTbody.innerHTML = data.table_html;
+            if (matrizPagination) matrizPagination.innerHTML = data.pagination_html;
+        })
+        .catch(error => {
+            console.error('Erro na busca AJAX:', error);
+            if (matrizTbody) matrizTbody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-red-500">Ocorreu um erro.</td></tr>';
+        });
+}
+
+// Listener para o envio do formulário de filtro
+if (formFiltroMatrizTab) {
+    formFiltroMatrizTab.addEventListener('submit', function(e) {
+        e.preventDefault(); // Previne o recarregamento da página
+        const formData = new FormData(this);
+        const params = new URLSearchParams(formData);
+        const url = `filtrar_matriz_ajax.php?${params.toString()}`;
+        executarBuscaMatriz(url);
+    });
+}
+
+// Listener para os cliques na paginação (usando delegação de evento)
+if (matrizPagination) {
+    matrizPagination.addEventListener('click', function(e) {
+        if (e.target && e.target.tagName === 'A') {
+            e.preventDefault(); // Previne a navegação padrão
+            const url = e.target.href.replace('index.php', 'filtrar_matriz_ajax.php');
+            executarBuscaMatriz(url);
+        }
+    });
+}
+
+// Listener para os botões de filtro de setor na aba
+const filtroSetorBotoesContainer = document.getElementById('filtro-setor-botoes');
+if (filtroSetorBotoesContainer) {
+    filtroSetorBotoesContainer.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('filtro-setor-btn')) {
+            const setor = e.target.dataset.setor;
+
+            // 1. Atualiza o campo hidden no formulário principal
+            const hiddenInput = document.getElementById('filtro_setor_hidden');
+            if (hiddenInput) {
+                hiddenInput.value = setor;
+            }
+
+            // 2. Atualiza a aparência dos botões
+            document.querySelectorAll('.filtro-setor-btn').forEach(btn => {
+                btn.classList.remove('bg-[#254c90]', 'text-white');
+                btn.classList.add('bg-white', 'text-[#254c90]', 'hover:bg-gray-100');
+            });
+            e.target.classList.add('bg-[#254c90]', 'text-white');
+            e.target.classList.remove('bg-white', 'text-[#254c90]', 'hover:bg-gray-100');
+
+            // 3. Dispara a busca AJAX submetendo o formulário
+            if (formFiltroMatrizTab) {
+                formFiltroMatrizTab.dispatchEvent(new Event('submit'));
+            }
+        }
+    });
+}
 
 function visualizarArquivo(url, tipo) {
     // Mostra o container do visualizador
