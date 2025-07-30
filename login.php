@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['profile_photo'] = $user['profile_photo'];
+            $_SESSION['department'] = $user['department']; // Adiciona o departamento à sessão
  
             // Carrega as permissões de seção do usuário
             $user_id = $user['id'];
