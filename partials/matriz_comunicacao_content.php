@@ -20,16 +20,16 @@
             <span class="text-sm font-medium text-gray-700 mr-2">Setores:</span>
             <?php
             $current_setor = $_GET['setor'] ?? '';
-            $class_todos = empty($current_setor) ? 'bg-[#254c90] text-white' : 'bg-white text-[#254c90] hover:bg-gray-100';
+            $class_todos = 'filter-pill-btn ' . (empty($current_setor) ? 'active' : 'inactive');
             ?>
-            <button type="button" data-setor="" class="filtro-setor-btn px-3 py-1 border border-gray-300 rounded-md text-sm <?= $class_todos ?>">Todos</button>
+            <button type="button" data-setor="" class="filtro-setor-btn <?= $class_todos ?>">Todos</button>
             <?php
             $result_setores_botoes = $conn->query("SELECT DISTINCT setor FROM matriz_comunicacao WHERE setor IS NOT NULL AND setor != '' ORDER BY setor ASC");
             if ($result_setores_botoes) {
                 while ($setor_item = $result_setores_botoes->fetch_assoc()) {
                     $nome_setor = htmlspecialchars($setor_item['setor']);
-                    $class_setor = ($current_setor === $setor_item['setor']) ? 'bg-[#254c90] text-white' : 'bg-white text-[#254c90] hover:bg-gray-100';
-                    echo "<button type=\"button\" data-setor=\"{$nome_setor}\" class=\"filtro-setor-btn px-3 py-1 border border-gray-300 rounded-md text-sm {$class_setor}\">{$nome_setor}</button>";
+                    $class_setor = 'filter-pill-btn ' . (($current_setor === $setor_item['setor']) ? 'active' : 'inactive');
+                    echo "<button type=\"button\" data-setor=\"{$nome_setor}\" class=\"filtro-setor-btn {$class_setor}\">{$nome_setor}</button>";
                 }
             }
             ?>
