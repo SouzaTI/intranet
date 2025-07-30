@@ -296,12 +296,6 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     <span>Sugestões e Reclamações</span>
                 </a>
                 <?php endif; ?>
-                <?php if (can_view_section('faq')): ?>
-                <a href="#" data-section="faq" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('faq'); return false;">
-                    <i class="fas fa-question-circle w-6"></i>
-                    <span>FAQ</span>
-                </a>
-                <?php endif; ?>
                 <!-- Menu Normas e Procedimentos com Submenu -->
                 <?php if (can_view_section('normas')): ?>
                 <div>
@@ -375,6 +369,13 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                             <input type="text" placeholder="Buscar..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#1d3870] focus:outline-none focus:border-[#254c90] w-64 g-white text-[#254c90] placeholder-[#254c90]">
                             <i class="fas fa-search text-white absolute left-3 top-3"></i>
                         </div>
+                        <?php if (can_view_section('faq')): ?>
+                        <a href="#" data-section="faq" onclick="showSection('faq'); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#1d3870]">
+                            <i class="fas fa-question-circle"></i>
+                            <span>FAQ</span>
+                        </a>
+                        <?php endif; ?>
+
                         <div class="flex items-center space-x-3 relative">
                             <button id="profileDropdownBtn" class="flex items-center space-x-2 hover:opacity-80 transition focus:outline-none">
                                 <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
