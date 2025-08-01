@@ -2,22 +2,38 @@
 session_start();
 require_once 'conexao.php'; // ajuste o nome se for diferente
 
-// Função para verificar permissão de visualização de seção
+// Função para verificar permissão de visualização de seção (MODIFICADA)
 function can_view_section($section_name) {
-    // Admins e God podem ver tudo
-    if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
+    $is_logged_in = isset($_SESSION['user_id']);
+
+    // Admins e God podem ver tudo, SE estiverem logados
+    if ($is_logged_in && isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
         return true;
     }
-    // Usuários normais verificam a lista de permissões na sessão
-    return isset($_SESSION['allowed_sections']) && in_array($section_name, $_SESSION['allowed_sections']);
+    
+    // Usuários normais verificam a lista de permissões na sessão, SE estiverem logados
+    if ($is_logged_in && isset($_SESSION['allowed_sections']) && in_array($section_name, $_SESSION['allowed_sections'])) {
+        return true;
+    }
+
+    // Se não estiver logado (visitante), verifica se a seção é pública
+    if (!$is_logged_in) {
+        // Defina aqui as seções que um visitante pode ver
+        $public_sections = [
+            'dashboard', 'documents', 'spreadsheets', 'information', 'matriz_comunicacao',
+            'sugestoes', 'faq', 'normas', 'about', 'sistema'
+        ];
+        return in_array($section_name, $public_sections);
+    }
+
+    // Se chegou até aqui, o usuário está logado mas não tem permissão
+    return false;
 }
 
-// Verifica se o usuário está logado
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
-}
-$username = $_SESSION['username'] ?? 'Usuário';
+// REMOVIDO: O redirecionamento que impedia o acesso de visitantes.
+// Agora, apenas definimos o status de login e o nome de usuário.
+$is_logged_in = isset($_SESSION['user_id']);
+$username = $_SESSION['username'] ?? 'Visitante';
 
 // Conta PDFs
 $pdfCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='pdf'")->fetch_assoc()['total'] ?? 0;
@@ -421,6 +437,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 </a>
                 <?php endif; ?>
 
+                <!-- ETAPA 3: Ocultar o título "Administração" se o usuário não tiver acesso a nenhuma de suas seções -->
+                <?php if (can_view_section('upload') || can_view_section('settings') || can_view_section('registros_sugestoes')): ?>
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
                 <?php if (can_view_section('upload')): ?>
                     <a href="#" data-section="upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('upload'); return false;">
@@ -439,6 +457,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         <i class="fas fa-clipboard-list w-6"></i>
                         <span>Registros de Sugestões</span>
                     </a>
+                <?php endif; ?>
                 <?php endif; ?>
 
                 <!-- Links restantes -->
@@ -480,17 +499,25 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         </a>
                         <?php endif; ?>
 
+                        <!-- MODIFICADO: Mostra o perfil do usuário ou um botão de "Entrar" -->
                         <div class="flex items-center space-x-3 relative">
-                            <button id="profileDropdownBtn" class="flex items-center space-x-2 hover:opacity-80 transition focus:outline-none">
-                                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
-                                    <?php echo strtoupper(substr($username, 0, 1)); ?>
+                            <?php if ($is_logged_in): ?>
+                                <button id="profileDropdownBtn" class="flex items-center space-x-2 hover:opacity-80 transition focus:outline-none">
+                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
+                                        <?php echo strtoupper(substr($username, 0, 1)); ?>
+                                    </div>
+                                    <span class="text-sm font-medium text-white"><?php echo htmlspecialchars($username); ?></span>
+                                    <i class="fas fa-chevron-down text-white text-xs"></i>
+                                </button>
+                                <div id="profileDropdown" class="absolute right-0 mt-12 w-40 bg-white rounded-lg shadow-lg py-2 z-50 hidden">
+                                    <a href="logout.php" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Sair</a>
                                 </div>
-                                <span class="text-sm font-medium text-white"><?php echo htmlspecialchars($username); ?></span>
-                                <i class="fas fa-chevron-down text-white text-xs"></i>
-                            </button>
-                            <div id="profileDropdown" class="absolute right-0 mt-12 w-40 bg-white rounded shadow-lg py-2 z-50 hidden">
-                                <a href="logout.php" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Sair</a>
-                            </div>
+                            <?php else: ?>
+                                <a href="login.php" class="px-4 py-2 bg-white text-[#254c90] rounded-md hover:bg-gray-200 transition font-semibold flex items-center gap-2">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                    Entrar
+                                </a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -1388,7 +1415,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                             <div class="flex gap-2">
                                 <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]" title="Aplicar filtros de busca"><i class="fas fa-search"></i> Pesquisar</button>
                                 <a href="index.php?section=matriz_comunicacao" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700" title="Remover todos os filtros">Limpar</a>
-                                <?php if (in_array($_SESSION['role'], ['admin', 'god'])): ?>
+                                <?php if (in_array($user_role, ['admin', 'god'])): ?>
                                     <button type="button" id="btn-adicionar-funcionario" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" title="Adicionar novo registro"><i class="fas fa-plus"></i> Adicionar Novo</button>
                                 <?php endif; ?>
                             </div>
@@ -1437,7 +1464,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 <tbody class="divide-y divide-gray-200">
                                     <?php if (count($funcionarios_matriz) > 0): ?>
                                         <?php foreach ($funcionarios_matriz as $funcionario): ?>
-                                            <?php $is_admin = in_array($_SESSION['role'], ['admin', 'god']); ?>
+                                            <?php $is_admin = in_array($user_role, ['admin', 'god']); ?>
                                             <tr data-id="<?= $funcionario['id'] ?>">
                                                 <td class="py-3 px-4" data-column="nome">
                                                     <div class="cell-content-wrapper">
@@ -1758,16 +1785,19 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             }
         });
         // Dropdown do perfil
-        document.getElementById('profileDropdownBtn').addEventListener('click', function(e) {
-    e.stopPropagation();
-    document.getElementById('profileDropdown').classList.toggle('hidden');
-});
-document.addEventListener('click', function(e) {
-    var dropdown = document.getElementById('profileDropdown');
-    if (!dropdown.classList.contains('hidden')) {
-        dropdown.classList.add('hidden');
-    }
-});
+        const profileDropdownBtn = document.getElementById('profileDropdownBtn');
+        if (profileDropdownBtn) {
+            profileDropdownBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.getElementById('profileDropdown').classList.toggle('hidden');
+            });
+            document.addEventListener('click', function(e) {
+                const dropdown = document.getElementById('profileDropdown');
+                if (dropdown && !dropdown.classList.contains('hidden')) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault();
     var form = this;

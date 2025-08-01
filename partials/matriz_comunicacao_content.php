@@ -36,7 +36,10 @@
         </div>
         <!-- Botão Adicionar -->
         <div>
-            <?php if (in_array($_SESSION['role'], ['admin', 'god'])): ?>
+            <?php 
+            // Usa a variável $user_role definida em index.php para evitar erro quando não logado
+            if (isset($user_role) && in_array($user_role, ['admin', 'god'])): 
+            ?>
                 <button type="button" id="btn-adicionar-funcionario-tab" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" title="Adicionar novo registro"><i class="fas fa-plus"></i> Adicionar</button>
             <?php endif; ?>
         </div>
@@ -72,7 +75,10 @@
         <tbody id="matriz-comunicacao-tbody" class="divide-y divide-gray-200">
             <?php if (isset($funcionarios_matriz) && count($funcionarios_matriz) > 0): ?>
                 <?php foreach ($funcionarios_matriz as $funcionario): ?>
-                    <?php $is_admin_tab = in_array($_SESSION['role'], ['admin', 'god']); ?>
+                    <?php 
+                    // Usa a variável $user_role definida em index.php para evitar erro quando não logado
+                    $is_admin_tab = isset($user_role) && in_array($user_role, ['admin', 'god']); 
+                    ?>
                     <tr class="hover:bg-gray-50" data-id="<?= $funcionario['id'] ?>">
                         <td class="py-3 px-4 text-sm text-gray-700" data-column="nome">
                             <div class="cell-content-wrapper">
