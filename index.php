@@ -2,38 +2,30 @@
 session_start();
 require_once 'conexao.php'; // ajuste o nome se for diferente
 
-// Função para verificar permissão de visualização de seção (MODIFICADA)
-function can_view_section($section_name) {
-    $is_logged_in = isset($_SESSION['user_id']);
+// Verifica se o usuário está logado. Se não, redireciona para a página de login.
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
 
-    // Admins e God podem ver tudo, SE estiverem logados
-    if ($is_logged_in && isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
+// Função para verificar permissão de visualização de seção
+function can_view_section($section_name) {
+    // Admins e God podem ver tudo
+    if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
         return true;
     }
     
-    // Usuários normais verificam a lista de permissões na sessão, SE estiverem logados
-    if ($is_logged_in && isset($_SESSION['allowed_sections']) && in_array($section_name, $_SESSION['allowed_sections'])) {
+    // Usuários normais verificam a lista de permissões na sessão
+    if (isset($_SESSION['allowed_sections']) && in_array($section_name, $_SESSION['allowed_sections'])) {
         return true;
     }
 
-    // Se não estiver logado (visitante), verifica se a seção é pública
-    if (!$is_logged_in) {
-        // Defina aqui as seções que um visitante pode ver
-        $public_sections = [
-            'dashboard', 'documents', 'spreadsheets', 'information', 'matriz_comunicacao',
-            'sugestoes', 'faq', 'normas', 'about', 'sistema'
-        ];
-        return in_array($section_name, $public_sections);
-    }
-
-    // Se chegou até aqui, o usuário está logado mas não tem permissão
+    // Se chegou até aqui, o usuário não tem permissão
     return false;
 }
 
-// REMOVIDO: O redirecionamento que impedia o acesso de visitantes.
-// Agora, apenas definimos o status de login e o nome de usuário.
-$is_logged_in = isset($_SESSION['user_id']);
-$username = $_SESSION['username'] ?? 'Visitante';
+// Como o usuário é sempre redirecionado se não estiver logado, podemos pegar os dados da sessão diretamente.
+$username = $_SESSION['username'];
 
 // Conta PDFs
 $pdfCount = $conn->query("SELECT COUNT(*) as total FROM arquivos WHERE tipo='pdf'")->fetch_assoc()['total'] ?? 0;
@@ -499,25 +491,18 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         </a>
                         <?php endif; ?>
 
-                        <!-- MODIFICADO: Mostra o perfil do usuário ou um botão de "Entrar" -->
+                        <!-- Perfil do usuário logado -->
                         <div class="flex items-center space-x-3 relative">
-                            <?php if ($is_logged_in): ?>
-                                <button id="profileDropdownBtn" class="flex items-center space-x-2 hover:opacity-80 transition focus:outline-none">
-                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
-                                        <?php echo strtoupper(substr($username, 0, 1)); ?>
-                                    </div>
-                                    <span class="text-sm font-medium text-white"><?php echo htmlspecialchars($username); ?></span>
-                                    <i class="fas fa-chevron-down text-white text-xs"></i>
-                                </button>
-                                <div id="profileDropdown" class="absolute right-0 mt-12 w-40 bg-white rounded-lg shadow-lg py-2 z-50 hidden">
-                                    <a href="logout.php" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Sair</a>
+                            <button id="profileDropdownBtn" class="flex items-center space-x-2 hover:opacity-80 transition focus:outline-none">
+                                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
+                                    <?php echo strtoupper(substr($username, 0, 1)); ?>
                                 </div>
-                            <?php else: ?>
-                                <a href="login.php" class="px-4 py-2 bg-white text-[#254c90] rounded-md hover:bg-gray-200 transition font-semibold flex items-center gap-2">
-                                    <i class="fas fa-sign-in-alt"></i>
-                                    Entrar
-                                </a>
-                            <?php endif; ?>
+                                <span class="text-sm font-medium text-white"><?php echo htmlspecialchars($username); ?></span>
+                                <i class="fas fa-chevron-down text-white text-xs"></i>
+                            </button>
+                            <div id="profileDropdown" class="absolute right-0 mt-12 w-40 bg-white rounded-lg shadow-lg py-2 z-50 hidden">
+                                <a href="logout.php" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Sair</a>
+                            </div>
                         </div>
                     </div>
                 </div>

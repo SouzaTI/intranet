@@ -41,22 +41,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background: url('img/background.png') no-repeat center center fixed;
+            background: url('img/fachada_souza.jpg') no-repeat center center fixed;
             background-size: cover;
+            position: relative; /* Para o overlay */
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            color: #254c90;
+        }
+        /* Overlay para escurecer a imagem de fundo */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(37, 76, 144, 0.5); /* Azul escuro da intranet, semi-transparente */
+            backdrop-filter: blur(2px); /* Efeito de desfoque (opcional, visual moderno) */
+            z-index: 0;
         }
         .register-container {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-            width: 370px;
             position: relative;
+            width: 450px;
+            max-width: 90%;
+            background: rgba(255, 255, 255, 0.98); /* Fundo um pouco mais opaco */
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            text-align: center;
+            color: #254c90;
+            z-index: 1;
+            border-radius: 12px;
         }
         .register-container img {
             width: 200px;
@@ -69,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 24px;
         }
         .register-container input {
-            width: calc(100% - 20px);
+            width: 100%;
             padding: 15px;
             margin: 12px 0;
             border: 1px solid #ccc;
@@ -85,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .register-container button {
             width: 100%;
-            padding: 12px;
+            padding: 15px;
             background: #0052a5;
             color: #fff;
             border: none;
@@ -102,22 +114,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transform: scale(0.98);
         }
         .register-container .login-link {
-            margin-top: 16px;
+            margin-top: 20px;
             display: block;
             color: #0052a5;
             text-decoration: underline;
             font-size: 15px;
         }
-        @media (max-width: 600px) {
+        .error-message {
+            color: #b91c1c;
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .support-text {
+            margin-top: 24px;
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+        @media (max-width: 768px) {
             body {
                 background-image: none;
                 background: #254c90;
             }
             .register-container {
                 width: 100%;
-                max-width: 320px;
-                padding: 16px;
-                margin: 0 auto;
+                max-width: 380px;
+                padding: 30px;
             }
         }
     </style>
@@ -127,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <img src="img/logo.svg" alt="Logo">
         <h2>Criar Nova Conta</h2>
         <?php if (!empty($error)): ?>
-            <div style="color: red; margin-bottom: 10px;"><?php echo $error; ?></div>
+            <div class="error-message"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
         <form method="POST" action="">
             <input type="text" name="username" placeholder="Nome de Usuário" required>
@@ -136,6 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit">Criar Conta</button>
         </form>
         <a href="login.php" class="login-link">Já tem conta? Entrar</a>
+        <div class="support-text">
+            Caso não consiga criar sua conta ou tenha dúvidas, entre em contato com o suporte técnico.
+        </div>
     </div>
 </body>
 </html>
