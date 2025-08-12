@@ -641,52 +641,76 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     </div>
                     <div id="documents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <?php
-                        // Exemplo para a seção de Normas e Procedimentos (mostrando PDFs)
-                        $result = $conn->query("SELECT * FROM arquivos WHERE tipo='pdf' ORDER BY data_upload DESC");
-                        while ($row = $result->fetch_assoc()) {
-                            // Ícone de acordo com o tipo
-                            $icon = '';
-                            $tipo = strtolower($row['tipo']);
-                            if ($tipo === 'pdf') {
-                                $topBg = 'bg-red-50';
-                                $icon = '<i class="fas fa-file-pdf text-red-500 text-5xl"></i>';
-                            } elseif (
-                                $tipo === 'excel' ||
-                                $tipo === 'planilha excel' ||
-                                $tipo === 'planilha' ||
-                                $tipo === 'xlsx' ||
-                                $tipo === 'xls'
-                            ) {
-                                $topBg = 'bg-green-50';
-                                $icon = '<i class="fas fa-file-excel text-green-500 text-5xl"></i>';
-                            } elseif ($tipo === 'word' || $tipo === 'documento word' || $tipo === 'docx' || $tipo === 'doc') {
-                                $topBg = 'bg-blue-50';
-                                $icon = '<i class="fas fa-file-word text-blue-500 text-5xl"></i>';
-                            } elseif ($tipo === 'apresentação powerpoint' || $tipo === 'ppt' || $tipo === 'pptx') {
-                                $topBg = 'bg-orange-50';
-                                $icon = '<i class="fas fa-file-powerpoint text-orange-500 text-5xl"></i>';
-                            } else {
-                                $topBg = 'bg-gray-50';
-                                $icon = '<i class="fas fa-file text-gray-400 text-5xl"></i>';
+                        // Lógica para buscar os documentos da seção "Normas e Procedimentos"
+                        $sql_docs = "SELECT * FROM arquivos WHERE tipo='pdf'";
+                        $params_docs = [];
+                        $types_docs = '';
+
+                        // Se o usuário não for admin ou god, filtra pelo departamento dele
+                        if (!in_array($user_role, ['admin', 'god'])) {
+                            $sql_docs .= " AND departamento = ?";
+                            $params_docs[] = $user_department;
+                            $types_docs .= 's';
+                        }
+
+                        $sql_docs .= " ORDER BY data_upload DESC";
+
+                        $stmt_docs = $conn->prepare($sql_docs);
+                        $result = false; // Inicializa como falso
+                        if ($stmt_docs) {
+                            if (!empty($params_docs)) {
+                                $stmt_docs->bind_param($types_docs, ...$params_docs);
                             }
-                            echo '
-                            <div class="document-card bg-white rounded-lg shadow overflow-hidden flex flex-col" data-department="'.htmlspecialchars($row['departamento']).'">
-                                <div class="w-full flex items-center justify-center '.$topBg.'" style="height:80px;">
-                                    '.$icon.'
-                                </div>
-                                <div class="p-6 flex-1 flex flex-col">
-                                    <h3 class="text-lg font-bold text-gray-900 mb-1">'.htmlspecialchars($row['titulo']).'</h3>
-                                    <p class="text-gray-700 mb-2">'.htmlspecialchars($row['descricao']).'</p>
-                                    <div class="flex items-end justify-between mt-auto">
-                                        <span class="text-xs text-gray-500">Atualizado: '.date('d/m/Y', strtotime($row['data_upload'])).'</span>
-                                        <div class="flex items-center gap-4">
-                                            <a href="uploads/'.$row['nome_arquivo'].'" target="_blank" class="text-gray-600 hover:text-blue-600" title="Visualizar"><i class="fas fa-eye"></i></a>
-                                            <a href="uploads/'.$row['nome_arquivo'].'" download class="text-gray-600 hover:text-blue-600" title="Baixar"><i class="fas fa-download"></i></a>
+                            $stmt_docs->execute();
+                            $result = $stmt_docs->get_result();
+                        }
+
+                        if ($result) {
+                            while ($row = $result->fetch_assoc()) {
+                                // Ícone de acordo com o tipo
+                                $icon = '';
+                                $tipo = strtolower($row['tipo']);
+                                if ($tipo === 'pdf') {
+                                    $topBg = 'bg-red-50';
+                                    $icon = '<i class="fas fa-file-pdf text-red-500 text-5xl"></i>';
+                                } elseif (
+                                    $tipo === 'excel' ||
+                                    $tipo === 'planilha excel' ||
+                                    $tipo === 'planilha' ||
+                                    $tipo === 'xlsx' ||
+                                    $tipo === 'xls'
+                                ) {
+                                    $topBg = 'bg-green-50';
+                                    $icon = '<i class="fas fa-file-excel text-green-500 text-5xl"></i>';
+                                } elseif ($tipo === 'word' || $tipo === 'documento word' || $tipo === 'docx' || $tipo === 'doc') {
+                                    $topBg = 'bg-blue-50';
+                                    $icon = '<i class="fas fa-file-word text-blue-500 text-5xl"></i>';
+                                } elseif ($tipo === 'apresentação powerpoint' || $tipo === 'ppt' || $tipo === 'pptx') {
+                                    $topBg = 'bg-orange-50';
+                                    $icon = '<i class="fas fa-file-powerpoint text-orange-500 text-5xl"></i>';
+                                } else {
+                                    $topBg = 'bg-gray-50';
+                                    $icon = '<i class="fas fa-file text-gray-400 text-5xl"></i>';
+                                }
+                                echo '
+                                <div class="document-card bg-white rounded-lg shadow overflow-hidden flex flex-col" data-department="'.htmlspecialchars($row['departamento']).'">
+                                    <div class="w-full flex items-center justify-center '.$topBg.'" style="height:80px;">
+                                        '.$icon.'
+                                    </div>
+                                    <div class="p-6 flex-1 flex flex-col">
+                                        <h3 class="text-lg font-bold text-gray-900 mb-1">'.htmlspecialchars($row['titulo']).'</h3>
+                                        <p class="text-gray-700 mb-2">'.htmlspecialchars($row['descricao']).'</p>
+                                        <div class="flex items-end justify-between mt-auto">
+                                            <span class="text-xs text-gray-500">Atualizado: '.date('d/m/Y', strtotime($row['data_upload'])).'</span>
+                                            <div class="flex items-center gap-4">
+                                                <a href="uploads/'.$row['nome_arquivo'].'" target="_blank" class="text-gray-600 hover:text-blue-600" title="Visualizar"><i class="fas fa-eye"></i></a>
+                                                <a href="uploads/'.$row['nome_arquivo'].'" download class="text-gray-600 hover:text-blue-600" title="Baixar"><i class="fas fa-download"></i></a>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            ';
+                                ';
+                            }
                         }
                         ?>
                     </div>
