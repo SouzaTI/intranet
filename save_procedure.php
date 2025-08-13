@@ -2,14 +2,18 @@
 session_start();
 require_once 'conexao.php';
 
-// 1. Carrega as dependências do Dompdf
-require_once __DIR__ . '/lib/dompdf/autoload.inc.php';
+// 1. Carrega o autoloader do Composer, que gerencia todas as dependências (Dompdf, HTML Purifier, etc.)
+require_once __DIR__ . '/vendor/autoload.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
-// Apenas admins ou 'god' podem criar procedimentos
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'god'])) {
+$config = HTMLPurifier_Config::createDefault();
+$purifier = new HTMLPurifier($config);
+
+// Qualquer usuário logado pode criar procedimentos.
+// A verificação de 'user_id' garante que apenas usuários autenticados possam acessar.
+if (!isset($_SESSION['user_id'])) {
     header("Location: index.php?status=error&msg=" . urlencode("Acesso negado."));
     exit();
 }
@@ -20,22 +24,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $codigo = htmlspecialchars(trim($_POST['codigo'] ?? 'N/A'));
     $versao = htmlspecialchars(trim($_POST['versao'] ?? '1.0'));
     $data_emissao = htmlspecialchars(trim($_POST['data_emissao'] ?? date('d/m/Y')));
-    $departamento = trim($_POST['departamento'] ?? 'Geral');
+    $setor_id = filter_input(INPUT_POST, 'setor_id', FILTER_VALIDATE_INT);
     $usuario_id = $_SESSION['user_id'];
     $descricao_alteracao = htmlspecialchars(trim($_POST['descricao_alteracao'] ?? 'Emissão inicial'));
     $responsavel = htmlspecialchars($_SESSION['username'] ?? 'Sistema');
 
+    // Busca o nome do setor para a coluna 'department' (para compatibilidade)
+    $departamento = null;
+    if ($setor_id) {
+        $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
+        $stmt_setor->bind_param("i", $setor_id);
+        $stmt_setor->execute();
+        $departamento = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
+        $stmt_setor->close();
+    }
+
     // Conteúdo do procedimento
-    // O conteúdo agora vem do TinyMCE como HTML, então não usamos htmlspecialchars ou nl2br.
-    // ATENÇÃO: Para produção, é altamente recomendável usar uma biblioteca como HTML Purifier aqui para evitar XSS.
-    $objetivo = $_POST['objetivo'] ?? '';
-    $aplicacao = $_POST['aplicacao'] ?? '';
-    $referencias = $_POST['referencias'] ?? 'Não aplicável.';
-    $definicoes = $_POST['definicoes'] ?? '';
-    $responsabilidades = $_POST['responsabilidades'] ?? '';
-    $descricao_procedimento = $_POST['descricao_procedimento'] ?? '';
-    $registros = $_POST['registros'] ?? '';
-    $anexos = $_POST['anexos'] ?? '';
+    // Limpa o HTML vindo do TinyMCE para maior segurança.
+    $objetivo = $purifier->purify($_POST['objetivo'] ?? '');
+    $aplicacao = $purifier->purify($_POST['aplicacao'] ?? '');
+    $referencias = $purifier->purify($_POST['referencias'] ?? 'Não aplicável.');
+    $definicoes = $purifier->purify($_POST['definicoes'] ?? '');
+    $responsabilidades = $purifier->purify($_POST['responsabilidades'] ?? '');
+    $descricao_procedimento = $purifier->purify($_POST['descricao_procedimento'] ?? '');
+    $registros = $purifier->purify($_POST['registros'] ?? '');
+    $anexos = $purifier->purify($_POST['anexos'] ?? '');
 
     // Escapa o título para uso seguro no HTML
     $titulo = htmlspecialchars($titulo_raw);
@@ -73,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             right: 0;
             color: #888;
             text-align: center;
+            font-size: 10px;
         }
         .header {
             top: -3.5cm;
@@ -84,6 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             bottom: -2.5cm;
             border-top: 1px solid #ccc;
             padding-top: 10px;
+            /* Usando flex para distribuir o conteúdo */
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
         }
         .footer .page-number:after {
             content: counter(page);
@@ -101,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-bottom: 1px solid #eee;
             padding-bottom: 5px;
         }
-        h1 { font-size: 22px; text-align: center; border-bottom: none; }
+        h1 { font-size: 22px; text-align: left; border-bottom: none; }
         h2 { font-size: 18px; }
         h3 { font-size: 14px; border-bottom: none; }
         p, ul, ol {
@@ -145,6 +163,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-decoration: none;
             color: #254c90;
         }
+        .watermark {
+            position: fixed;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            z-index: -1000;
+            font-size: 100px;
+            color: #e0e0e0;
+            opacity: 0.5;
+            font-weight: bold;
+            pointer-events: none;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -152,13 +183,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <img src="{$logoSrc}" alt="Logo" class="logo">
     </div>
 
+    <div class="watermark">CONFIDENCIAL</div>
+
     <div class="footer">
+        <span>{$titulo} | v{$versao}</span>
+        <span>Comercial Souza &copy; 2025</span>
         <span class="page-number">Página </span>
     </div>
 
     <main>
         <h1>{$titulo}</h1>
-        <p style="text-align: center; font-size: 11px; margin-top: -10px; margin-bottom: 25px;">
+        <p style="text-align: left; font-size: 11px; margin-top: -10px; margin-bottom: 25px;">
             <strong>Código:</strong> {$codigo} | <strong>Versão:</strong> {$versao} | <strong>Emissão:</strong> {$data_emissao}
         </p>
 
@@ -252,13 +287,13 @@ HTML;
 
     // 5. Insere o registro do novo arquivo no banco de dados
     $stmt = $conn->prepare(
-        "INSERT INTO arquivos (titulo, descricao, tipo, nome_arquivo, departamento, usuario_id) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO arquivos (titulo, descricao, tipo, nome_arquivo, departamento, usuario_id, setor_id) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     $tipo_arquivo = 'pdf';
     // Usamos o objetivo como descrição para o card
     $descricao_card = strip_tags($objetivo); 
 
-    $stmt->bind_param("sssssi", $titulo_raw, $descricao_card, $tipo_arquivo, $nome_arquivo_pdf, $departamento, $usuario_id);
+    $stmt->bind_param("sssssii", $titulo_raw, $descricao_card, $tipo_arquivo, $nome_arquivo_pdf, $departamento, $usuario_id, $setor_id);
     
     if ($stmt->execute()) {
         $status = "success";

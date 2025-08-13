@@ -9,20 +9,36 @@ if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'god']))
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user_id = intval($_POST['user_id']);
-    $role = $_POST['role'];
+    $user_id = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT);
+    $role = $_POST['role'] ?? 'user';
+    $setor_id = filter_input(INPUT_POST, 'setor_id', FILTER_VALIDATE_INT);
     $sections = $_POST['sections'] ?? [];
 
-    if (empty($user_id) || empty($role)) {
+    if ($user_id === false || empty($role)) {
         header("Location: index.php?section=settings&tab=users&status=error&msg=" . urlencode("Dados inválidos."));
         exit();
     }
 
-    // 1. Atualizar a 'role' na tabela 'users'
-    $stmt_role = $conn->prepare("UPDATE users SET role = ? WHERE id = ?");
-    $stmt_role->bind_param("si", $role, $user_id);
-    $stmt_role->execute();
-    $stmt_role->close();
+    // Se o setor_id não for um inteiro válido (ou for vazio/zero), define como NULL
+    if ($setor_id === false || $setor_id === 0) {
+        $setor_id = null;
+    }
+
+    // Busca o nome do setor para manter a coluna 'department' atualizada (compatibilidade)
+    $department_name = null;
+    if ($setor_id !== null) {
+        $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
+        $stmt_setor->bind_param("i", $setor_id);
+        $stmt_setor->execute();
+        $department_name = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
+        $stmt_setor->close();
+    }
+
+    // 1. Atualizar a 'role', 'setor_id' e 'department' na tabela 'users'
+    $stmt_update_user = $conn->prepare("UPDATE users SET role = ?, setor_id = ?, department = ? WHERE id = ?");
+    $stmt_update_user->bind_param("sisi", $role, $setor_id, $department_name, $user_id);
+    $stmt_update_user->execute();
+    $stmt_update_user->close();
 
     // 2. Limpar permissões de seção antigas
     $stmt_delete = $conn->prepare("DELETE FROM user_sections WHERE user_id = ?");
@@ -30,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt_delete->execute();
     $stmt_delete->close();
 
-    // 3. Inserir novas permissões de seção
-    if (!empty($sections)) {
+    // 3. Inserir novas permissões de seção (apenas se o role for 'user')
+    if ($role === 'user' && !empty($sections)) {
         $stmt_insert = $conn->prepare("INSERT INTO user_sections (user_id, section_name) VALUES (?, ?)");
         foreach ($sections as $section_name) {
             $stmt_insert->bind_param("is", $user_id, $section_name);

@@ -9,7 +9,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'];
 
     // Usar prepared statements para prevenir SQL Injection
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
+    $stmt = $conn->prepare("
+        SELECT u.*, s.nome as setor_nome 
+        FROM users u 
+        LEFT JOIN setores s ON u.setor_id = s.id 
+        WHERE u.username = ? 
+        LIMIT 1
+    ");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -20,7 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['profile_photo'] = $user['profile_photo'];
-            $_SESSION['department'] = $user['department']; // Adiciona o departamento à sessão
+            $_SESSION['department'] = $user['department']; // Mantido para compatibilidade
+            $_SESSION['setor_id'] = $user['setor_id'];
+            $_SESSION['setor_nome'] = $user['setor_nome'];
  
             // Carrega as permissões de seção do usuário
             $user_id = $user['id'];

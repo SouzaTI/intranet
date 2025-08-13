@@ -1,8 +1,9 @@
 <?php
 session_start();
 
-// Apenas admins ou 'god' podem fazer upload de imagens para procedimentos
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'god'])) {
+// Qualquer usuário logado pode fazer upload de imagens para procedimentos.
+// A verificação de 'user_id' garante que apenas usuários autenticados possam acessar.
+if (!isset($_SESSION['user_id'])) {
     http_response_code(403);
     echo json_encode(['error' => ['message' => 'Acesso negado.']]);
     exit();

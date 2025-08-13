@@ -48,9 +48,9 @@ $available_sections = [
     'information' => 'Informações (Visualização)',
     'matriz_comunicacao' => 'Matriz de Comunicação',
     'sugestoes' => 'Sugestões e Reclamações (Envio)',
+    'create_procedure' => 'Criar Procedimento',
     'faq' => 'FAQ',    
     'about' => 'Sobre Nós',
-    'create_procedure' => 'Criar Procedimento (Admin)',
     'sistema' => 'Sistema',
     // Seções de Admin
     'upload' => 'Upload de Arquivos (Admin)',
@@ -62,7 +62,12 @@ $available_sections = [
 // Busca todos os usuários para a aba de permissões (apenas para admins)
 $usuarios = [];
 if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
-    $result_usuarios = $conn->query("SELECT id, username, department, role FROM users ORDER BY username ASC");
+    $result_usuarios = $conn->query("
+        SELECT u.id, u.username, u.role, s.nome as setor_nome
+        FROM users u
+        LEFT JOIN setores s ON u.setor_id = s.id
+        ORDER BY u.username ASC
+    ");
     if ($result_usuarios) {
         while ($usuario = $result_usuarios->fetch_assoc()) {
             $usuarios[] = $usuario;
@@ -72,19 +77,19 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
 
 // Busca sistemas externos para a página de Sistemas
 $sistemas_externos = [];
-$user_department = $_SESSION['department'] ?? null;
+$user_setor_id = $_SESSION['setor_id'] ?? null;
 $user_role = $_SESSION['role'] ?? 'user';
 
-// Se o usuário for admin ou god, mostra todos os sistemas. Senão, filtra por departamento.
+// Se o usuário for admin ou god, mostra todos os sistemas. Senão, filtra por setor.
 if (in_array($user_role, ['admin', 'god'])) {
     $sql_sistemas = "SELECT * FROM sistemas_externos ORDER BY nome ASC";
     $result_sistemas = $conn->query($sql_sistemas);
 } else {
-    // A consulta para usuários normais filtra por departamento ou por atalhos globais (departamento IS NULL)
-    $sql_sistemas = "SELECT * FROM sistemas_externos WHERE departamento = ? OR departamento IS NULL ORDER BY nome ASC";
+    // A consulta para usuários normais filtra por setor_id ou por atalhos globais (setor_id IS NULL)
+    $sql_sistemas = "SELECT * FROM sistemas_externos WHERE setor_id = ? OR setor_id IS NULL ORDER BY nome ASC";
     $stmt_sistemas = $conn->prepare($sql_sistemas);
     if ($stmt_sistemas) {
-        $stmt_sistemas->bind_param("s", $user_department);
+        $stmt_sistemas->bind_param("i", $user_setor_id);
         $stmt_sistemas->execute();
         $result_sistemas = $stmt_sistemas->get_result();
         $stmt_sistemas->close();
@@ -378,6 +383,10 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     <span>Matriz de Comunicação</span>
                 </a>
                 <?php endif; ?>
+                <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
+                    <i class="fas fa-file-signature w-6"></i>
+                    <span>Criar Procedimento</span>
+                </a>
                 <?php if (can_view_section('sugestoes')): ?>
                 <a href="#" data-section="sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sugestoes', true); return false;">
                     <i class="fas fa-comment-dots w-6"></i>
@@ -410,12 +419,6 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes', true); return false;">
                         <i class="fas fa-clipboard-list w-6"></i>
                         <span>Registros de Sugestões</span>
-                    </a>
-                <?php endif; ?>
-                <?php if (can_view_section('create_procedure')): ?>
-                    <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
-                        <i class="fas fa-file-signature w-6"></i>
-                        <span>Criar Procedimento</span>
                     </a>
                 <?php endif; ?>
                 <?php endif; ?>
@@ -815,13 +818,11 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-[#254c90] mb-1">Departamento</label>
-                                        <select name="departamento" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                            <option>Financeiro</option>
-                                            <option>RH</option>
-                                            <option>Marketing</option>
-                                            <option>Operações</option>
-                                            <option>TI</option>
-                                            <option>Administrativo</option>
+                                        <select name="setor_id" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                            <option value="">Selecione um setor</option>
+                                            <?php foreach ($setores as $setor): ?>
+                                                <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
+                                            <?php endforeach; ?>
                                         </select>
                                     </div>
                                     <div>
@@ -1124,15 +1125,19 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 
                         <!-- Container para o conteúdo das abas -->
                         <div class="folder-tab-content-container shadow">
-                        <!-- Conteúdo da Aba: Usuários/Permissões -->
+                        <!-- Conteúdo da Aba: Usuários/Permissões -->                        
                         <div id="settings-tab-users" class="settings-tab-content">
-                            <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Gerenciar Usuários e Permissões</h3>
+                            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                                <h3 class="text-lg font-semibold text-[#254c90]">Gerenciar Usuários e Permissões</h3>
+                                <button id="openCreateUserModalBtn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
+                                    <i class="fas fa-plus mr-2"></i>Criar Novo Usuário
+                                </button>
+                            </div>
                             <div class="overflow-x-auto">
                                 <table class="min-w-full bg-white">
                                     <thead class="bg-gray-50">
                                         <tr>
-                                            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
-                                            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Departamento</th>
+                                            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>                                            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Setor</th>
                                             <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Nível</th>
                                             <th class="py-2 px-4 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
                                         </tr>
@@ -1140,8 +1145,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                     <tbody class="divide-y divide-gray-200">
                                         <?php foreach ($usuarios as $usuario): ?>
                                             <tr>
-                                                <td class="py-3 px-4 text-sm text-gray-800 font-medium"><?= htmlspecialchars($usuario['username']) ?></td>
-                                                <td class="py-3 px-4 text-sm text-gray-600"><?= htmlspecialchars($usuario['department']) ?></td>
+                                                <td class="py-3 px-4 text-sm text-gray-800 font-medium"><?= htmlspecialchars($usuario['username']) ?></td>                                                <td class="py-3 px-4 text-sm text-gray-600"><?= htmlspecialchars($usuario['setor_nome'] ?? 'N/A') ?></td>
                                                 <td class="py-3 px-4 text-sm text-gray-600"><?= ucfirst(htmlspecialchars($usuario['role'])) ?></td>
                                                 <td class="py-3 px-4 text-sm text-center"><button class="open-permissions-modal px-3 py-1 bg-[#254c90] text-white text-xs font-semibold rounded-md hover:bg-[#1d3870]" data-userid="<?= $usuario['id'] ?>" data-username="<?= htmlspecialchars($usuario['username']) ?>">Gerenciar</button></td>
                                             </tr>
@@ -1170,12 +1174,11 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                         </div>
                                         <div>
                                             <label for="departamento_sistema" class="block text-sm font-medium text-[#254c90]">Departamento (Opcional)</label>
-                                            <select id="departamento_sistema" name="departamento" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                                <option value="">Todos os Departamentos</option>
-                                                <?php
-                                                $result_deps = $conn->query("SELECT DISTINCT department FROM users WHERE department IS NOT NULL AND department != '' ORDER BY department ASC");
-                                                while ($dep = $result_deps->fetch_assoc()) echo '<option value="'.htmlspecialchars($dep['department']).'">'.htmlspecialchars($dep['department']).'</option>';
-                                                ?>
+                                            <select id="departamento_sistema" name="setor_id" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                                <option value="">Visível para Todos</option>
+                                                <?php foreach ($setores as $setor): ?>
+                                                    <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
+                                                <?php endforeach; ?>
                                             </select>
                                             <p class="text-xs text-gray-500 mt-1">Selecione um departamento ou deixe em "Todos".</p>
                                         </div>
@@ -1453,6 +1456,16 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         </select>
                         <p class="text-xs text-gray-500 mt-1">Admin e God têm acesso a todas as telas por padrão.</p>
                     </div>
+                    <!-- Setor do Usuário -->
+                    <div>
+                        <label class="block text-sm font-medium text-[#254c90] mb-2">Setor</label>
+                        <select name="setor_id" id="modalUserSetor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                            <option value="">Nenhum</option>
+                            <?php foreach ($setores as $setor): ?>
+                                <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <!-- Permissões de Tela (Sections) -->
                     <div id="sectionsPermissionsContainer">
                         <label class="block text-sm font-medium text-[#254c90] mb-2">Acesso às Telas (para nível "Usuário")</label>
@@ -1471,6 +1484,47 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <div class="flex justify-end mt-6 pt-4 border-t">
                     <button type="button" id="cancelPermissions" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md mr-2 hover:bg-gray-300">Cancelar</button>
                     <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Salvar Permissões</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Modal de Criação de Usuário -->
+    <div id="createUserModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform transition-all scale-95 opacity-0">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-semibold text-[#254c90]">Criar Novo Usuário</h3>
+                <button id="closeCreateUserModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <form id="createUserForm" action="create_user_admin.php" method="POST">
+                <div class="space-y-4">
+                    <div>
+                        <label for="new_username" class="block text-sm font-medium text-[#254c90]">Nome de Usuário</label>
+                        <input type="text" name="username" id="new_username" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                    </div>
+                    <div>
+                        <label for="new_password" class="block text-sm font-medium text-[#254c90]">Senha</label>
+                        <input type="password" name="password" id="new_password" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                    </div>
+                    <div>
+                        <label for="new_user_role" class="block text-sm font-medium text-[#254c90]">Nível de Acesso</label>
+                        <select name="role" id="new_user_role" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                            <option value="user">Usuário</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="new_user_setor" class="block text-sm font-medium text-[#254c90]">Setor</label>
+                        <select name="setor_id" id="new_user_setor" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                            <option value="" disabled selected>Selecione um setor...</option>
+                            <?php foreach ($setores as $setor): ?>
+                                <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-6 pt-4 border-t">
+                    <button type="button" id="cancelCreateUser" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md mr-2 hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Criar Usuário</button>
                 </div>
             </form>
         </div>
@@ -1824,6 +1878,7 @@ const cancelBtn = document.getElementById('cancelPermissions');
 const modalUserId = document.getElementById('modalUserId');
 const modalUsername = document.getElementById('modalUsername');
 const modalUserRole = document.getElementById('modalUserRole');
+const modalUserSetor = document.getElementById('modalUserSetor');
 const sectionsContainer = document.getElementById('sectionsPermissionsContainer');
 const sectionCheckboxes = permissionsModal.querySelectorAll('input[name="sections[]"]');
 
@@ -1853,6 +1908,7 @@ openModalBtns.forEach(btn => {
 
         // Limpa o formulário antes de carregar novos dados
         sectionCheckboxes.forEach(cb => cb.checked = false);
+        modalUserSetor.value = '';
         modalUserRole.value = 'user';
 
         // Busca as permissões atuais do usuário via AJAX
@@ -1862,6 +1918,7 @@ openModalBtns.forEach(btn => {
                 if (data.error) { alert(data.error); return; }
                 
                 modalUserRole.value = data.role;
+                modalUserSetor.value = data.setor_id || '';
                 data.sections.forEach(sectionName => {
                     const checkbox = permissionsModal.querySelector(`input[value="${sectionName}"]`);
                     if (checkbox) checkbox.checked = true;
@@ -1878,6 +1935,36 @@ modalUserRole.addEventListener('change', () => {
 
 closeModalBtn.addEventListener('click', closePermissionsModal);
 cancelBtn.addEventListener('click', closePermissionsModal);
+
+// Lógica do Modal de Criação de Usuário
+const createUserModal = document.getElementById('createUserModal');
+if (createUserModal) {
+    const createUserModalContent = createUserModal.querySelector('.transform');
+    const openCreateUserModalBtn = document.getElementById('openCreateUserModalBtn');
+    const closeCreateUserModalBtn = document.getElementById('closeCreateUserModal');
+    const cancelCreateUserBtn = document.getElementById('cancelCreateUser');
+
+    if (openCreateUserModalBtn) {
+        openCreateUserModalBtn.addEventListener('click', () => {
+            createUserModal.classList.remove('hidden');
+            setTimeout(() => {
+                createUserModalContent.classList.remove('scale-95', 'opacity-0');
+                createUserModalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        });
+    }
+
+    function closeCreateUserModal() {
+        createUserModalContent.classList.remove('scale-100', 'opacity-100');
+        createUserModalContent.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            createUserModal.classList.add('hidden');
+        }, 200);
+    }
+
+    if (closeCreateUserModalBtn) closeCreateUserModalBtn.addEventListener('click', closeCreateUserModal);
+    if (cancelCreateUserBtn) cancelCreateUserBtn.addEventListener('click', closeCreateUserModal);
+}
 
 // Lógica para mostrar/esconder formulário de adicionar funcionário
 const btnAdicionar = document.getElementById('btn-adicionar-funcionario');

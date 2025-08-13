@@ -9,24 +9,49 @@ function remover_acentos($str) {
     return $str;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = remover_acentos($conn->real_escape_string($_POST['username']));
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $department = remover_acentos($conn->real_escape_string($_POST['department']));
+// Busca os setores para o menu de seleção
+$setores = [];
+$result_setores = $conn->query("SELECT id, nome FROM setores ORDER BY nome ASC");
+if ($result_setores) {
+    while ($setor = $result_setores->fetch_assoc()) {
+        $setores[] = $setor;
+    }
+}
 
-    // Verifica se o username já existe
-    $check = $conn->query("SELECT id FROM users WHERE username='$username' LIMIT 1");
-    if ($check && $check->num_rows > 0) {
-        $error = "Já existe uma conta com este nome de usuário.";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = remover_acentos(trim($_POST['username']));
+    $password = $_POST['password'];
+    $setor_id = filter_input(INPUT_POST, 'setor_id', FILTER_VALIDATE_INT);
+
+    if (empty($username) || empty($password) || $setor_id === false) {
+        $error = "Por favor, preencha todos os campos obrigatórios.";
     } else {
-        $sql = "INSERT INTO users (username, password, department, role) 
-                VALUES ('$username', '$password', '$department', 'user')";
-        if ($conn->query($sql) === TRUE) {
-            // Apenas insere o usuário e redireciona para o login (não faz login automático)
-            header("Location: login.php?cadastro=ok");
-            exit();
+        // Usando prepared statements para segurança
+        $stmt_check = $conn->prepare("SELECT id FROM users WHERE username = ?");
+        $stmt_check->bind_param("s", $username);
+        $stmt_check->execute();
+        $result_check = $stmt_check->get_result();
+
+        if ($result_check->num_rows > 0) {
+            $error = "Já existe uma conta com este nome de usuário.";
         } else {
-            $error = "Erro ao criar conta: " . $conn->error;
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+            // Busca o nome do setor para salvar na coluna 'department' (para compatibilidade)
+            $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
+            $stmt_setor->bind_param("i", $setor_id);
+            $stmt_setor->execute();
+            $department_name = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
+
+            $stmt_insert = $conn->prepare("INSERT INTO users (username, password, department, setor_id, role) VALUES (?, ?, ?, ?, 'user')");
+            $stmt_insert->bind_param("sssi", $username, $hashed_password, $department_name, $setor_id);
+
+            if ($stmt_insert->execute()) {
+                header("Location: login.php?cadastro=ok");
+                exit();
+            } else {
+                $error = "Erro ao criar conta: " . $conn->error;
+            }
         }
     }
 }
@@ -158,7 +183,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="">
             <input type="text" name="username" placeholder="Nome de Usuário" required>
             <input type="password" name="password" placeholder="Senha" required>
-            <input type="text" name="department" placeholder="Departamento">
+            <select name="setor_id" required style="width: 100%; padding: 15px; margin: 12px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; background-color: white;">
+                <option value="" disabled selected>Selecione seu setor...</option>
+                <?php foreach ($setores as $setor): ?>
+                    <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
             <button type="submit">Criar Conta</button>
         </form>
         <a href="login.php" class="login-link">Já tem conta? Entrar</a>

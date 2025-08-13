@@ -1,0 +1,11 @@
+{
+    "name": "intranet/comercial-souza",
+    "description": "Sistema de Intranet da Comercial Souza",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "dompdf/dompdf": "^3.0",
+        "ezyang/htmlpurifier": "^4.17"
+    },
+    "license": "proprietary"
+}

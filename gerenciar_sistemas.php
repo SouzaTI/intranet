@@ -17,11 +17,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $link = trim($_POST['link']);
         // Usa o ícone fornecido ou o padrão se estiver vazio
         $icon_class = !empty(trim($_POST['icon_class'])) ? trim($_POST['icon_class']) : 'fas fa-external-link-alt';
-        // Se o departamento não for selecionado (valor vazio), salva como NULL no banco
-        $departamento = !empty($_POST['departamento']) ? trim($_POST['departamento']) : null;
+        
+        // Pega o setor_id do formulário
+        $setor_id = filter_input(INPUT_POST, 'setor_id', FILTER_VALIDATE_INT);
+        if ($setor_id === false || $setor_id === 0) {
+            $setor_id = null;
+        }
 
-        $stmt = $conn->prepare("INSERT INTO sistemas_externos (nome, link, icon_class, departamento) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("ssss", $nome, $link, $icon_class, $departamento);
+        // Busca o nome do setor para a coluna 'departamento' (para compatibilidade)
+        $departamento = null;
+        if ($setor_id) {
+            $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
+            $stmt_setor->bind_param("i", $setor_id);
+            $stmt_setor->execute();
+            $departamento = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
+            $stmt_setor->close();
+        }
+
+        $stmt = $conn->prepare("INSERT INTO sistemas_externos (nome, link, icon_class, departamento, setor_id) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssi", $nome, $link, $icon_class, $departamento, $setor_id);
         if ($stmt->execute()) {
             $status = "success";
             $msg = "Atalho adicionado com sucesso!";
