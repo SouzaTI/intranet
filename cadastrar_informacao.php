@@ -14,10 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("sssssss", $titulo, $descricao, $categoria, $data_publicacao, $cor, $data_inicial, $data_final);
 
     if ($stmt->execute()) {
-        header("Location: index.php?info=sucesso");
+        $status = 'success';
+        $msg = 'Informação cadastrada com sucesso!';
+        header("Location: index.php?section=info-upload&status=$status&msg=" . urlencode($msg));
         exit();
     } else {
-        header("Location: index.php?info=erro");
+        $status = 'error';
+        $msg = 'Erro ao cadastrar a informação.';
+        header("Location: index.php?section=info-upload&status=$status&msg=" . urlencode($msg));
         exit();
     }
 }

@@ -11,6 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nivel_acesso = $_POST['nivel_acesso'] ?? '';
     $descricao = $_POST['descricao'] ?? '';
     $usuario_id = $_SESSION['user_id'] ?? null;
+    // Pega o setor_id. Se estiver vazio ou não for um número, converte para NULL.
+    $setor_id = !empty($_POST['setor_id']) && is_numeric($_POST['setor_id']) ? intval($_POST['setor_id']) : null;
 
     if (isset($_FILES['arquivo'])) {
         if ($_FILES['arquivo']['error'] !== UPLOAD_ERR_OK) {
@@ -23,8 +25,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mkdir(__DIR__ . '/uploads', 0777, true);
         }
         if (move_uploaded_file($_FILES['arquivo']['tmp_name'], $destino)) {
-            $stmt = $conn->prepare("INSERT INTO arquivos (titulo, tipo, nome_arquivo, departamento, nivel_acesso, descricao, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssssssi", $titulo, $tipo, $nome_arquivo, $departamento, $nivel_acesso, $descricao, $usuario_id);
+            // Adiciona o campo setor_id ao INSERT
+            $stmt = $conn->prepare("INSERT INTO arquivos (titulo, tipo, nome_arquivo, departamento, nivel_acesso, descricao, usuario_id, setor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            // Adiciona o bind para setor_id (são 8 parâmetros agora, o último é um inteiro)
+            $stmt->bind_param("ssssssii", $titulo, $tipo, $nome_arquivo, $departamento, $nivel_acesso, $descricao, $usuario_id, $setor_id);
             $stmt->execute();
             echo json_encode(['success' => true]);
             exit();
