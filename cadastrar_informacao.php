@@ -1,5 +1,7 @@
 <?php
+session_start();
 require_once 'conexao.php';
+require_once 'log_activity.php'; // Inclui o arquivo de log
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $titulo = trim($_POST['titulo']);
@@ -16,11 +18,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($stmt->execute()) {
         $status = 'success';
         $msg = 'Informação cadastrada com sucesso!';
+        $userId = $_SESSION['user_id'] ?? null;
+        $username = $_SESSION['username'] ?? 'N/A';
+        logActivity($userId, "Informação Cadastrada", "Usuário {$username} cadastrou a informação: '{$titulo}' (Categoria: {$categoria}).");
         header("Location: index.php?section=info-upload&status=$status&msg=" . urlencode($msg));
         exit();
     } else {
         $status = 'error';
         $msg = 'Erro ao cadastrar a informação.';
+        $userId = $_SESSION['user_id'] ?? null;
+        $username = $_SESSION['username'] ?? 'N/A';
+        logActivity($userId, "Erro ao Cadastrar Informação", "Usuário {$username} falhou ao cadastrar a informação: '{$titulo}' (Categoria: {$categoria}). Erro: " . $stmt->error, "error");
         header("Location: index.php?section=info-upload&status=$status&msg=" . urlencode($msg));
         exit();
     }

@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'log_activity.php'; // Inclui o arquivo de log
 $conn = new mysqli("localhost", "root", "", "intranet");
 
 $error = null;
@@ -42,13 +43,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $_SESSION['allowed_sections'] = $allowed_sections;
 
+            logActivity($user['id'], 'Login bem-sucedido', "Usuário: " . $user['username']);
             header("Location: index.php");
             exit();
         } else {
             $error = "Senha incorreta.";
+            logActivity(null, 'Tentativa de Login Falha', "Senha incorreta para o usuário: " . $username, 'error');
         }
     } else {
         $error = "Usuário não encontrado.";
+        logActivity(null, 'Tentativa de Login Falha', "Usuário não encontrado: " . $username, 'error');
     }
     $stmt->close();
 }

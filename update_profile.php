@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'conexao.php';
+require_once 'log_activity.php'; // Inclui o arquivo de log
 
 // Verificar se o usuário está logado
 if (!isset($_SESSION['user_id'])) {
@@ -40,14 +41,17 @@ if (!empty($_POST['current_password']) || !empty($_POST['new_password']) || !emp
             $stmt_update->bind_param("si", $hashed_password, $user_id);
             if ($stmt_update->execute()) {
                 $messages[] = "Senha alterada com sucesso.";
+                logActivity($user_id, 'Alterou a senha');
             } else {
                 $messages[] = "Erro ao atualizar a senha.";
                 $status = 'error';
+                logActivity($user_id, 'Erro ao alterar a senha', 'Falha no banco de dados', 'error');
             }
             $stmt_update->close();
         } else {
             $messages[] = "A senha atual está incorreta.";
             $status = 'error';
+            logActivity($user_id, 'Tentativa de alteração de senha falha', 'Senha atual incorreta', 'error');
         }
     }
 }
@@ -61,9 +65,11 @@ if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPL
     if (!in_array($file['type'], $allowed_types)) {
         $messages[] = "Formato de arquivo de imagem inválido. Apenas JPG, PNG e GIF são permitidos.";
         $status = 'error';
+        logActivity($user_id, 'Tentativa de upload de foto de perfil falha', 'Formato de arquivo inválido', 'error');
     } elseif ($file['size'] > $max_size) {
         $messages[] = "O arquivo de imagem é muito grande. O tamanho máximo é 2MB.";
         $status = 'error';
+        logActivity($user_id, 'Tentativa de upload de foto de perfil falha', 'Tamanho do arquivo excedido', 'error');
     } else {
         $upload_dir = __DIR__ . '/uploads/profiles/';
         if (!is_dir($upload_dir)) {
@@ -93,14 +99,17 @@ if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPL
             if ($stmt_update_photo->execute()) {
                 $_SESSION['profile_photo'] = $db_path; // Atualiza a sessão imediatamente
                 $messages[] = "Foto de perfil atualizada com sucesso.";
+                logActivity($user_id, 'Foto de perfil atualizada', "Novo caminho: {$db_path}");
             } else {
                 $messages[] = "Erro ao salvar o caminho da foto no banco de dados.";
                 $status = 'error';
+                logActivity($user_id, 'Erro ao salvar foto de perfil no banco', "Caminho: {$db_path}", 'error');
             }
             $stmt_update_photo->close();
         } else {
             $messages[] = "Falha ao mover o arquivo de imagem para o destino.";
             $status = 'error';
+            logActivity($user_id, 'Falha ao mover arquivo de foto de perfil', "Arquivo: {$file['name']}", 'error');
         }
     }
 }

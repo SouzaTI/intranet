@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'conexao.php';
+require_once 'log_activity.php';
 
 // Apenas admins ou 'god' podem criar usuários
 if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'god'])) {
@@ -50,9 +51,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt_insert->bind_param("sssis", $username, $hashed_password, $role, $setor_id, $department_name);
 
     if ($stmt_insert->execute()) {
+        $new_user_id = $stmt_insert->insert_id;
+        $loggedInUserId = $_SESSION['user_id'];
+        logActivity($loggedInUserId, 'Criou um novo usuário', "Novo usuário: {$username} (ID: {$new_user_id})");
+
         header("Location: index.php?section=settings&tab=users&status=success&msg=" . urlencode("Usuário criado com sucesso."));
     } else {
-        header("Location: index.php?section=settings&tab=users&status=error&msg=" . urlencode("Erro ao criar o usuário."));
+        $loggedInUserId = $_SESSION['user_id'];
+        logActivity($loggedInUserId, 'Erro ao criar usuário', "Tentativa para usuário: {$username}", 'error');
+
+        header("Location: index.php?section=settings&tab=users&status=error&msg=" . urlencode("Erro ao criar o usuário." . $stmt_insert->error));
     }
     $stmt_insert->close();
     exit();
@@ -61,4 +69,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Redireciona se o acesso for direto (GET)
 header("Location: index.php?section=settings&tab=users");
 exit();
-

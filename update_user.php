@@ -1,5 +1,7 @@
 <?php
 session_start();
+require_once 'conexao.php';
+require_once 'log_activity.php'; // Inclui o arquivo de log
 
 $conn = new mysqli("localhost", "root", "", "intranet");
 if ($conn->connect_error) {
@@ -30,18 +32,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Atualiza no banco e na sessão
             $conn->query("UPDATE users SET profile_photo='$newName' WHERE id=$user_id");
             $_SESSION['profile_photo'] = $newName;
+            logActivity($user_id, 'Foto de perfil atualizada', "Novo caminho: {$newName}");
         }
 
         $sql = "UPDATE users SET username='$username', email='$email', phone='$phone', department='$department' WHERE id='$user_id'";
 
-        $conn->query($sql);
+        if ($conn->query($sql)) {
+            logActivity($user_id, 'Informações de perfil atualizadas', "Usuário: {$username}");
+        } else {
+            logActivity($user_id, 'Erro ao atualizar informações de perfil', "Usuário: {$username}", 'error');
+        }
     }
 
     // Excluir conta
     if (isset($_POST['delete_account'])) {
         $sql = "DELETE FROM users WHERE id='$user_id'";
-        $conn->query($sql);
-        // Opcional: session_destroy();
+        if ($conn->query($sql)) {
+            logActivity($user_id, 'Conta excluída');
+            session_destroy(); // Destrói a sessão após a exclusão da conta
+        } else {
+            logActivity($user_id, 'Erro ao excluir conta', '', 'error');
+        }
     }
 
     header("Location: intranet.php");

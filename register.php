@@ -1,6 +1,7 @@
 <?php
 session_start();
-$conn = new mysqli("localhost", "root", "", "intranet");
+require_once 'conexao.php';
+require_once 'log_activity.php';
 
 // Função para remover acentos e caracteres especiais
 function remover_acentos($str) {
@@ -47,9 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt_insert->bind_param("sssi", $username, $hashed_password, $department_name, $setor_id);
 
             if ($stmt_insert->execute()) {
+                $new_user_id = $stmt_insert->insert_id;
+                logActivity($new_user_id, 'Nova conta criada', "Usuário: {$username}");
                 header("Location: login.php?cadastro=ok");
                 exit();
             } else {
+                logActivity(null, 'Erro ao criar conta', "Tentativa para usuário: {$username}", 'error');
                 $error = "Erro ao criar conta: " . $conn->error;
             }
         }

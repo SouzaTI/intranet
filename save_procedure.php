@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'conexao.php';
+require_once 'log_activity.php'; // Inclui o arquivo de log
 
 // 1. Carrega o autoloader do Composer, que gerencia todas as dependências (Dompdf, HTML Purifier, etc.)
 require_once __DIR__ . '/vendor/autoload.php';
@@ -298,9 +299,12 @@ HTML;
     if ($stmt->execute()) {
         $status = "success";
         $msg = "Procedimento criado e salvo com sucesso!";
+        $new_procedure_id = $stmt->insert_id;
+        logActivity($usuario_id, 'Procedimento Criado', "Título: {$titulo_raw} (ID: {$new_procedure_id})");
     } else {
         $status = "error";
         $msg = "Erro ao salvar o registro do procedimento no banco de dados.";
+        logActivity($usuario_id, 'Erro ao criar procedimento', "Tentativa para título: {$titulo_raw}", 'error');
     }
     $stmt->close();
 

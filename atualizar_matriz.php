@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'conexao.php';
+require_once 'log_activity.php'; // Inclui o arquivo de log
 
 header('Content-Type: application/json');
 
@@ -34,8 +35,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("si", $value, $id);
 
     if ($stmt->execute()) {
+        $userId = $_SESSION['user_id'] ?? null;
+        $username = $_SESSION['username'] ?? 'N/A';
+        logActivity($userId, "Matriz de Comunicação Atualizada", "Usuário {$username} atualizou a coluna '{$column}' para '{$value}' para o funcionário ID: {$id}.");
         echo json_encode(['success' => true]);
     } else {
+        $userId = $_SESSION['user_id'] ?? null;
+        $username = $_SESSION['username'] ?? 'N/A';
+        logActivity($userId, "Erro ao Atualizar Matriz de Comunicação", "Usuário {$username} falhou ao atualizar a coluna '{$column}' para '{$value}' para o funcionário ID: {$id}. Erro: " . $stmt->error, "error");
         echo json_encode(['success' => false, 'message' => 'Erro ao atualizar o banco de dados.']);
     }
     $stmt->close();

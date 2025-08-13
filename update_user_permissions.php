@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'conexao.php';
+require_once 'log_activity.php'; // Inclui o arquivo de log
 
 // Apenas admins ou 'god' podem alterar permissões
 if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'god'])) {
@@ -55,6 +56,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $stmt_insert->close();
     }
+
+    // Busca o username do usuário que teve as permissões alteradas para o log
+    $stmt_get_username = $conn->prepare("SELECT username FROM users WHERE id = ?");
+    $stmt_get_username->bind_param("i", $user_id);
+    $stmt_get_username->execute();
+    $target_username = $stmt_get_username->get_result()->fetch_assoc()['username'] ?? 'N/A';
+    $stmt_get_username->close();
+
+    logActivity($_SESSION['user_id'] ?? null, 'Permissões de Usuário Atualizadas', "Usuário alvo: {$target_username} (ID: {$user_id}) | Role: {$role} | Seções: " . implode(', ', $sections));
 
     header("Location: index.php?section=settings&tab=users&status=success&msg=" . urlencode("Permissões atualizadas com sucesso!"));
     exit();
