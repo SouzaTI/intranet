@@ -8,7 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] == UPLOAD_ERR_OK) {
         $ext = strtolower(pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION));
-        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'svg']; // Permite SVG também
         if (in_array($ext, $allowed)) {
             $nomeImagem = uniqid('carrossel_').'.'.$ext;
             if (move_uploaded_file($_FILES['imagem']['tmp_name'], 'uploads/'.$nomeImagem)) {
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg = 'Falha ao mover o arquivo para a pasta de uploads.';
             }
         } else {
-            $msg = 'Formato de arquivo não permitido. Use JPG, PNG ou GIF.';
+            $msg = 'Formato de arquivo não permitido. Use JPG, PNG, GIF ou SVG.';
         }
     }
 
