@@ -50,6 +50,7 @@ $available_sections = [
     'sugestoes' => 'Sugestões e Reclamações (Envio)',
     'create_procedure' => 'Criar Procedimento',
     'faq' => 'FAQ',    
+    'profile' => 'Meu Perfil',
     'about' => 'Sobre Nós',
     'sistema' => 'Sistema',
     // Seções de Admin
@@ -465,13 +466,18 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         <!-- Perfil do usuário logado -->
                         <div class="flex items-center space-x-3 relative">
                             <button id="profileDropdownBtn" class="flex items-center space-x-2 hover:opacity-80 transition focus:outline-none">
-                                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
-                                    <?php echo strtoupper(substr($username, 0, 1)); ?>
-                                </div>
+                                <?php if (!empty($_SESSION['profile_photo']) && file_exists($_SESSION['profile_photo'])): ?>
+                                    <img src="<?= htmlspecialchars($_SESSION['profile_photo']) ?>" alt="Foto de Perfil" class="w-8 h-8 rounded-full object-cover">
+                                <?php else: ?>
+                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
+                                        <?= strtoupper(substr($username, 0, 1)); ?>
+                                    </div>
+                                <?php endif; ?>
                                 <span class="text-sm font-medium text-white"><?php echo htmlspecialchars($username); ?></span>
                                 <i class="fas fa-chevron-down text-white text-xs"></i>
                             </button>
                             <div id="profileDropdown" class="absolute right-0 mt-12 w-40 bg-white rounded-lg shadow-lg py-2 z-50 hidden">
+                                <a href="#" data-section="profile" onclick="showSection('profile', true); return false;" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Meu Perfil</a>
                                 <a href="logout.php" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Sair</a>
                             </div>
                         </div>
@@ -1286,6 +1292,64 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     </div>
                 </section>
 
+                <!-- Profile Section -->
+                <section id="profile" class="hidden space-y-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-2xl font-bold text-[#254c90] mb-6 border-b pb-3">Meu Perfil</h2>
+                        
+                        <form action="update_profile.php" method="POST" enctype="multipart/form-data" class="space-y-8">
+
+                            <!-- Seção de Alterar Foto -->
+                            <div>
+                                <h3 class="text-lg font-semibold text-[#1d3870] mb-4">Alterar Foto de Perfil</h3>
+                                <div class="flex items-center space-x-6">
+                                    <?php if (!empty($_SESSION['profile_photo']) && file_exists($_SESSION['profile_photo'])): ?>
+                                        <img src="<?= htmlspecialchars($_SESSION['profile_photo']) ?>" alt="Foto de Perfil" class="w-24 h-24 rounded-full object-cover">
+                                    <?php else: ?>
+                                        <div class="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-3xl font-semibold">
+                                            <?= strtoupper(substr($username, 0, 1)); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div>
+                                        <label for="profile_photo" class="block text-sm font-medium text-gray-700">Nova foto</label>
+                                        <input type="file" name="profile_photo" id="profile_photo" accept="image/png, image/jpeg, image/gif" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#e9eef5] file:text-[#254c90] hover:file:bg-[#dbeafe]">
+                                        <p class="text-xs text-gray-500 mt-1">PNG, JPG ou GIF (Máx. 2MB).</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Seção de Alterar Senha -->
+                            <div>
+                                <h3 class="text-lg font-semibold text-[#1d3870] mb-4">Alterar Senha</h3>
+                                <div class="space-y-4 max-w-md">
+                                    <div>
+                                        <label for="current_password" class="block text-sm font-medium text-gray-700">Senha Atual</label>
+                                        <input type="password" name="current_password" id="current_password" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                        <p class="text-xs text-gray-500 mt-1">Deixe os campos de senha em branco se não quiser alterá-la.</p>
+                                    </div>
+                                    <div>
+                                        <label for="new_password" class="block text-sm font-medium text-gray-700">Nova Senha</label>
+                                        <input type="password" name="new_password" id="new_password" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                    </div>
+                                    <div>
+                                        <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirmar Nova Senha</label>
+                                        <input type="password" name="confirm_password" id="confirm_password" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Botão de Salvar -->
+                            <div class="pt-5 border-t">
+                                <div class="flex justify-end">
+                                    <button type="submit" class="px-6 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#254c90]">
+                                        Salvar Alterações
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
                 <!-- Matriz de Comunicação Section -->
                 <section id="matriz_comunicacao" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
@@ -1574,6 +1638,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 'sugestoes': 'Sugestões e Reclamações',
                 'faq': 'FAQ',
                 'upload': 'Upload de Arquivos',
+                'profile': 'Meu Perfil',
                 'create_procedure': 'Criar Procedimento',
                 'info-upload': 'Cadastrar Informação',                
                 'sistema': 'Sistemas',
