@@ -50,6 +50,7 @@ $available_sections = [
     'sugestoes' => 'Sugestões e Reclamações (Envio)',
     'faq' => 'FAQ',    
     'about' => 'Sobre Nós',
+    'create_procedure' => 'Criar Procedimento (Admin)',
     'sistema' => 'Sistema',
     // Seções de Admin
     'upload' => 'Upload de Arquivos (Admin)',
@@ -168,6 +169,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema Intranet</title>
+    <!-- Adicione o script do TinyMCE aqui. Substitua 'no-api-key' pela sua chave. -->
+    <script src="https://cdn.tiny.cloud/1/5qvlwlt06xkybekjra4hcv0z7czafww8a0wcki2x19ftngew/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -407,6 +410,12 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes', true); return false;">
                         <i class="fas fa-clipboard-list w-6"></i>
                         <span>Registros de Sugestões</span>
+                    </a>
+                <?php endif; ?>
+                <?php if (can_view_section('create_procedure')): ?>
+                    <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
+                        <i class="fas fa-file-signature w-6"></i>
+                        <span>Criar Procedimento</span>
                     </a>
                 <?php endif; ?>
                 <?php endif; ?>
@@ -1208,6 +1217,72 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <?php endif; ?>
                 </section>
 
+                <!-- Create Procedure Section (Admin only) -->
+                <section id="create_procedure" class="hidden space-y-6">
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <div class="p-6 border-b border-[#254c90]">
+                            <h3 class="text-lg font-semibold text-[#254c90]">Criar Novo Procedimento</h3>
+                            <p class="text-sm text-gray-600 mt-1">Preencha os campos abaixo para gerar um novo documento de procedimento em PDF.</p>
+                        </div>
+                        <div class="p-6">
+                            <form id="createProcedureForm" action="save_procedure.php" method="POST" class="space-y-6">
+                                <!-- Cabeçalho do Documento -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Título do Procedimento</label>
+                                        <input type="text" name="titulo" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Código</label>
+                                        <input type="text" name="codigo" placeholder="Ex: CS-PRO-GA-01" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Versão</label>
+                                        <input type="text" name="versao" placeholder="Ex: v1.0" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Data de Emissão</label>
+                                        <input type="text" name="data_emissao" value="<?= date('d/m/Y') ?>" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Descrição da Alteração</label>
+                                    <input type="text" name="descricao_alteracao" value="Emissão inicial" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Departamento</label>
+                                    <select name="departamento" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                        <?php
+                                        $result_deps = $conn->query("SELECT DISTINCT department FROM users WHERE department IS NOT NULL AND department != '' ORDER BY department ASC");
+                                        while ($dep = $result_deps->fetch_assoc()) echo '<option value="'.htmlspecialchars($dep['department']).'">'.htmlspecialchars($dep['department']).'</option>';
+                                        ?>
+                                        <option value="Geral">Geral</option>
+                                    </select>
+                                </div>
+                                <hr class="my-4">
+                                <!-- Corpo do Procedimento -->
+                                <div class="space-y-4">
+                                    <h4 class="text-md font-semibold text-[#1d3870]">Conteúdo do Procedimento</h4>
+                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">1. Objetivo</label><textarea name="objetivo" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">2. Campo de Aplicação</label><textarea name="aplicacao" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">3. Referências</label><textarea name="referencias" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">4. Definições</label><textarea name="definicoes" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">5. Responsabilidades</label><textarea name="responsabilidades" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">6. Descrição do Procedimento</label><textarea name="descricao_procedimento" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">7. Registros</label><textarea name="registros" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">8. Anexos</label><textarea name="anexos" class="procedure-editor"></textarea></div>
+                                </div>
+                                <div class="flex justify-end pt-4 border-t">
+                                    <button type="reset" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md mr-2 hover:bg-gray-300">Limpar</button>
+                                    <button type="submit" class="px-6 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                        <i class="fas fa-file-pdf mr-2"></i>Gerar e Salvar Procedimento
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Matriz de Comunicação Section -->
                 <section id="matriz_comunicacao" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
@@ -1445,6 +1520,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 'sugestoes': 'Sugestões e Reclamações',
                 'faq': 'FAQ',
                 'upload': 'Upload de Arquivos',
+                'create_procedure': 'Criar Procedimento',
                 'info-upload': 'Cadastrar Informação',                
                 'sistema': 'Sistemas',
                 'about': 'Sobre Nós',
@@ -2068,6 +2144,73 @@ function visualizarArquivo(url, tipo) {
         document.getElementById('excel-iframe').src = url;
     }
 }
+
+    // Handle form submission for creating procedures to validate TinyMCE fields
+    const procedureForm = document.getElementById('createProcedureForm');
+    if (procedureForm) {
+        procedureForm.addEventListener('submit', function(e) {
+            // Update the original textareas with the content from TinyMCE
+            tinymce.triggerSave();
+
+            // Manually check the 'objetivo' field
+            const objetivoTextarea = procedureForm.querySelector('textarea[name="objetivo"]');
+            
+            // TinyMCE automatically assigns an ID to the textarea if it doesn't have one.
+            // We can use that ID to get the editor instance.
+            if (!objetivoTextarea.value.trim()) {
+                // Prevent form submission
+                e.preventDefault();
+                
+                // Alert the user and highlight the editor
+                alert('O campo "Objetivo" é obrigatório.');
+                
+                // Find the TinyMCE editor instance for the 'objetivo' field and add a red border
+                const editorInstance = tinymce.get(objetivoTextarea.id);
+                if (editorInstance) {
+                    const editorContainer = editorInstance.getContainer();
+                    editorContainer.style.border = '2px solid red';
+                    // Scroll to the editor to make it visible
+                    editorContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Remove the border after a few seconds
+                    setTimeout(() => {
+                        editorContainer.style.border = '';
+                    }, 3000);
+                }
+            }
+        });
+    }
+
+    // Inicialização do TinyMCE para os editores de procedimento
+    tinymce.init({
+        selector: 'textarea.procedure-editor',
+        plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
+        toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
+        height: 300,
+        menubar: false,
+        readonly: false, // Garante que o editor não inicie em modo de apenas leitura
+        language: 'pt_BR',
+        // Configuração para upload de imagens
+        images_upload_url: 'upload_image.php',
+        images_upload_handler: (blobInfo, progress) => new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.withCredentials = false;
+            xhr.open('POST', 'upload_image.php');
+            
+            xhr.onload = () => {
+                if (xhr.status >= 400) {
+                    reject('HTTP Error: ' + xhr.status); return;
+                }
+                const json = JSON.parse(xhr.responseText);
+                if (!json || typeof json.location != 'string') {
+                    reject('Invalid JSON: ' + xhr.responseText); return;
+                }
+                resolve(json.location);
+            };
+            const formData = new FormData();
+            formData.append('file', blobInfo.blob(), blobInfo.filename());
+            xhr.send(formData);
+        })
+    });
     </script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
