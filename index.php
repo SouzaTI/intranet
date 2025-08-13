@@ -1394,6 +1394,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 <!-- Botão Adicionar (à direita) -->
                                 <div>
                                     <?php if (in_array($user_role, ['admin', 'god'])): ?>
+                                        <button type="button" id="btn-copiar-emails" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 mr-2" title="Copiar e-mails do filtro atual"><i class="fas fa-copy"></i> Copiar E-mails</button>
                                         <button type="button" id="btn-adicionar-funcionario" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" title="Adicionar novo registro"><i class="fas fa-plus"></i> Adicionar Novo</button>
                                     <?php endif; ?>
                                 </div>
@@ -1440,7 +1441,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                         <th class="py-3 px-4 text-left">Ramal</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-200">
+                                <tbody id="matriz-comunicacao-tbody-main" class="divide-y divide-gray-200">
                                     <?php if (count($funcionarios_matriz) > 0): ?>
                                         <?php foreach ($funcionarios_matriz as $funcionario): ?>
                                             <?php $is_admin = in_array($user_role, ['admin', 'god']); ?>
@@ -1481,13 +1482,16 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         </div>
 
                         <!-- Controles de Paginação -->
-                        <div class="mt-6 flex justify-center">
+                        <div id="matriz-comunicacao-pagination-main" class="mt-6 flex justify-center">
                             <nav class="flex items-center space-x-2">
                                 <?php
                                 if ($total_paginas_matriz > 1):
-                                    $query_params = $_GET;
+                                    $query_params = $_GET;                                    
+                                    // GARANTIR que a seção correta está no link de paginação.
+                                    // Este é o ponto crucial da correção.
+                                    $query_params['section'] = 'matriz_comunicacao';
                                     for ($i = 1; $i <= $total_paginas_matriz; $i++):
-                                        $query_params['pagina'] = $i;
+                                        $query_params['pagina'] = $i;                                        
                                         $link = 'index.php?' . http_build_query($query_params);
                                         $active_class = ($i == $pagina_atual_matriz) ? 'bg-[#254c90] text-white' : 'bg-white text-[#254c90] hover:bg-gray-100';
                                 ?>
@@ -2252,6 +2256,71 @@ if (filtroSetorBotoesContainer) {
     });
 }
 
+// Lógica para paginação AJAX na Matriz de Comunicação principal
+const matrizSectionMain = document.getElementById('matriz_comunicacao');
+if (matrizSectionMain) {
+    matrizSectionMain.addEventListener('click', function(e) {
+        // Verifica se o clique foi em um link de paginação dentro do container correto
+        if (e.target.tagName === 'A' && e.target.closest('#matriz-comunicacao-pagination-main')) {
+            e.preventDefault(); // Impede o recarregamento da página
+
+            const url = new URL(e.target.href);
+            url.pathname = '/intranet/filtrar_matriz_ajax.php'; // Aponta para o script AJAX
+
+            const tbody = document.getElementById('matriz-comunicacao-tbody-main');
+            const paginationContainer = document.getElementById('matriz-comunicacao-pagination-main');
+
+            tbody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">Carregando...</td></tr>';
+            paginationContainer.innerHTML = '';
+
+            fetch(url.toString())
+                .then(response => response.json())
+                .then(data => {
+                    tbody.innerHTML = data.table_html;
+                    paginationContainer.innerHTML = data.pagination_html;
+                })
+                .catch(error => console.error('Erro na paginação AJAX:', error));
+        }
+    });
+}
+
+// Lógica para o botão "Copiar E-mails" usando delegação de evento
+document.addEventListener('click', function(e) {
+    // Verifica se o elemento clicado é o botão de copiar e-mails
+    if (e.target && (e.target.id === 'btn-copiar-emails' || e.target.closest('#btn-copiar-emails'))) {
+        const button = e.target.id === 'btn-copiar-emails' ? e.target : e.target.closest('#btn-copiar-emails');
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Copiando...';
+        button.disabled = true;
+
+        // Pega o filtro de setor da URL atual
+        const urlParams = new URLSearchParams(window.location.search);
+        const setor = urlParams.get('setor');
+
+        let fetchUrl = 'get_all_emails.php';
+        if (setor) {
+            fetchUrl += `?setor=${encodeURIComponent(setor)}`;
+        }
+
+        fetch(fetchUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) { throw new Error(data.error); }
+                if (data.emails && data.emails.length > 0) {
+                    navigator.clipboard.writeText(data.emails).then(() => {
+                        button.innerHTML = '<i class="fas fa-check"></i> E-mails Copiados!';
+                    }, () => { throw new Error('Falha ao copiar.'); });
+                } else {
+                    button.innerHTML = 'Nenhum e-mail encontrado.';
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao copiar e-mails:', error);
+                button.innerHTML = '<i class="fas fa-times"></i> Erro ao Copiar';
+            })
+            .finally(() => setTimeout(() => { button.innerHTML = originalHtml; button.disabled = false; }, 2500));
+    }
+});
 // Lógica para os filtros da seção "Normas e Procedimentos"
 const departmentFilterDocs = document.getElementById('department-filter-docs');
 const searchInputDocs = document.getElementById('search-input-docs');
