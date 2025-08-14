@@ -17,7 +17,7 @@ if (!isset($_GET['user_id'])) {
 $user_id = intval($_GET['user_id']);
 
 // Busca role
-$stmt_user = $conn->prepare("SELECT role FROM users WHERE id = ?");
+$stmt_user = $conn->prepare("SELECT role, setor_id FROM users WHERE id = ?");
 $stmt_user->bind_param("i", $user_id);
 $stmt_user->execute();
 $result_user = $stmt_user->get_result();
@@ -40,6 +40,7 @@ while ($row = $result_sections->fetch_assoc()) {
 
 echo json_encode([
     'role' => $user['role'],
+    'setor_id' => $user['setor_id'],
     'sections' => $allowed_sections
 ]);
 ?>

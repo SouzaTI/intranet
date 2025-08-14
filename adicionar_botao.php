@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'log_activity.php'; // Inclui o arquivo de log
 // Permite admin OU god adicionar botões
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'god'])) {
     header("Location: intranet.php");
@@ -57,6 +58,10 @@ if ($tipo === 'tabela') {
 $stmt = $conn->prepare("INSERT INTO sidebar_botoes (titulo, conteudo, pdf_path, parent_id, tipo) VALUES (?, ?, ?, ?, ?)");
 $stmt->bind_param("sssds", $titulo, $conteudo, $pdf_path, $parent_id, $tipo);
 $stmt->execute();
+
+$userId = $_SESSION['user_id'] ?? null;
+$username = $_SESSION['username'] ?? 'N/A';
+logActivity($userId, "Botão Adicionado", "Usuário {$username} adicionou um botão de tipo '{$tipo}' com título '{$titulo}'.");
 
 header("Location: intranet.php");
 exit();

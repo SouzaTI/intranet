@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'log_activity.php'; // Incluído do arquivo antigo
 $conn = new mysqli("localhost", "root", "", "intranet");
 
 $error = null;
@@ -8,20 +9,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    // Usar prepared statements para prevenir SQL Injection
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
+    // Query do arquivo antigo para buscar o setor
+    $stmt = $conn->prepare("
+        SELECT u.*, s.nome as setor_nome 
+        FROM users u 
+        LEFT JOIN setores s ON u.setor_id = s.id 
+        WHERE u.username = ? 
+        LIMIT 1
+    ");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if ($result && $user = $result->fetch_assoc()) {
         if (password_verify($password, $user['password'])) {
-            // Login OK - igual login.php
+            // Login OK
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['profile_photo'] = $user['profile_photo'];
             $_SESSION['department'] = $user['department'];
+            $_SESSION['setor_id'] = $user['setor_id']; // Adicionado do arquivo antigo
+            $_SESSION['setor_nome'] = $user['setor_nome']; // Adicionado do arquivo antigo
 
             // Carrega as permissões de seção do usuário
             $user_id = $user['id'];
@@ -35,13 +44,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $_SESSION['allowed_sections'] = $allowed_sections;
 
+            logActivity($user['id'], 'Login bem-sucedido', "Usuário: " . $user['username']); // Adicionado do arquivo antigo
             header("Location: index.php");
             exit();
         } else {
             $error = "Senha incorreta.";
+            logActivity(null, 'Tentativa de Login Falha', "Senha incorreta para o usuário: " . $username, 'error'); // Adicionado do arquivo antigo
         }
     } else {
         $error = "Usuário não encontrado.";
+        logActivity(null, 'Tentativa de Login Falha', "Usuário não encontrado: " . $username, 'error'); // Adicionado do arquivo antigo
     }
     $stmt->close();
 }
@@ -52,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Intranet Comercial Souza</title>
+    <link rel="shortcut icon" type="image/x-icon" href="img/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');

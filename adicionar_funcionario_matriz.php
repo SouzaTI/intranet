@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'conexao.php';
+require_once 'log_activity.php'; // Inclui o arquivo de log
 
 // Apenas admins ou 'god' podem adicionar
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'god'])) {
@@ -29,8 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($stmt) {
         $stmt->bind_param("ssss", $nome, $setor, $email, $ramal);
         if ($stmt->execute()) {
+            $userId = $_SESSION['user_id'] ?? null;
+            $username = $_SESSION['username'] ?? 'N/A';
+            logActivity($userId, "Funcionário Adicionado à Matriz", "Usuário {$username} adicionou o funcionário {$nome} (Setor: {$setor}) à Matriz de Comunicação.");
             header("Location: index.php?section=matriz_comunicacao&status=success&msg=" . urlencode("Funcionário adicionado com sucesso!"));
         } else {
+            $userId = $_SESSION['user_id'] ?? null;
+            $username = $_SESSION['username'] ?? 'N/A';
+            logActivity($userId, "Erro ao Adicionar Funcionário à Matriz", "Usuário {$username} falhou ao adicionar o funcionário {$nome} (Setor: {$setor}) à Matriz de Comunicação. Erro: " . $stmt->error, "error");
             header("Location: index.php?section=matriz_comunicacao&status=error&msg=" . urlencode("Erro ao salvar no banco de dados."));
         }
         $stmt->close();

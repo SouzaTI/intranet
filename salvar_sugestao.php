@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'conexao.php';
+require_once 'log_activity.php';
 
 header('Content-Type: application/json');
 
@@ -26,8 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("issss", $usuario_id, $tipo, $mensagem, $email, $telefone);
 
     if ($stmt->execute()) {
+        $new_suggestion_id = $stmt->insert_id;
+        logActivity($usuario_id, 'Sugestão/Reclamação enviada', "Tipo: {$tipo} | Início: " . substr($mensagem, 0, 50) . "...");
         echo json_encode(['success' => true, 'message' => 'Sua mensagem foi enviada com sucesso!']);
     } else {
+        logActivity($usuario_id, 'Erro ao enviar Sugestão/Reclamação', "Tipo: {$tipo}", 'error');
         echo json_encode(['success' => false, 'message' => 'Erro ao enviar sua mensagem. Tente novamente.']);
     }
     $stmt->close();

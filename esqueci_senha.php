@@ -20,24 +20,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
         $user_id = $user['id'];
 
-        // Salva o token
+        // Salva o token no banco de dados
         $stmt2 = $conn->prepare("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)");
         $stmt2->bind_param("iss", $user_id, $token, $expires);
         $stmt2->execute();
         $stmt2->close();
 
-        // Envia o e-mail (ajuste para seu servidor)
-        $reset_link = "https://SEU_DOMINIO/redefinir_senha.php?token=$token";
+        // IMPORTANTE: Configure o envio de e-mail no seu servidor (php.ini)
+        // e substitua os valores de placeholder abaixo.
+        $reset_link = "http://localhost/intranet/redefinir_senha.php?token=$token"; // Ajuste o domínio conforme necessário
         $to = $email;
         $subject = "Recuperação de senha - Intranet Comercial Souza";
         $message = "Olá, {$user['username']}!\n\nClique no link abaixo para redefinir sua senha:\n$reset_link\n\nEste link é válido por 1 hora.";
-        $headers = "From: no-reply@seudominio.com\r\n";
+        $headers = "From: no-reply@comercialsouza.com.br\r\n"; // Use um e-mail do seu domínio
 
-        mail($to, $subject, $message, $headers);
+        // A função mail() pode não funcionar em ambiente local (XAMPP) sem configuração.
+        // mail($to, $subject, $message, $headers);
 
-        $success = "Um link de redefinição foi enviado para seu e-mail.";
+        // Para fins de teste em ambiente local, você pode exibir o link em vez de enviar.
+        // Comente a linha mail() acima e descomente a linha abaixo para ver o link gerado.
+        // $success = "Link de redefinição (para teste): $reset_link";
+
+        $success = "Se o e-mail estiver correto, um link de redefinição foi enviado.";
+
     } else {
-        $error = "E-mail não encontrado.";
+        // Mensagem genérica para não confirmar se um e-mail existe ou não no sistema.
+        $success = "Se o e-mail estiver correto, um link de redefinição foi enviado.";
     }
     $stmt->close();
 }
@@ -48,6 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuperar Senha - Intranet Comercial Souza</title>
+    <link rel="shortcut icon" type="image/x-icon" href="img/favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -70,20 +80,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="p-6 border-b border-gray-100 flex items-center space-x-3">
             <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                 <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/>
+                    <path fill-rule="evenodd" d="M10 10a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
                 </svg>
             </div>
             <div>
                 <h3 class="text-xl font-semibold text-gray-900">Recuperar Senha</h3>
-                <p class="text-sm text-gray-500">Informe seu e-mail para solicitar redefinição</p>
+                <p class="text-sm text-gray-500">Informe seu e-mail de cadastro</p>
             </div>
         </div>
-        <form method="POST" class="p-6 space-y-4">
+        <form method="POST" action="" class="p-6 space-y-4">
             <?php if ($error): ?>
-                <div class="mb-2 text-red-600 text-sm text-center font-semibold bg-red-50 rounded-lg py-2"><?= htmlspecialchars($error) ?></div>
-            <?php elseif ($success): ?>
-                <div class="mb-2 text-green-700 text-sm text-center font-semibold bg-green-50 rounded-lg py-2"><?= htmlspecialchars($success) ?></div>
+                <div class="mb-2 text-red-600 text-sm text-center font-semibold bg-red-50 rounded-lg py-2 px-3"><?= htmlspecialchars($error) ?></div>
             <?php endif; ?>
+            <?php if ($success): ?>
+                <div class="mb-2 text-green-700 text-sm text-center font-semibold bg-green-50 rounded-lg py-2 px-3"><?= htmlspecialchars($success) ?></div>
+            <?php endif; ?>
+            
+            <?php if (!$success): ?>
             <div>
                 <label for="email" class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
                 <div class="relative">
@@ -107,6 +120,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             >
                 Solicitar redefinição
             </button>
+            <?php endif; ?>
+
             <a 
                 href="login.php"
                 class="w-full block bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors text-center"
@@ -116,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         <div class="px-6 py-4 bg-gray-50 rounded-b-2xl">
             <p class="text-xs text-gray-500 text-center">
-                Caso não lembre seu usuário ou precise de ajuda, entre em contato com o suporte técnico.
+                Problemas para acessar? Entre em contato com o suporte técnico.
             </p>
         </div>
     </div>
