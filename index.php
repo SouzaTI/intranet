@@ -344,6 +344,16 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             color: #ffffff;
             box-shadow: 0 4px 14px 0 rgba(37, 76, 144, 0.39);
         }
+        /* Estilo para checkboxes de permissão */
+        .custom-checkbox {
+            width: 20px !important;
+            height: 20px !important;
+            min-width: 20px !important; /* Garante largura mínima */
+            min-height: 20px !important; /* Garante altura mínima */
+            box-sizing: border-box !important;
+            flex-shrink: 0; /* Evita que o item encolha */
+        }
+    </style>
     </style>
 </head>
 <body>
@@ -1540,7 +1550,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                             <?php foreach ($available_sections as $key => $label): ?>
                                 <div>
                                     <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="checkbox" name="sections[]" value="<?= $key ?>" class="form-checkbox h-5 w-5 text-[#254c90] rounded border-gray-300 focus:ring-[#1d3870]">
+                                        <input type="checkbox" name="sections[]" value="<?= $key ?>" class="form-checkbox h-5 w-5 text-[#254c90] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
                                         <span class="text-gray-700"><?= htmlspecialchars($label) ?></span>
                                     </label>
                                 </div>
