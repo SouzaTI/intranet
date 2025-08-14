@@ -722,7 +722,6 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                             <span class="text-xs text-gray-500">Atualizado: '.date('d/m/Y', strtotime($row['data_upload'])).'</span>
                                             <div class="flex items-center gap-4">
                                                 <a href="uploads/'.$row['nome_arquivo'].'" target="_blank" class="text-gray-600 hover:text-blue-600" title="Visualizar"><i class="fas fa-eye"></i></a>
-                                                <a href="uploads/'.$row['nome_arquivo'].'" download class="text-gray-600 hover:text-blue-600" title="Baixar"><i class="fas fa-download"></i></a>
                                             </div>
                                         </div>
                                     </div>

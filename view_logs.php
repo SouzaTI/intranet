@@ -1,6 +1,14 @@
 <?php
 session_start();
 require_once 'conexao.php';
+require_once 'count_logged_in_users.php';
+
+// Atualiza o status do usuário atual como "online"
+// A sessão já deve ter sido iniciada, então podemos chamar a função diretamente.
+update_user_status();
+
+// Conta o número de usuários online
+$online_users = count_online_users();
 
 // Lógica de Filtragem
 $filter_user_id = $_GET['user_id'] ?? '';
@@ -103,8 +111,32 @@ $conn->close();
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: #0d1117; color: #c9d1d9; }
         .container { max-width: 980px; margin: 40px auto; padding: 0 20px; }
-        h1 { font-size: 24px; font-weight: 600; padding-bottom: 16px; border-bottom: 1px solid #30363d; margin-bottom: 20px; color: #c9d1d9; }
+        h1 { font-size: 24px; font-weight: 600; padding-bottom: 16px; border-bottom: 1px solid #30363d; margin-bottom: 10px; color: #c9d1d9; }
         
+        .online-users-indicator { 
+            margin-bottom: 20px; 
+            color: #8b949e; 
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            width: fit-content;
+        }
+        .online-users-indicator .online-icon {
+            color: #238636; /* Verde para indicar online */
+            font-size: 10px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(35, 134, 54, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(35, 134, 54, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(35, 134, 54, 0); }
+        }
+
         /* Estilos do Filtro */
         .filter-panel { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 20px; margin-bottom: 30px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
         .filter-group { display: flex; flex-direction: column; }
@@ -143,6 +175,11 @@ $conn->close();
 <body>
     <div class="container">
         <h1>Logs de Atividade do Sistema</h1>
+
+        <div class="online-users-indicator">
+            <i class="fas fa-circle online-icon"></i>
+            <strong><?php echo $online_users; ?></strong> usuário(s) online
+        </div>
 
         <form id="log-filters" method="GET" action="">
             <div class="filter-panel">
