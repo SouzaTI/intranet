@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'log_activity.php'; // Adicionado para logar a atividade
 $conn = new mysqli("localhost", "root", "", "intranet");
 
 $success = null;
@@ -35,7 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $headers = "From: no-reply@comercialsouza.com.br\r\n"; // Use um e-mail do seu domínio
 
         // A função mail() pode não funcionar em ambiente local (XAMPP) sem configuração.
-        // mail($to, $subject, $message, $headers);
+        mail($to, $subject, $message, $headers);
+
+        // Loga a atividade
+        logActivity($user_id, 'Solicitação de redefinição de senha', 'O usuário solicitou a redefinição para o e-mail: ' . $email, 'success');
 
         // Para fins de teste em ambiente local, você pode exibir o link em vez de enviar.
         // Comente a linha mail() acima e descomente a linha abaixo para ver o link gerado.
