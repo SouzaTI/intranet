@@ -32,6 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['setor_id'] = $user['setor_id']; // Adicionado do arquivo antigo
             $_SESSION['setor_nome'] = $user['setor_nome']; // Adicionado do arquivo antigo
 
+            // **NOVO**: Verifica se o tour deve ser exibido
+            $_SESSION['show_tour'] = ($user['has_completed_tour'] == 0);
+
             // Carrega as permissões de seção do usuário
             $user_id = $user['id'];
             $allowed_sections = [];

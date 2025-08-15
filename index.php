@@ -256,8 +256,13 @@ if ($result_manage_faqs) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema Intranet</title>
+    <!-- 1. Adicionar CSS do Shepherd.js e o nosso CSS customizado (agora como .php) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/css/shepherd.css"/>
+    <link rel="stylesheet" href="tour.css.php">
     <!-- Adicione o script do TinyMCE aqui. Substitua 'no-api-key' pela sua chave. -->
     <script src="https://cdn.tiny.cloud/1/5qvlwlt06xkybekjra4hcv0z7czafww8a0wcki2x19ftngew/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    
+    <!-- 3. Adicionar JS do Shepherd.js e o nosso script do tour (movido para o head com 'defer') -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -647,6 +652,12 @@ if ($result_manage_faqs) {
                             <span>FAQ</span>
                         </a>
                         <?php endif; ?>
+
+                        <!-- 2. Adicionar o botão para iniciar o tour -->
+                        <button id="start-tour-btn" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#1d3870]">
+                            <i class="fas fa-route"></i>
+                            <span>Fazer Tour</span>
+                        </button>
 
                         <!-- Ícone de Notificações -->
                         <div class="relative">
@@ -2891,8 +2902,6 @@ function processAnswerText(text) {
         if(param) param = param.trim();
 
         switch(section) {
-            case 'chamados':
-            case 'csc':
             case 'sugestoes':
                 url = 'index.php?section=sugestoes';
                 linkText = param || 'abrir a tela de chamados';
@@ -3009,7 +3018,21 @@ if (resetButton) {
         setupFaqChat();
     });
 }
+
+// 4. Inicializar o tour quando o botão for clicado
+document.addEventListener('DOMContentLoaded', function() {
+    const startTourBtn = document.getElementById('start-tour-btn');
+    if (startTourBtn && window.intranetTour) {
+        startTourBtn.addEventListener('click', () => {
+            window.intranetTour.start();
+        });
+    }
+});
 </script>
+<!-- Scripts do Tour: Colocados no final do body para garantir a ordem de carregamento correta -->
+<script src="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/js/shepherd.min.js"></script>
+<script src="tour.js.php"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>
