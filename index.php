@@ -467,36 +467,69 @@ if ($result_manage_faqs) {
 
         /* Estilos para as bolhas de chat da FAQ */
         .chat-bubble {
-            max-width: 75%;
-            padding: 12px 18px;
-            border-radius: 20px;
+            max-width: 80%;
+            padding: 10px 16px;
+            border-radius: 18px;
             line-height: 1.5;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            word-wrap: break-word;
         }
         .chat-bubble-question {
-            background-color: #254c90; /* Cor principal, como se fosse o usuário */
+            background-color: #3b82f6; /* Tailwind blue-500, mais vibrante */
             color: white;
-            border-bottom-right-radius: 5px;
+            border-bottom-right-radius: 4px;
         }
         .chat-bubble-answer {
-            background-color: #e9eef5; /* Cor mais clara, como se fosse a resposta */
-            color: #1f2937; /* Cor de texto escura */
+            background-color: #e5e7eb; /* Tailwind gray-200, padrão de chat */
+            color: #1f2937; /* Tailwind gray-800 */
             border-bottom-left-radius: 5px;
         }
 
-        /* Estilos para a nova FAQ interativa */
-        .faq-chat-container { height: 60vh; max-height: 500px; }
+        .chat-avatar {
+            width: 40px; /* Reduzido para um visual mais compacto */
+            height: 40px;
+            border-radius: 9999px; /* full */
+            object-fit: cover;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 2px solid #fff;
+        }
+
+        /* Estilos para a nova janela de chat da FAQ */
+        .faq-chat-window {
+            border-radius: 0.75rem; /* 12px */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid #e5e7eb; /* gray-200 */
+        }
+        .faq-chat-body { 
+            height: 60vh; max-height: 500px; 
+            background-color: #f0f2f5; /* Cor de fundo de chat mais padrão */
+            /* Padrão de doodles em SVG para o fundo */
+            background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='doodles' width='80' height='80' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'%3E%3Cpath d='M10 10 L30 30 M50 10 L70 30 M10 50 L30 70 M50 50 L70 70 M30 10 L10 30 M70 10 L50 30 M30 50 L10 70 M70 50 L50 70' stroke='%23d1d5db' stroke-width='1' fill='none'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='400' height='400' fill='url(%23doodles)'/%3E%3C/svg%3E");
+        }
         .faq-suggestion-btn {
-            background-color: #fff;
-            border: 1px solid #d1d5db;
-            color: #254c90;
+            background-color: #e0f2fe; /* Tailwind sky-100 */
+            color: #0369a1; /* Tailwind sky-700 */
+            border: 1px solid #bae6fd; /* Tailwind sky-200 */
             transition: all 0.2s ease-in-out;
         }
         .faq-suggestion-btn:hover {
-            background-color: #e9eef5;
+            background-color: #ccecfd;
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
         }
+        /* Estilos para o indicador de "digitando" */
+        .typing-indicator { display: flex; align-items: center; gap: 4px; padding: 8px 0; }
+        .typing-dot {
+            width: 8px; height: 8px;
+            background-color: #9ca3af; /* gray-400 */
+            border-radius: 50%;
+            animation: bounce-dot 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce-dot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
         .animate-fade-in-up {
             animation: fadeInUp 0.5s ease-out forwards;
         }
@@ -655,7 +688,7 @@ if ($result_manage_faqs) {
                 </div>
             </header>
             <!-- Main Content Area -->
-            <div class="p-4">
+            <div class="p-4 bg-gray-200">
                 <?php if (isset($_GET['status']) && isset($_GET['msg'])): ?>
                     <?php
                         $status_class = $_GET['status'] === 'success' 
@@ -672,7 +705,7 @@ if ($result_manage_faqs) {
                 <?php endif; ?>
             </div>
 
-            <main class="flex-1 overflow-y-auto bg-[#f8f9fb] p-4">
+            <main class="flex-1 overflow-y-auto bg-gray-200 p-4">
                 <!-- Dashboard Section -->
                 <section id="dashboard" class="space-y-6">
                     <!-- Bem-vindo -->
@@ -1091,27 +1124,30 @@ if ($result_manage_faqs) {
             <?php endif; ?>
         </div>
         
-        <!-- Nova Estrutura de Chat Interativo -->
-        <div class="flex flex-col h-full max-w-4xl mx-auto">
-            <!-- Área onde as mensagens do chat aparecem -->
-            <div id="faq-chat-area" class="flex-1 p-4 space-y-6 overflow-y-auto bg-gray-100 rounded-t-lg faq-chat-container border border-gray-200">
-                <!-- Mensagem inicial do "bot" -->
-                <div class="flex justify-start animate-fade-in-up">
-                    <div class="chat-bubble chat-bubble-answer">
-                        <p>Olá! Sou o assistente da Comercial Souza. Como posso te ajudar hoje? Selecione uma das perguntas abaixo.</p>
-                    </div>
+        <!-- Nova Estrutura de Chat Interativo com Layout de App -->
+        <div class="max-w-4xl mx-auto faq-chat-window">
+            <!-- Cabeçalho da Janela de Chat -->
+            <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
+                <img src="img/SAM.png" alt="SAM Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-blue-200">
+                <div>
+                    <h3 class="font-bold text-lg text-white">SAM - Assistente Virtual</h3>
+                    <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
                 </div>
             </div>
-            <!-- Container para botões de sugestão e reset -->
-            <div class="bg-white border-t-0 border border-gray-200 rounded-b-lg">
-                <!-- Área com os botões de sugestão de perguntas -->
-                <div id="faq-suggestions-area" class="p-4 flex flex-wrap gap-3 justify-center">
-                    <!-- Botões de sugestão serão inseridos aqui pelo JavaScript -->
+
+            <!-- Corpo do Chat -->
+            <div id="faq-chat-area" class="p-4 space-y-6 overflow-y-auto faq-chat-body">
+                <!-- O chat será preenchido pelo JavaScript -->
+            </div>
+
+            <!-- Área de "Digitação" com Sugestões e Reset -->
+            <div class="bg-white p-4 border-t border-gray-200">
+                <div id="faq-suggestions-area" class="flex flex-wrap gap-3 justify-center mb-3">
+                    <!-- Botões de sugestão serão inseridos aqui -->
                 </div>
-                <!-- Área para o botão de reset, inicialmente oculta -->
-                <div id="faq-reset-area" class="p-4 text-center hidden border-t border-gray-200">
-                    <button id="faq-reset-btn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                        <i class="fas fa-sync-alt mr-2"></i>Reiniciar Conversa
+                <div id="faq-reset-area" class="text-center hidden">
+                    <button id="faq-reset-btn" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
+                        <i class="fas fa-sync-alt mr-1"></i>Reiniciar conversa
                     </button>
                 </div>
             </div>
@@ -2809,12 +2845,24 @@ const suggestionsArea = document.getElementById('faq-suggestions-area');
 const resetArea = document.getElementById('faq-reset-area');
 const resetButton = document.getElementById('faq-reset-btn');
 
+<?php
+    $user_profile_photo_path = !empty($_SESSION['profile_photo']) && file_exists($_SESSION['profile_photo']) ? htmlspecialchars($_SESSION['profile_photo']) : '';
+    $user_initial = strtoupper(substr($_SESSION['username'], 0, 1));
+    $user_avatar_html = $user_profile_photo_path ? "'<img src=\"{$user_profile_photo_path}\" alt=\"Você\" class=\"chat-avatar\">'" : "'<div class=\"w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-lg border-2 border-white shadow-sm\">{$user_initial}</div>'";
+
+    $sam_avatar_path = 'img/SAM.png';
+    $sam_avatar_html = file_exists($sam_avatar_path) ? "'<img src=\"{$sam_avatar_path}\" alt=\"SAM\" class=\"chat-avatar\">'" : "'<div class=\"w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-lg border-2 border-white shadow-sm\"><i class=\"fas fa-robot\"></i></div>'";
+?>
+const userAvatarHtml = <?php echo $user_avatar_html; ?>;
+const samAvatarHtml = <?php echo $sam_avatar_html; ?>;
+
 function setupFaqChat() {
     // Limpa as áreas para reiniciar o chat
     chatArea.innerHTML = `
-        <div class="flex justify-start animate-fade-in-up">
+        <div class="flex justify-start items-end gap-3 animate-fade-in-up">
+            ${samAvatarHtml}
             <div class="chat-bubble chat-bubble-answer">
-                <p>Olá! Sou o assistente da Comercial Souza. Como posso te ajudar hoje? Selecione uma das perguntas abaixo.</p>
+                <p>Olá! Eu sou o SAM, seu assistente virtual da Comercial Souza. Como posso ajudar hoje?</p>
             </div>
         </div>`;
     suggestionsArea.innerHTML = '';
@@ -2828,6 +2876,41 @@ function setupFaqChat() {
         button.dataset.faqId = faq.id;
         button.addEventListener('click', handleFaqSuggestionClick);
         suggestionsArea.appendChild(button);
+    });
+}
+
+function processAnswerText(text) {
+    // Regex para encontrar placeholders como [link:secao|parametro]
+    const linkRegex = /\[link:([^|\]]+)(?:\|([^\]]+))?\]/g;
+
+    return text.replace(linkRegex, (match, section, param) => {
+        let url = '#';
+        let linkText = 'Clique aqui';
+        section = section.trim();
+        if(param) param = param.trim();
+
+        switch(section) {
+            case 'chamados':
+            case 'csc':
+            case 'sugestoes':
+                url = 'index.php?section=sugestoes';
+                linkText = param || 'abrir a tela de chamados';
+                break;
+            case 'matriz_ti':
+                url = `index.php?section=matriz_comunicacao&setor=TI`;
+                linkText = param || 'ver os contatos de TI';
+                break;
+            case 'matriz':
+                if (param) {
+                    url = `index.php?section=matriz_comunicacao&setor=${encodeURIComponent(param)}`;
+                    linkText = `ver a matriz do setor ${param}`;
+                } else {
+                    url = 'index.php?section=matriz_comunicacao';
+                    linkText = 'acessar a Matriz de Comunicação';
+                }
+                break;
+        }
+        return `<a href="${url}" class="text-blue-600 font-bold hover:underline">${linkText}</a>`;
     });
 }
 
@@ -2845,11 +2928,12 @@ function handleFaqSuggestionClick(event) {
 
     // 1. Adiciona a pergunta do usuário ao chat
     const questionBubble = document.createElement('div');
-    questionBubble.className = 'flex justify-end animate-fade-in-up';
+    questionBubble.className = 'flex justify-end items-end gap-3 animate-fade-in-up';
     questionBubble.innerHTML = `
         <div class="chat-bubble chat-bubble-question">
             <p class="font-semibold">${faq.question}</p>
-        </div>`;
+        </div>
+        ${userAvatarHtml}`;
     chatArea.appendChild(questionBubble);
 
     // 2. Remove o botão clicado
@@ -2858,17 +2942,41 @@ function handleFaqSuggestionClick(event) {
     // 3. Rola para a nova mensagem
     chatArea.scrollTop = chatArea.scrollHeight;
 
-    // 4. Simula "digitando" e mostra a resposta
+    // 4. Adiciona o indicador de "digitando"
+    const typingBubble = document.createElement('div');
+    typingBubble.id = 'typing-indicator-bubble';
+    typingBubble.className = 'flex justify-start items-end gap-3 animate-fade-in-up';
+    typingBubble.innerHTML = `
+        ${samAvatarHtml}
+        <div class="chat-bubble chat-bubble-answer">
+            <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>`;
+    chatArea.appendChild(typingBubble);
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    // 5. Simula "digitando" e mostra a resposta
     setTimeout(() => {
+        const typingIndicatorToRemove = document.getElementById('typing-indicator-bubble');
+        if (typingIndicatorToRemove) typingIndicatorToRemove.remove();
+
         const answerBubble = document.createElement('div');
-        answerBubble.className = 'flex justify-start animate-fade-in-up';
+        answerBubble.className = 'flex justify-start items-end gap-3 animate-fade-in-up';
+
+        // Processa a resposta para converter placeholders em links
+        const processedAnswer = processAnswerText(faq.answer.replace(/\n/g, '<br>'));
+
         answerBubble.innerHTML = `
+            ${samAvatarHtml}
             <div class="chat-bubble chat-bubble-answer">
-                <p>${faq.answer.replace(/\n/g, '<br>')}</p>
+                <p>${processedAnswer}</p>
             </div>`;
         chatArea.appendChild(answerBubble);
 
-        // 5. Rola para a resposta
+        // Rola para a resposta
         chatArea.scrollTop = chatArea.scrollHeight;
 
         // Se não houver mais sugestões, mostra uma mensagem de finalização
@@ -2876,13 +2984,17 @@ function handleFaqSuggestionClick(event) {
         if (remainingButtons.length === faqsData.length) {
             setTimeout(() => {
                 const endMessage = document.createElement('div');
-                endMessage.className = 'flex justify-start animate-fade-in-up';
-                endMessage.innerHTML = `<div class="chat-bubble chat-bubble-answer"><p>Espero ter ajudado! Se tiver outra dúvida, clique em "Reiniciar Conversa". 😊</p></div>`;
+                endMessage.className = 'flex justify-start items-end gap-3 animate-fade-in-up';
+                endMessage.innerHTML = `
+                    ${samAvatarHtml}
+                    <div class="chat-bubble chat-bubble-answer">
+                        <p>Espero ter ajudado! Se tiver outra dúvida, clique em "Reiniciar Conversa". 😊</p>
+                    </div>`;
                 chatArea.appendChild(endMessage);
                 chatArea.scrollTop = chatArea.scrollHeight;
             }, 800);
         }
-    }, 800); // Atraso de 800ms para a resposta
+    }, 1200); // Atraso de 1.2s para a resposta
 }
 
 // Adiciona o listener para o botão de reset
