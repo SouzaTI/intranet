@@ -54,7 +54,7 @@ $available_sections = [
     'about' => 'Sobre Nós',
     'sistema' => 'Sistema',
     // Seções de Admin
-    'upload' => 'Upload de Arquivos (Admin)',
+    
     'info-upload' => 'Cadastrar Informação (Admin)',
     'registros_sugestoes' => 'Registros de Sugestões (Admin)',
     'settings' => 'Configurações (Admin)',
@@ -80,6 +80,7 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
 $sistemas_externos = [];
 $user_setor_id = $_SESSION['setor_id'] ?? null;
 $user_role = $_SESSION['role'] ?? 'user';
+$user_department = $_SESSION['department'] ?? null;
 
 // Se o usuário for admin ou god, mostra todos os sistemas. Senão, filtra por setor.
 if (in_array($user_role, ['admin', 'god'])) {
@@ -344,6 +345,36 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             color: #ffffff;
             box-shadow: 0 4px 14px 0 rgba(37, 76, 144, 0.39);
         }
+                /* Estilos para Notificações */
+        .notification-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            border-radius: 9999px;
+            padding: 1px 5px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            border: 2px solid #254c90; /* Cor de fundo do header */
+        }
+        .notification-item {
+            border-bottom: 1px solid #e5e7eb; /* gray-200 */
+        }
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        .notification-item.unread {
+            background-color: #f3f4f6; /* gray-100 */
+        }
+        .notification-item.unread:hover {
+            background-color: #e5e7eb; /* gray-200 */
+        }
+
+        /* Estilo para checkboxes de permissão */
+
+        /* Estilo para checkboxes de permissão */
+
         /* Estilo para checkboxes de permissão */
         .custom-checkbox {
             width: 20px !important;
@@ -353,7 +384,6 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             box-sizing: border-box !important;
             flex-shrink: 0; /* Evita que o item encolha */
         }
-    </style>
     </style>
 </head>
 <body>
@@ -412,14 +442,9 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <?php endif; ?>
 
                 <!-- ETAPA 3: Ocultar o título "Administração" se o usuário não tiver acesso a nenhuma de suas seções -->
-                <?php if (can_view_section('upload') || can_view_section('settings') || can_view_section('registros_sugestoes')): ?>
+                <?php if (can_view_section('settings') || can_view_section('registros_sugestoes')): ?>
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
-                <?php if (can_view_section('upload')): ?>
-                    <a href="#" data-section="upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('upload', true); return false;">
-                        <i class="fas fa-upload w-6"></i>
-                        <span>Upload de Arquivos</span>
-                    </a>
-                <?php endif; ?>
+                
                 <?php if (can_view_section('settings')): ?>
                     <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('settings', true); return false;">
                         <i class="fas fa-cog w-6"></i>
@@ -472,6 +497,24 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                             <span>FAQ</span>
                         </a>
                         <?php endif; ?>
+
+                        <!-- Ícone de Notificações -->
+                        <div class="relative">
+                            <button id="notificationsBell" class="text-white hover:opacity-80 transition p-2 rounded-md hover:bg-[#1d3870] relative">
+                                <i class="fas fa-bell"></i>
+                                <span id="notification-count-badge" class="notification-badge hidden"></span>
+                            </button>
+                            <div id="notificationsDropdown" class="absolute right-0 mt-4 w-80 md:w-96 bg-white rounded-lg shadow-lg z-50 hidden">
+                                <div class="flex justify-between items-center px-4 py-2 border-b">
+                                    <span class="font-semibold text-sm text-gray-700">Notificações</span>
+                                    <a href="#" id="mark-all-as-read" class="text-xs text-blue-600 hover:underline">Marcar todas como lidas</a>
+                                </div>
+                                <div id="notificationsList" class="max-h-80 overflow-y-auto">
+                                    <!-- As notificações serão inseridas aqui via JS -->
+                                    <div class="p-4 text-center text-sm text-gray-500">Carregando...</div>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Perfil do usuário logado -->
                         <div class="flex items-center space-x-3 relative">
@@ -806,102 +849,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         </div>
                     </div>
                 </section>
-                <!-- Upload Section -->
-                <section id="upload" class="hidden space-y-6">
-                    <div class="flex justify-between items-center">
-                    </div>
-                    <div class="bg-white rounded-lg shadow overflow-hidden">
-                        <div class="p-6 border-b border-[#254c90]">
-                            <h3 class="text-lg font-semibold text-[#254c90]">Enviar Novo Arquivo</h3>
-                        </div>
-                        <div class="p-6">
-                            <form id="uploadForm" class="space-y-6" method="POST" enctype="multipart/form-data" action="upload.php">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Título do Arquivo</label>
-                                        <input type="text" name="titulo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90] placeholder-[#254c90]" placeholder="Ex: Relatório Financeiro Q2">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Tipo de Documento</label>
-                                        <select name="tipo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                            <option>PDF</option>
-                                            <option>Planilha Excel</option>
-                                            <option>Documento Word</option>
-                                            <option>Apresentação PowerPoint</option>
-                                            <option>Outro</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Departamento</label>
-                                        <select name="setor_id" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                            <option value="">Selecione um setor</option>
-                                            <?php foreach ($setores as $setor): ?>
-                                                <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Nível de Acesso</label>
-                                        <select name="nivel_acesso" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                            <option>Público (Todos os colaboradores)</option>                                            <option>Restrito (Apenas departamento)</option>                                            <option>Confidencial (Apenas gestores)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Descrição</label>
-                                    <textarea name="descricao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90] placeholder-[#254c90]" rows="3" placeholder="Breve descrição do conteúdo do arquivo..."></textarea>
-                                </div>
-                                <div class="border-2 border-dashed border-[#1d3870] rounded-lg p-6 text-center" id="dropzone">
-                                    <input type="file" name="arquivo" id="fileInput" class="hidden">
-                                    <div class="space-y-2">
-                                        <i class="fas fa-cloud-upload-alt text-4xl text-white"></i>
-                                        <p class="text-white">Arraste e solte arquivos aqui ou</p>
-                                        <button type="button" id="browseButton" class="px-4 py-2 bg-white text-[#254c90] rounded-md hover:bg-[#e5e7eb] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
-                                            Selecionar Arquivo
-                                        </button>
-                                        <p class="text-sm text-white">Tamanho máximo: 50MB</p>
-                                    </div>
-                                    <div id="filePreview" class="hidden mt-4">
-                                        <div class="flex items-center justify-between bg-[#254c90] p-3 rounded-md">
-                                            <div class="flex items-center">
-                                                <i class="fas fa-file text-white mr-3"></i>
-                                                <div>
-                                                    <p class="text-sm font-medium text-white" id="fileName">arquivo.pdf</p>
-                                                    <p class="text-xs text-white" id="fileSize">2.5 MB</p>
-                                                </div>
-                                            </div>
-                                            <button type="button" id="removeFile" class="text-white hover:text-[#e5e7eb]">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="flex justify-end">
-                                    <button type="button" class="px-4 py-2 bg-white text-[#254c90] rounded-md mr-2 hover:bg-[#e5e7eb] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
-                                        Cancelar
-                                    </button>
-                                    <button type="submit" id="submitUpload" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
-                                        Enviar Arquivo
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Formulário para cadastrar imagem do carrossel -->
-                    <div class="bg-white rounded-lg shadow p-6 mt-8">
-        <h3 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Imagem ao Carrossel</h3>
-        <form method="POST" enctype="multipart/form-data" action="cadastrar_carrossel.php">
-            <div>
-                <label class="block text-sm font-medium text-[#254c90] mb-1">Imagem</label>
-                <input type="file" name="imagem" accept="image/*" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#254c90]">
-                <span class="text-xs text-gray-500">Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.</span>
-            </div>
-            <div class="flex justify-end mt-4">
-                <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Adicionar ao Carrossel</button>
-            </div>
-        </form>
-    </div>
-                </section>
+                
                 <!-- Informações/Avisos Section -->
                 <section id="info-upload" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -959,6 +907,20 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 </div>
             </form>
         </div>
+    </div>
+    <!-- Formulário para cadastrar imagem do carrossel -->
+    <div class="bg-white rounded-lg shadow p-6 mt-8">
+        <h3 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Imagem ao Carrossel</h3>
+        <form method="POST" enctype="multipart/form-data" action="cadastrar_carrossel.php">
+            <div>
+                <label class="block text-sm font-medium text-[#254c90] mb-1">Imagem</label>
+                <input type="file" name="imagem" accept="image/*" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#254c90]">
+                <span class="text-xs text-gray-500">Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.</span>
+            </div>
+            <div class="flex justify-end mt-4">
+                <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Adicionar ao Carrossel</button>
+            </div>
+        </form>
     </div>
 </section>
                 <!-- Sugestões e Reclamações Section -->
@@ -1650,7 +1612,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 'matriz_comunicacao': 'Matriz de Comunicação',
                 'sugestoes': 'Sugestões e Reclamações',
                 'faq': 'FAQ',
-                'upload': 'Upload de Arquivos',
+                
                 'profile': 'Meu Perfil',
                 'create_procedure': 'Criar Procedimento',
                 'info-upload': 'Cadastrar Informação',                
@@ -1687,76 +1649,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     .catch(() => container.innerHTML = '<p class="text-center text-red-500">Erro ao carregar os registros.</p>');
             }
         }
-        document.getElementById('browseButton').addEventListener('click', function() {
-            document.getElementById('fileInput').click();
-        });
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            if (e.target.files.length > 0) {
-                showFilePreview(e.target.files[0]);
-                const file = e.target.files[0];
-                if (file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, {type: 'array'});
-                        const sheetName = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[sheetName];
-                        const html = XLSX.utils.sheet_to_html(worksheet, {header: "<thead>", footer: "</tfoot>"});
-                        document.getElementById('excel-table-container').innerHTML = html;
-                        document.getElementById('excel-table-container').classList.remove('hidden');
-                        document.getElementById('excel-viewer').classList.add('hidden');
-                    };
-                    reader.readAsArrayBuffer(file);
-                }
-            }
-        });
-        document.getElementById('removeFile').addEventListener('click', function() {
-            document.getElementById('fileInput').value = '';
-            document.getElementById('filePreview').classList.add('hidden');
-        });
-        function showFilePreview(file) {
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = formatFileSize(file.size);
-            document.getElementById('filePreview').classList.remove('hidden');
-        }
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        const dropzone = document.getElementById('dropzone');
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, preventDefaults, false);
-        });
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropzone.addEventListener(eventName, highlight, false);
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, unhighlight, false);
-        });
-        function highlight() {
-            dropzone.classList.add('border-[#254c90]');
-            dropzone.classList.add('bg-[#1d3870]');
-        }
-        function unhighlight() {
-            dropzone.classList.remove('border-[#254c90]');
-            dropzone.classList.remove('bg-[#1d3870]');
-        }
-        dropzone.addEventListener('drop', handleDrop, false);
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files.length > 0) {
-                document.getElementById('fileInput').files = files;
-                showFilePreview(files[0]);
-            }
-        }
+        
         document.getElementById('closeModal').addEventListener('click', function() {
             document.getElementById('successModal').classList.add('hidden');
         });
@@ -1787,8 +1680,150 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             document.getElementById('excel-iframe').src = '';
             document.getElementById('excel-table-container').classList.remove('hidden');
         });
+        // --- Lógica de Notificações ---
+        const notificationsBell = document.getElementById('notificationsBell');
+        const notificationsDropdown = document.getElementById('notificationsDropdown');
+        const notificationsList = document.getElementById('notificationsList');
+        const notificationBadge = document.getElementById('notification-count-badge');
+        const markAllAsReadBtn = document.getElementById('mark-all-as-read');
+
+        // Função para buscar as notificações do servidor
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('get_notificacoes.php');
+                const data = await response.json();
+                if (data.success) {
+                    renderNotifications(data.notifications);
+                } else {
+                    console.error('Erro ao buscar notificações:', data.error);
+                    notificationsList.innerHTML = '<div class="p-4 text-center text-sm text-gray-500">Erro ao carregar.</div>';
+                }
+            } catch (error) {
+                console.error('Erro de rede ao buscar notificações:', error);
+                notificationsList.innerHTML = '<div class="p-4 text-center text-sm text-gray-500">Erro de conexão.</div>';
+            }
+        }
+
+        // Função para renderizar as notificações no dropdown
+        function renderNotifications(notifications) {
+            notificationsList.innerHTML = ''; // Limpa a lista atual
+            let unreadCount = 0;
+
+            if (notifications.length === 0) {
+                notificationsList.innerHTML = '<div class="p-4 text-center text-sm text-gray-500">Nenhuma notificação nova.</div>';
+                notificationBadge.classList.add('hidden');
+                notificationBadge.textContent = '';
+                return;
+            }
+
+            notifications.forEach(notif => {
+                if (notif.lida == 0) { // Compara com 0, pois vem como string/número do DB
+                    unreadCount++;
+                }
+
+                const item = document.createElement('a');
+                item.href = '#'; // O clique será tratado por JS
+                item.classList.add('notification-item', 'block', 'px-4', 'py-3', 'hover:bg-gray-100', 'transition', 'duration-150', 'ease-in-out');
+                item.dataset.id = notif.id;
+                item.dataset.link = notif.link || '#'; // Garante que o link exista
+
+                if (notif.lida == 0) {
+                    item.classList.add('unread');
+                }
+
+                // Formata a data para um formato mais amigável
+                const date = new Date(notif.data_criacao);
+                const formattedDate = `${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+                item.innerHTML = `
+                    <div class="flex items-start space-x-3 pointer-events-none">
+                        <div class="flex-shrink-0 pt-1">
+                            <div class="w-3 h-3 rounded-full ${notif.lida == 0 ? 'bg-blue-500' : 'bg-gray-300'}"></div>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-800">${notif.mensagem}</p>
+                            <p class="text-xs text-gray-500 mt-1">${formattedDate}</p>
+                        </div>
+                    </div>
+                `;
+                notificationsList.appendChild(item);
+            });
+
+            // Atualiza o contador no ícone do sino
+            if (unreadCount > 0) {
+                notificationBadge.textContent = unreadCount;
+                notificationBadge.classList.remove('hidden');
+            } else {
+                notificationBadge.classList.add('hidden');
+            }
+        }
+
+        // Função para marcar uma notificação como lida
+        async function markAsRead(notificationId) {
+            const formData = new FormData();
+            formData.append('id', notificationId);
+ 
+            try {
+                const response = await fetch('marcar_notificacao_lida.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    fetchNotifications(); // Recarrega as notificações para atualizar a UI
+                } else {
+                    console.error('Falha ao marcar como lida:', data.error);
+                }
+            } catch (error) {
+                console.error('Erro de rede ao marcar como lida:', error);
+            }
+        }
+
         // Garante que só o dashboard está selecionado ao carregar
         document.addEventListener('DOMContentLoaded', function() {
+            // --- Event Listeners para Notificações ---
+            if (notificationsBell) {
+                notificationsBell.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    notificationsDropdown.classList.toggle('hidden');
+                    // Busca notificações apenas quando o dropdown é aberto
+                    if (!notificationsDropdown.classList.contains('hidden')) {
+                        fetchNotifications();
+                    }
+                });
+            }
+
+            if (markAllAsReadBtn) {
+                markAllAsReadBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    markAsRead('all');
+                });
+            }
+
+            if (notificationsList) {
+                notificationsList.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetItem = e.target.closest('.notification-item');
+                    if (targetItem) {
+                        const notificationId = targetItem.dataset.id;
+                        const link = targetItem.dataset.link;
+                        
+                        // Marca como lida e depois redireciona
+                        markAsRead(notificationId).then(() => {
+                            if (link && link !== '#') {
+                                window.location.href = link;
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Busca inicial de notificações e depois a cada 1 minuto
+            fetchNotifications();
+            setInterval(fetchNotifications, 60000); // 60000 ms = 1 minuto
+
+            // --- Fim dos Event Listeners de Notificações ---
+
             document.querySelectorAll('.sidebar-link').forEach(link => {
                 link.classList.remove('bg-[#1d3870]');
             });
@@ -1813,6 +1848,13 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     if (tabButton) tabButton.click();
                 }
             }
+
+            // Fechar dropdowns ao clicar fora
+            document.addEventListener('click', (e) => {
+                if (notificationsDropdown && !notificationsBell.contains(e.target) && !notificationsDropdown.contains(e.target)) {
+                    notificationsDropdown.classList.add('hidden');
+                }
+            });
         });
         // Dropdown do perfil
         const profileDropdownBtn = document.getElementById('profileDropdownBtn');
@@ -1828,29 +1870,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 }
             });
         }
-document.getElementById('uploadForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var form = this;
-    var formData = new FormData(form);
-    fetch('upload.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('successModal').classList.remove('hidden');
-            form.reset();
-            document.getElementById('filePreview').classList.add('hidden');
-            // Aqui você pode atualizar a lista de uploads se quiser
-        } else {
-            alert(data.message || 'Erro ao enviar arquivo.');
-        }
-    })
-    .catch(() => {
-        alert('Erro ao enviar arquivo.');
-    });
-});
+
 
 document.getElementById('sugestaoForm').addEventListener('submit', function(e) {
     e.preventDefault();

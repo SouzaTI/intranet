@@ -301,6 +301,33 @@ HTML;
         $msg = "Procedimento criado e salvo com sucesso!";
         $new_procedure_id = $stmt->insert_id;
         logActivity($usuario_id, 'Procedimento Criado', "Título: {$titulo_raw} (ID: {$new_procedure_id})");
+
+        // Lógica de Notificação
+        $notification_message = "Novo procedimento em {$departamento}: {$titulo_raw}";
+        $notification_link = "index.php?section=documents";
+
+        if ($setor_id) {
+            $sql_users = "SELECT id FROM users WHERE setor_id = ?";
+            $stmt_users = $conn->prepare($sql_users);
+            $stmt_users->bind_param("i", $setor_id);
+        } else {
+            $sql_users = "SELECT id FROM users";
+            $stmt_users = $conn->prepare($sql_users);
+        }
+        $stmt_users->execute();
+        $result_users = $stmt_users->get_result();
+
+        if ($result_users->num_rows > 0) {
+            $stmt_notif = $conn->prepare("INSERT INTO notificacoes (user_id, mensagem, link) VALUES (?, ?, ?)");
+            while ($user = $result_users->fetch_assoc()) {
+                $notif_user_id = $user['id'];
+                $stmt_notif->bind_param("iss", $notif_user_id, $notification_message, $notification_link);
+                $stmt_notif->execute();
+            }
+            $stmt_notif->close();
+        }
+        $stmt_users->close();
+
     } else {
         $status = "error";
         $msg = "Erro ao salvar o registro do procedimento no banco de dados.";

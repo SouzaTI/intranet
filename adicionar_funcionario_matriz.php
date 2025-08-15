@@ -33,6 +33,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = $_SESSION['user_id'] ?? null;
             $username = $_SESSION['username'] ?? 'N/A';
             logActivity($userId, "Funcionário Adicionado à Matriz", "Usuário {$username} adicionou o funcionário {$nome} (Setor: {$setor}) à Matriz de Comunicação.");
+
+            // Notificar todos os usuários
+            $result_users = $conn->query("SELECT id FROM users");
+            if ($result_users && $result_users->num_rows > 0) {
+                $mensagem = "Um novo funcionário foi adicionado à Matriz de Comunicação: " . htmlspecialchars($nome);
+                $link = "index.php?section=matriz_comunicacao"; // Link para a seção
+                $stmt_notif = $conn->prepare("INSERT INTO notificacoes (user_id, mensagem, link) VALUES (?, ?, ?)");
+
+                while ($user = $result_users->fetch_assoc()) {
+                    $user_id_notif = $user['id'];
+                    $stmt_notif->bind_param("iss", $user_id_notif, $mensagem, $link);
+                    $stmt_notif->execute();
+                }
+                $stmt_notif->close();
+            }
+
             header("Location: index.php?section=matriz_comunicacao&status=success&msg=" . urlencode("Funcionário adicionado com sucesso!"));
         } else {
             $userId = $_SESSION['user_id'] ?? null;
