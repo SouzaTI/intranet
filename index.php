@@ -1231,12 +1231,11 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-[#254c90] mb-1">Departamento</label>
-                                    <select name="departamento" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                        <?php
-                                        $result_deps = $conn->query("SELECT DISTINCT department FROM users WHERE department IS NOT NULL AND department != '' ORDER BY department ASC");
-                                        while ($dep = $result_deps->fetch_assoc()) echo '<option value="'.htmlspecialchars($dep['department']).'">'.htmlspecialchars($dep['department']).'</option>';
-                                        ?>
-                                        <option value="Geral">Geral</option>
+                                    <select name="setor_id" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                        <option value="">Selecione um setor</option>
+                                        <?php foreach ($setores as $setor): ?>
+                                            <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <hr class="my-4">

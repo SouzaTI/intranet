@@ -306,27 +306,44 @@ HTML;
         $notification_message = "Novo procedimento em {$departamento}: {$titulo_raw}";
         $notification_link = "index.php?section=documents";
 
+        $users_to_notify = [];
+
+        // Pega usuários do setor
         if ($setor_id) {
             $sql_users = "SELECT id FROM users WHERE setor_id = ?";
             $stmt_users = $conn->prepare($sql_users);
             $stmt_users->bind_param("i", $setor_id);
-        } else {
-            $sql_users = "SELECT id FROM users";
-            $stmt_users = $conn->prepare($sql_users);
-        }
-        $stmt_users->execute();
-        $result_users = $stmt_users->get_result();
-
-        if ($result_users->num_rows > 0) {
-            $stmt_notif = $conn->prepare("INSERT INTO notificacoes (user_id, mensagem, link) VALUES (?, ?, ?)");
+            $stmt_users->execute();
+            $result_users = $stmt_users->get_result();
             while ($user = $result_users->fetch_assoc()) {
-                $notif_user_id = $user['id'];
+                $users_to_notify[] = $user['id'];
+            }
+            $stmt_users->close();
+        } else {
+            // Se não tem setor, notifica todos
+            $result_users = $conn->query("SELECT id FROM users");
+            while ($user = $result_users->fetch_assoc()) {
+                $users_to_notify[] = $user['id'];
+            }
+        }
+
+        // Pega todos os admins
+        $result_admins = $conn->query("SELECT id FROM users WHERE role = 'admin'");
+        while ($admin = $result_admins->fetch_assoc()) {
+            $users_to_notify[] = $admin['id'];
+        }
+
+        // Remove duplicados
+        $users_to_notify = array_unique($users_to_notify);
+
+        if (count($users_to_notify) > 0) {
+            $stmt_notif = $conn->prepare("INSERT INTO notificacoes (user_id, mensagem, link) VALUES (?, ?, ?)");
+            foreach ($users_to_notify as $notif_user_id) {
                 $stmt_notif->bind_param("iss", $notif_user_id, $notification_message, $notification_link);
                 $stmt_notif->execute();
             }
             $stmt_notif->close();
         }
-        $stmt_users->close();
 
     } else {
         $status = "error";
