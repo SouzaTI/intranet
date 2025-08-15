@@ -2886,6 +2886,7 @@ function processAnswerText(text) {
     return text.replace(linkRegex, (match, section, param) => {
         let url = '#';
         let linkText = 'Clique aqui';
+        let targetAttr = ''; // Para abrir em nova aba
         section = section.trim();
         if(param) param = param.trim();
 
@@ -2895,6 +2896,11 @@ function processAnswerText(text) {
             case 'sugestoes':
                 url = 'index.php?section=sugestoes';
                 linkText = param || 'abrir a tela de chamados';
+                break;
+            case 'glpi':
+                url = 'http://192.168.0.50:8080/glpi17/index.php';
+                linkText = param || 'abrir um chamado no GLPI';
+                targetAttr = ' target="_blank" rel="noopener noreferrer"';
                 break;
             case 'matriz_ti':
                 url = `index.php?section=matriz_comunicacao&setor=TI`;
@@ -2910,7 +2916,7 @@ function processAnswerText(text) {
                 }
                 break;
         }
-        return `<a href="${url}" class="text-blue-600 font-bold hover:underline">${linkText}</a>`;
+        return `<a href="${url}" class="text-blue-600 font-bold hover:underline"${targetAttr}>${linkText}</a>`;
     });
 }
 
