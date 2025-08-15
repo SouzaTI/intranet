@@ -464,6 +464,43 @@ if ($result_manage_faqs) {
             box-sizing: border-box !important;
             flex-shrink: 0; /* Evita que o item encolha */
         }
+
+        /* Estilos para as bolhas de chat da FAQ */
+        .chat-bubble {
+            max-width: 75%;
+            padding: 12px 18px;
+            border-radius: 20px;
+            line-height: 1.5;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .chat-bubble-question {
+            background-color: #254c90; /* Cor principal, como se fosse o usuário */
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+        .chat-bubble-answer {
+            background-color: #e9eef5; /* Cor mais clara, como se fosse a resposta */
+            color: #1f2937; /* Cor de texto escura */
+            border-bottom-left-radius: 5px;
+        }
+
+        /* Estilos para a nova FAQ interativa */
+        .faq-chat-container { height: 60vh; max-height: 500px; }
+        .faq-suggestion-btn {
+            background-color: #fff;
+            border: 1px solid #d1d5db;
+            color: #254c90;
+            transition: all 0.2s ease-in-out;
+        }
+        .faq-suggestion-btn:hover {
+            background-color: #e9eef5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -1053,20 +1090,31 @@ if ($result_manage_faqs) {
                 </a>
             <?php endif; ?>
         </div>
-        <div class="space-y-8">
-            <?php if (empty($faqs_public)): ?>
-                <p class="text-gray-600">Nenhuma FAQ encontrada. Por favor, adicione FAQs através da tela de gerenciamento.</p>
-            <?php else: ?>
-                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
-                    <?php $faq_number = 1; ?>
-                    <?php foreach ($faqs_public as $faq): ?>
-                        <div class="faq-item">
-                            <div class="font-semibold text-[#254c90]"><?php echo $faq_number++; ?>. <?php echo htmlspecialchars($faq['question']); ?></div>
-                            <p class="text-gray-700 mt-1"><?php echo nl2br(htmlspecialchars($faq['answer'])); ?></p>
-                        </div>
-                    <?php endforeach; ?>
+        
+        <!-- Nova Estrutura de Chat Interativo -->
+        <div class="flex flex-col h-full max-w-4xl mx-auto">
+            <!-- Área onde as mensagens do chat aparecem -->
+            <div id="faq-chat-area" class="flex-1 p-4 space-y-6 overflow-y-auto bg-gray-100 rounded-t-lg faq-chat-container border border-gray-200">
+                <!-- Mensagem inicial do "bot" -->
+                <div class="flex justify-start animate-fade-in-up">
+                    <div class="chat-bubble chat-bubble-answer">
+                        <p>Olá! Sou o assistente da Comercial Souza. Como posso te ajudar hoje? Selecione uma das perguntas abaixo.</p>
+                    </div>
                 </div>
-            <?php endif; ?>
+            </div>
+            <!-- Container para botões de sugestão e reset -->
+            <div class="bg-white border-t-0 border border-gray-200 rounded-b-lg">
+                <!-- Área com os botões de sugestão de perguntas -->
+                <div id="faq-suggestions-area" class="p-4 flex flex-wrap gap-3 justify-center">
+                    <!-- Botões de sugestão serão inseridos aqui pelo JavaScript -->
+                </div>
+                <!-- Área para o botão de reset, inicialmente oculta -->
+                <div id="faq-reset-area" class="p-4 text-center hidden border-t border-gray-200">
+                    <button id="faq-reset-btn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Reiniciar Conversa
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </section>
@@ -1252,8 +1300,8 @@ if ($result_manage_faqs) {
                 <!-- Manage FAQs Section (Admin only) -->
                 <section id="manage_faq_section" class="hidden space-y-6">
                     <?php if (can_view_section('manage_faq_section')): ?>
-                        <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
-                            <h1 class="text-3xl font-bold text-[#254c90] mb-6 border-b pb-3">Gerenciar Perguntas Frequentes (FAQs)</h1>
+                        <div class="max-w-6xl mx-auto bg-white p-8 rounded-lg shadow-xl border border-gray-200">
+                            <h1 class="text-3xl font-extrabold text-[#254c90] mb-6 pb-3 border-b-4 border-[#254c90]/50">Gerenciar Perguntas Frequentes (FAQs)</h1>
 
                             <?php
                             // Ajusta as classes das mensagens de feedback para o padrão do projeto
@@ -1261,72 +1309,82 @@ if ($result_manage_faqs) {
                                 $status_class = strpos($manage_faq_message, 'alert-success') !== false
                                     ? 'bg-green-100 border-green-500 text-green-700'
                                     : 'bg-red-100 border-red-500 text-red-700';
-                                echo '<div class="' . $status_class . ' border-l-4 p-4 mb-4 rounded-r-lg" role="alert">' . str_replace(['<div class="alert alert-success">', '<div class="alert alert-danger">', '</div>'], '', $manage_faq_message) . '</div>';
+                                echo '<div class="' . $status_class . ' border-l-4 p-4 mb-4 rounded-lg shadow-sm" role="alert">' . str_replace(['<div class="alert alert-success">', '<div class="alert alert-danger">', '</div>'], '', $manage_faq_message) . '</div>';
                             }
                             ?>
 
-                            <!-- Formulário de Adição/Edição de FAQ -->
-                            <div class="mb-8 p-6 border rounded-lg bg-gray-50">
-                                <h2 class="text-2xl font-semibold text-[#254c90] mb-4"><?php echo $manage_faq_to_edit ? 'Editar FAQ' : 'Adicionar Nova FAQ'; ?></h2>
-                                <form action="index.php?section=manage_faq_section" method="POST">
-                                    <?php if ($manage_faq_to_edit): ?>
-                                        <input type="hidden" name="id" value="<?php echo htmlspecialchars($manage_faq_to_edit['id']); ?>">
-                                        <input type="hidden" name="faq_action" value="edit">
-                                    <?php else: ?>
-                                        <input type="hidden" name="faq_action" value="add">
-                                    <?php endif; ?>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <!-- Formulário de Adição/Edição de FAQ -->
+                                <div>
+                                    <div class="p-6 border border-gray-200 rounded-lg bg-gradient-to-r from-gray-50 to-white shadow-sm h-full">
+                                        <h2 class="text-2xl font-bold text-[#254c90] mb-5"><?php echo $manage_faq_to_edit ? 'Editar FAQ' : 'Adicionar Nova FAQ'; ?></h2>
+                                        <form id="faqManageForm" action="index.php?section=manage_faq_section" method="POST" class="space-y-4">
+                                            <?php if ($manage_faq_to_edit): ?>
+                                                <input type="hidden" name="id" value="<?php echo htmlspecialchars($manage_faq_to_edit['id']); ?>">
+                                                <input type="hidden" name="faq_action" value="edit">
+                                            <?php else: ?>
+                                                <input type="hidden" name="faq_action" value="add">
+                                            <?php endif; ?>
 
-                                    <div class="mb-4">
-                                        <label for="question" class="block text-sm font-medium text-[#254c90] mb-1">Pergunta:</label>
-                                        <input type="text" id="question" name="question" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" value="<?php echo htmlspecialchars($manage_faq_to_edit['question'] ?? ''); ?>" required>
-                                    </div>
-                                    <div class="mb-4">
-                                        <label for="answer" class="block text-sm font-medium text-[#254c90] mb-1">Resposta:</label>
-                                        <textarea id="answer" name="answer" rows="5" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required><?php echo htmlspecialchars($manage_faq_to_edit['answer'] ?? ''); ?></textarea>
-                                    </div>
-                                    <div class="mb-4 flex items-center">
-                                        <input type="checkbox" id="is_active" name="is_active" class="mr-2 leading-tight" <?php echo ($manage_faq_to_edit['is_active'] ?? 1) ? 'checked' : ''; ?>>
-                                        <label for="is_active" class="text-sm text-gray-700">Ativa</label>
-                                    </div>
-                                    <div class="flex items-center justify-between">
-                                        <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">Salvar FAQ</button>
-                                        <?php if ($manage_faq_to_edit): ?>
-                                            <a href="index.php?section=manage_faq_section" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar Edição</a>
-                                        <?php endif; ?>
-                                    </div>
-                                </form>
-                            </div>
-
-                            <!-- Lista de FAQs Existentes (Accordion) -->
-                            <h2 class="text-2xl font-semibold text-[#254c90] mb-4">FAQs Existentes</h2>
-                            <?php if (empty($manage_faqs)): ?>
-                                <p class="text-gray-600">Nenhuma FAQ encontrada. Adicione uma nova FAQ acima.</p>
-                            <?php else: ?>
-                                <div class="space-y-4">
-                                    <?php foreach ($manage_faqs as $faq): ?>
-                                        <div class="border border-gray-200 rounded-lg overflow-hidden">
-                                            <button class="faq-accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 focus:outline-none">
-                                                <span class="font-semibold text-[#254c90] text-left"><?php echo htmlspecialchars($faq['question']); ?></span>
-                                                <i class="fas fa-chevron-down text-gray-600 transform transition-transform duration-300"></i>
-                                            </button>
-                                            <div class="faq-accordion-content hidden p-4 bg-white border-t border-gray-200">
-                                                <p class="text-gray-700 mb-4"><?php echo nl2br(htmlspecialchars($faq['answer'])); ?></p>
-                                                <div class="flex space-x-2">
-                                                    <a href="index.php?section=manage_faq_section&faq_action=edit&id=<?php echo htmlspecialchars($faq['id']); ?>" class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-1 px-2 rounded">Editar</a>
-                                                    <form action="index.php?section=manage_faq_section" method="POST" class="inline-block" onsubmit="return confirm('Tem certeza que deseja excluir esta FAQ?');">
-                                                        <input type="hidden" name="faq_action" value="delete">
-                                                        <input type="hidden" name="id" value="<?php echo htmlspecialchars($faq['id']); ?>">
-                                                        <button type="submit" class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-1 px-2 rounded">Excluir</button>
-                                                    </form>
-                                                </div>
+                                            <div>
+                                                <label for="question" class="block text-sm font-semibold text-[#254c90] mb-1">Pergunta:</label>
+                                                <input type="text" id="question" name="question" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" value="<?php echo htmlspecialchars($manage_faq_to_edit['question'] ?? ''); ?>" required>
                                             </div>
-                                        </div>
-                                    <?php endforeach; ?>
+                                            <div>
+                                                <label for="answer" class="block text-sm font-semibold text-[#254c90] mb-1">Resposta:</label>
+                                                <textarea id="answer" name="answer" rows="5" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" required><?php echo htmlspecialchars($manage_faq_to_edit['answer'] ?? ''); ?></textarea>
+                                            </div>
+                                            <div class="flex items-center">
+                                                <input type="checkbox" id="is_active" name="is_active" class="h-4 w-4 text-[#254c90] focus:ring-[#254c90] border-gray-300 rounded cursor-pointer" <?php echo ($manage_faq_to_edit['is_active'] ?? 1) ? 'checked' : ''; ?>>
+                                                <label for="is_active" class="ml-2 block text-sm text-gray-700 cursor-pointer">Ativa</label>
+                                            </div>
+                                            <div class="flex items-center space-x-4">
+                                                <button type="submit" class="flex-1 px-6 py-2 bg-[#254c90] text-white font-semibold rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90] focus:ring-offset-2 transition duration-200 ease-in-out">Salvar FAQ</button>
+                                                <?php if ($manage_faq_to_edit): ?>
+                                                    <a href="index.php?section=manage_faq_section" class="flex-1 text-center px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition duration-200 ease-in-out">Cancelar Edição</a>
+                                                <?php endif; ?>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
-                            <?php endif; ?>
+
+                                <!-- Lista de FAQs Existentes (Accordion) -->
+                                <div>
+                                    <h2 class="text-2xl font-bold text-[#254c90] mb-4">FAQs Existentes</h2>
+                                    <?php if (empty($manage_faqs)): ?>
+                                        <p class="text-gray-600 p-4 bg-gray-50 rounded-md border border-gray-200">Nenhuma FAQ encontrada. Adicione uma nova FAQ acima.</p>
+                                    <?php else: ?>
+                                        <div class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                                            <?php foreach ($manage_faqs as $faq): ?>
+                                                <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                                                    <button class="faq-accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 focus:outline-none transition duration-200 ease-in-out">
+                                                        <span class="font-semibold text-[#254c90] text-left text-lg"><?php echo htmlspecialchars($faq['question']); ?></span>
+                                                        <i class="fas fa-chevron-down text-gray-600 transform transition-transform duration-300 text-xl"></i>
+                                                    </button>
+                                                    <div class="faq-accordion-content hidden p-4 bg-white border-t border-gray-200">
+                                                        <p class="text-gray-700 mb-4 leading-relaxed"><?php echo nl2br(htmlspecialchars($faq['answer'])); ?></p>
+                                                        <div class="flex space-x-3">
+                                                            <a href="index.php?section=manage_faq_section&faq_action=edit&id=<?php echo htmlspecialchars($faq['id']); ?>" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 ease-in-out">
+                                                                <i class="fas fa-edit mr-2"></i> Editar
+                                                            </a>
+                                                            <form action="index.php?section=manage_faq_section" method="POST" class="inline-block" onsubmit="return confirm('Tem certeza que deseja excluir esta FAQ?');">
+                                                                <input type="hidden" name="faq_action" value="delete">
+                                                                <input type="hidden" name="id" value="<?php echo htmlspecialchars($faq['id']); ?>">
+                                                                <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200 ease-in-out">
+                                                                    <i class="fas fa-trash-alt mr-2"></i> Excluir
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
                         </div>
                     <?php else: ?>
-                        <p class="text-red-500">Acesso negado. Você não tem permissão para gerenciar FAQs.</p>
+                        <p class="text-red-500 text-center p-6 bg-red-50 rounded-lg border border-red-200 shadow-sm">Acesso negado. Você não tem permissão para gerenciar FAQs.</p>
                     <?php endif; ?>
                 </section>
 
@@ -1779,6 +1837,11 @@ if ($result_manage_faqs) {
                     .then(response => response.text())
                     .then(html => container.innerHTML = html)
                     .catch(() => container.innerHTML = '<p class="text-center text-red-500">Erro ao carregar os registros.</p>');
+            }
+
+            // Inicializa o chat da FAQ quando a seção é mostrada
+            if (sectionId === 'faq') {
+                setupFaqChat();
             }
         }
         
@@ -2609,7 +2672,226 @@ function visualizarArquivo(url, tipo) {
             xhr.send(formData);
         })
     });
-    </script>
+
+// Function to fetch and render the FAQ list
+async function fetchFaqList() {
+    const faqListContainer = document.querySelector('#manage_faq_section .space-y-3.max-h-[500px]'); // The div containing the FAQ items
+    if (!faqListContainer) return;
+
+    faqListContainer.innerHTML = '<p class=\'text-center text-gray-500\'>Carregando FAQs...</p>';
+
+    try {
+        const response = await fetch('index.php?section=manage_faq_section&fetch_faqs=true', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest' // Indicate AJAX request
+            }
+        });
+        const data = await response.json(); // Expecting JSON with 'faqs' array
+
+        if (data.success) {
+            if (data.faqs && data.faqs.length > 0) {
+                let faqHtml = '';
+                data.faqs.forEach(faq => {
+                    faqHtml += `
+                        <div class=\'border border-gray-200 rounded-lg shadow-sm overflow-hidden\'>
+                            <button class=\'faq-accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 focus:outline-none transition duration-200 ease-in-out\'>
+                                <span class=\'font-semibold text-[#254c90] text-left text-lg\'>${faq.question}</span>
+                                <i class=\'fas fa-chevron-down text-gray-600 transform transition-transform duration-300 text-xl\'></i>
+                            </button>
+                            <div class=\'faq-accordion-content hidden p-4 bg-white border-t border-gray-200\'>
+                                <p class=\'text-gray-700 mb-4 leading-relaxed\'>${faq.answer.replace(/\n/g, '<br>')}</p>
+                                <div class=\'flex space-x-3\'>
+                                    <a href=\'index.php?section=manage_faq_section&faq_action=edit&id=${faq.id}\' class=\'inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 ease-in-out\'>
+                                        <i class=\'fas fa-edit mr-2\'></i> Editar
+                                    </a>
+                                    <form action=\'index.php?section=manage_faq_section\' method=\'POST\' class=\'inline-block delete-faq-form\' onsubmit=\'return confirm(\'Tem certeza que deseja excluir esta FAQ?\');\'>
+                                        <input type=\'hidden\' name=\'faq_action\' value=\'delete\'>
+                                        <input type=\'hidden\' name=\'id\' value=\'${faq.id}\'/>
+                                        <button type=\'submit\' class=\'inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200 ease-in-out\'>
+                                            <i class=\'fas fa-trash-alt mr-2\'></i> Excluir
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                faqListContainer.innerHTML = faqHtml;
+                // Re-attach accordion listeners after content update
+                attachAccordionListeners();
+                attachDeleteFaqListeners(); // Attach listeners for delete forms
+            } else {
+                faqListContainer.innerHTML = '<p class=\'text-gray-600 p-4 bg-gray-50 rounded-md border border-gray-200\'>Nenhuma FAQ encontrada. Adicione uma nova FAQ acima.</p>';
+            }
+        } else {
+            faqListContainer.innerHTML = '<p class=\'text-red-500 p-4 bg-red-50 rounded-md border border-red-200\'>Erro ao carregar FAQs: ' + data.message + '</p>';
+        }
+    } catch (error) {
+        console.error('Erro ao buscar lista de FAQ:', error);
+        faqListContainer.innerHTML = '<p class=\'text-red-500 p-4 bg-red-50 rounded-md border border-red-200\'>Erro de conexão ao carregar FAQs.</p>';
+    }
+}
+
+// Function to attach accordion listeners (can be called after content updates)
+function attachAccordionListeners() {
+    document.querySelectorAll('.faq-accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling; // O conteúdo é o próximo irmão do cabeçalho
+                    const icon = header.querySelector('i.fa-chevron-down');
+
+                    if (content.classList.contains('hidden')) {
+                        content.classList.remove('hidden');
+                        icon.classList.add('rotate-180');
+                    } else {
+                        content.classList.add('hidden');
+                        icon.classList.remove('rotate-180');
+                    }
+                });
+            });
+}
+
+// Function to attach delete FAQ form listeners
+function attachDeleteFaqListeners() {
+    document.querySelectorAll('.delete-faq-form').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!confirm('Tem certeza que deseja excluir esta FAQ?')) {
+                return;
+            }
+
+            const formData = new FormData(this);
+            const manageFaqMessageDiv = document.querySelector('#manage_faq_section .alert');
+
+            if (manageFaqMessageDiv) {
+                manageFaqMessageDiv.innerHTML = '<div class=\'bg-blue-100 border-blue-500 text-blue-700 border-l-4 p-4 mb-4 rounded-lg shadow-sm\' role=\'alert\'>Excluindo...</div>';
+                manageFaqMessageDiv.classList.remove('hidden');
+            }
+
+            try {
+                const response = await fetch('index.php?section=manage_faq_section', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json();
+
+                if (manageFaqMessageDiv) {
+                    if (data.success) {
+                        manageFaqMessageDiv.innerHTML = `<div class=\'bg-green-100 border-green-500 text-green-700 border-l-4 p-4 mb-4 rounded-lg shadow-sm\' role=\'alert\'>${data.message}</div>`;
+                    } else {
+                        manageFaqMessageDiv.innerHTML = `<div class=\'bg-red-100 border-red-500 text-red-700 border-l-4 p-4 mb-4 rounded-lg shadow-sm\' role=\'alert\'>${data.message}</div>`;
+                    }
+                    setTimeout(() => {
+                        manageFaqMessageDiv.classList.add('hidden');
+                    }, 5000);
+                }
+                await fetchFaqList(); // Refresh the list after delete
+            } catch (error) {
+                console.error('Erro ao excluir FAQ:', error);
+                if (manageFaqMessageDiv) {
+                    manageFaqMessageDiv.innerHTML = '<div class=\'bg-red-100 border-red-500 text-red-700 border-l-4 p-4 mb-4 rounded-lg shadow-sm\' role=\'alert\'>Erro de conexão ao excluir FAQ.</div>';
+                    manageFaqMessageDiv.classList.remove('hidden');
+                    setTimeout(() => {
+                        manageFaqMessageDiv.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+        });
+    });
+}
+
+// --- Lógica para o Chat da FAQ Interativa ---
+const faqsData = <?php echo json_encode($faqs_public); ?>;
+const chatArea = document.getElementById('faq-chat-area');
+const suggestionsArea = document.getElementById('faq-suggestions-area');
+const resetArea = document.getElementById('faq-reset-area');
+const resetButton = document.getElementById('faq-reset-btn');
+
+function setupFaqChat() {
+    // Limpa as áreas para reiniciar o chat
+    chatArea.innerHTML = `
+        <div class="flex justify-start animate-fade-in-up">
+            <div class="chat-bubble chat-bubble-answer">
+                <p>Olá! Sou o assistente da Comercial Souza. Como posso te ajudar hoje? Selecione uma das perguntas abaixo.</p>
+            </div>
+        </div>`;
+    suggestionsArea.innerHTML = '';
+    resetArea.classList.add('hidden'); // Esconde o botão de reset
+
+    // Cria os botões de sugestão
+    faqsData.forEach(faq => {
+        const button = document.createElement('button');
+        button.className = 'faq-suggestion-btn px-4 py-2 rounded-lg text-sm font-medium';
+        button.textContent = faq.question;
+        button.dataset.faqId = faq.id;
+        button.addEventListener('click', handleFaqSuggestionClick);
+        suggestionsArea.appendChild(button);
+    });
+}
+
+function handleFaqSuggestionClick(event) {
+    const button = event.currentTarget;
+    const faqId = button.dataset.faqId;
+    const faq = faqsData.find(f => f.id == faqId);
+
+    if (!faq) return;
+
+    // Mostra a área do botão de reset na primeira interação
+    if (resetArea.classList.contains('hidden')) {
+        resetArea.classList.remove('hidden');
+    }
+
+    // 1. Adiciona a pergunta do usuário ao chat
+    const questionBubble = document.createElement('div');
+    questionBubble.className = 'flex justify-end animate-fade-in-up';
+    questionBubble.innerHTML = `
+        <div class="chat-bubble chat-bubble-question">
+            <p class="font-semibold">${faq.question}</p>
+        </div>`;
+    chatArea.appendChild(questionBubble);
+
+    // 2. Remove o botão clicado
+    button.style.display = 'none';
+
+    // 3. Rola para a nova mensagem
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    // 4. Simula "digitando" e mostra a resposta
+    setTimeout(() => {
+        const answerBubble = document.createElement('div');
+        answerBubble.className = 'flex justify-start animate-fade-in-up';
+        answerBubble.innerHTML = `
+            <div class="chat-bubble chat-bubble-answer">
+                <p>${faq.answer.replace(/\n/g, '<br>')}</p>
+            </div>`;
+        chatArea.appendChild(answerBubble);
+
+        // 5. Rola para a resposta
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        // Se não houver mais sugestões, mostra uma mensagem de finalização
+        const remainingButtons = suggestionsArea.querySelectorAll('button[style*="display: none"]');
+        if (remainingButtons.length === faqsData.length) {
+            setTimeout(() => {
+                const endMessage = document.createElement('div');
+                endMessage.className = 'flex justify-start animate-fade-in-up';
+                endMessage.innerHTML = `<div class="chat-bubble chat-bubble-answer"><p>Espero ter ajudado! Se tiver outra dúvida, clique em "Reiniciar Conversa". 😊</p></div>`;
+                chatArea.appendChild(endMessage);
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }, 800);
+        }
+    }, 800); // Atraso de 800ms para a resposta
+}
+
+// Adiciona o listener para o botão de reset
+if (resetButton) {
+    resetButton.addEventListener('click', () => {
+        setupFaqChat();
+    });
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>
