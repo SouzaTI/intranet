@@ -12,6 +12,9 @@
     ```
     http://localhost/intranet/
     ```
+    
+*Estrutura do Banco de Dados:*
+![Estrutura do Banco de Dados](readme/bancodados.png)
 
 ---
 
@@ -26,47 +29,37 @@
 
 ## 📸 Capturas de Tela
 
-### 1. 📄 Cadastro de Informação
-![Cadastro de Informação](readme/CADASTRARINFO.png)
+### 1. ✨ Tela de Boas-Vindas
+*A primeira tela que o usuário vê, apresentando a identidade visual e o propósito da intranet.*
+![Tela de Boas-Vindas](readme/boasvindas.png)
 
-### 2. ⚙️ Configuração
-![Configuração](readme/CONFIGURACAO.png)
+### 2. 🔐 Acesso ao Sistema (Login)
+*Modal de login que aparece após clicar em "Acessar Intranet", com campos para usuário e senha.*
+![Tela de Login](readme/login.png)
 
-### 3. ⚙️ Configuração (Parte 2)
-![Configuração 1](readme/CONFIGURACAO1.png)
+### 3. 🔑 Recuperação de Senha
+*Tela para usuários que esqueceram a senha, permitindo a solicitação de um link de redefinição.*
+![Recuperação de Senha](readme/recuperarsenha.png)
 
-### 4. 📝 Criar Procedimento
-![Criar Procedimento](readme/CRIARPROCEDIMENTO.png)
-
-### 5. ❓ FAQ
-![FAQ](readme/FAQ.png)
-
-### 6. ℹ️ Informações
-![Informações](readme/INFORMACOES.png)
-
-### 7. 🏠 Tela Inicial
+### 4. 🏠 Tela Inicial (Dashboard)
+*Visão geral do sistema após o login, com comunicados, atalhos e navegação principal.*
 ![Tela Inicial](readme/INICIAL.png)
 
-### 8. 📊 Matriz
-![Matriz](readme/MATRIZ.png)
-
-### 9. 📚 Normas e Procedimentos
+### 5. 📂 Normas e Procedimentos
+*Seção para consulta e download de documentos importantes da empresa.*
 ![Normas e Procedimentos](readme/NORMASPROCEDIMENTOS.png)
 
-### 10. 👤 Perfil
+### 6. 📝 Criação de Procedimentos
+*Formulário avançado com editor de texto para a criação de novos documentos de procedimento em PDF.*
+![Criar Procedimento](readme/CRIARPROCEDIMENTO.png)
+
+### 7. ⚙️ Configurações e Permissões
+*Painel administrativo para gerenciamento de usuários, permissões de acesso e outras configurações do sistema.*
+![Configuração](readme/CONFIGURACAO.png)
+
+### 8. 👤 Perfil do Usuário
+*Página onde o usuário pode alterar sua foto e senha.*
 ![Perfil](readme/PERFIL.png)
-
-### 11. 🗂️ Registro
-![Registro](readme/REGISTRO.png)
-
-### 12. 💻 Sistemas
-![Sistemas](readme/SISTEMAS.png)
-
-### 13. 📜 Sobre
-![Sobre](readme/SOBRE.png)
-
-### 14. 🗣️ Sugestão / Reclamação
-![Sugestão/Reclamação](readme/SUGESTAORECLAMACAO.png)
 
 ---
 
