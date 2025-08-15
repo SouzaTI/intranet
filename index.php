@@ -2,6 +2,15 @@
 session_start();
 require_once 'conexao.php'; // ajuste o nome se for diferente
 
+// Obter todas as FAQs ativas para exibição na página principal
+$faqs_public = [];
+$result_faqs_public = $conn->query("SELECT id, question, answer FROM faqs WHERE is_active = 1 ORDER BY id ASC");
+if ($result_faqs_public) {
+    while ($row = $result_faqs_public->fetch_assoc()) {
+        $faqs_public[] = $row;
+    }
+}
+
 // Verifica se o usuário está logado. Se não, redireciona para a página de login.
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -58,6 +67,7 @@ $available_sections = [
     'info-upload' => 'Cadastrar Informação (Admin)',
     'registros_sugestoes' => 'Registros de Sugestões (Admin)',
     'settings' => 'Configurações (Admin)',
+    'manage_faq_section' => 'Gerenciar FAQs',
 ];
 
 // Busca todos os usuários para a aba de permissões (apenas para admins)
@@ -169,6 +179,76 @@ $result_matriz = $stmt_main->get_result();
 $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 // --- Fim da Lógica para Matriz de Comunicação ---
 
+// --- Início da Lógica para Gerenciar FAQs (incorporado de manage_faq.php) ---
+$manage_faq_message = '';
+$manage_faq_to_edit = null;
+
+// Lidar com ações de POST (adicionar, editar, excluir) para FAQs
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['faq_action'])) {
+    if ($_POST['faq_action'] === 'add' || $_POST['faq_action'] === 'edit') {
+        $question = $_POST['question'] ?? '';
+        $answer = $_POST['answer'] ?? '';
+        $is_active = isset($_POST['is_active']) ? 1 : 0;
+        $id = $_POST['id'] ?? null;
+
+        if (empty($question) || empty($answer)) {
+            $manage_faq_message = '<div class="alert alert-danger">Pergunta e resposta não podem ser vazias.</div>';
+        } else {
+            if ($_POST['faq_action'] === 'add') {
+                $stmt = $conn->prepare("INSERT INTO faqs (question, answer, is_active) VALUES (?, ?, ?)");
+                $stmt->bind_param("ssi", $question, $answer, $is_active);
+                if ($stmt->execute()) {
+                    $manage_faq_message = '<div class="alert alert-success">FAQ adicionada com sucesso!</div>';
+                } else {
+                    $manage_faq_message = '<div class="alert alert-danger">Erro ao adicionar FAQ: ' . $conn->error . '</div>';
+                }
+            } else { // faq_action is edit
+                $stmt = $conn->prepare("UPDATE faqs SET question = ?, answer = ?, is_active = ? WHERE id = ?");
+                $stmt->bind_param("ssii", $question, $answer, $is_active, $id);
+                if ($stmt->execute()) {
+                    $manage_faq_message = '<div class="alert alert-success">FAQ atualizada com sucesso!</div>';
+                } else {
+                    $manage_faq_message = '<div class="alert alert-danger">Erro ao atualizar FAQ: ' . $conn->error . '</div>';
+                }
+            }
+            $stmt->close();
+        }
+    } elseif ($_POST['faq_action'] === 'delete') {
+        $id = $_POST['id'] ?? null;
+        if ($id) {
+            $stmt = $conn->prepare("DELETE FROM faqs WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            if ($stmt->execute()) {
+                $manage_faq_message = '<div class="alert alert-success">FAQ excluída com sucesso!</div>';
+            } else {
+                $manage_faq_message = '<div class="alert alert-danger">Erro ao excluir FAQ: ' . $conn->error . '</div>';
+            }
+            $stmt->close();
+        }
+    }
+}
+
+// Lidar com ações de GET (editar FAQ específica)
+if (isset($_GET['faq_action']) && $_GET['faq_action'] === 'edit' && isset($_GET['id'])) {
+    $id = intval($_GET['id']);
+    $stmt = $conn->prepare("SELECT id, question, answer, is_active FROM faqs WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $manage_faq_to_edit = $result->fetch_assoc();
+    $stmt->close();
+}
+
+// Obter todas as FAQs para exibição na seção de gerenciamento
+$manage_faqs = [];
+$result_manage_faqs = $conn->query("SELECT id, question, answer, is_active FROM faqs ORDER BY created_at DESC");
+if ($result_manage_faqs) {
+    while ($row = $result_manage_faqs->fetch_assoc()) {
+        $manage_faqs[] = $row;
+    }
+}
+// --- Fim da Lógica para Gerenciar FAQs ---
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -204,7 +284,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
         }
         /* Sobrescreve o hover para os cards de documento/atalho para usar amarelo */
         .document-card:hover {
-            background-color: #f5c4c4ff !important;
+            background-color: #b1afbbff !important;
         }
         .rounded-full, .rounded-lg, .rounded-md {
             border-radius: 0.5rem !important;
@@ -441,31 +521,31 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 </a>
                 <?php endif; ?>
 
-                <!-- ETAPA 3: Ocultar o título "Administração" se o usuário não tiver acesso a nenhuma de suas seções -->
-                <?php if (can_view_section('settings') || can_view_section('registros_sugestoes')): ?>
+                <!-- Bloco de Administração -->
+                <?php if (can_view_section('settings') || can_view_section('registros_sugestoes') || can_view_section('info-upload')): ?>
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
                 
                 <?php if (can_view_section('settings')): ?>
-                    <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('settings', true); return false;">
-                        <i class="fas fa-cog w-6"></i>
-                        <span>Configurações</span>
-                    </a>
+                <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('settings', true); return false;">
+                    <i class="fas fa-cog w-6"></i>
+                    <span>Configurações</span>
+                </a>
                 <?php endif; ?>
                 <?php if (can_view_section('registros_sugestoes')): ?>
-                    <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes', true); return false;">
+                <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes', true); return false;">
                         <i class="fas fa-clipboard-list w-6"></i>
                         <span>Registros de Sugestões</span>
                     </a>
                 <?php endif; ?>
-                <?php endif; ?>
-
-                <!-- Links restantes -->
                 <?php if (can_view_section('info-upload')): ?>
                 <a href="#" data-section="info-upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('info-upload', true); return false;">
                     <i class="fas fa-bullhorn w-6"></i>
                     <span>Cadastrar Informação</span>
                 </a>
                 <?php endif; ?>
+                <?php endif; ?>
+
+                <!-- Links restantes -->
                 <?php if (can_view_section('about')): ?>
                 <a href="#" data-section="about" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('about', true); return false;">
                     <i class="fas fa-users w-6"></i>
@@ -964,57 +1044,29 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <!-- FAQ Section -->
                 <section id="faq" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-3xl font-bold text-[#254c90] mb-6 border-b pb-3">FAQ - Perguntas Frequentes</h2>
-        
+        <div class="flex justify-between items-center mb-6 border-b pb-3">
+            <h2 class="text-3xl font-bold text-[#254c90]">FAQ - Perguntas Frequentes</h2>
+            <?php if (can_view_section('manage_faq_section')): ?>
+                <a href="#" data-section="manage_faq_section" onclick="showSection('manage_faq_section', true); return false;" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
+                    <i class="fas fa-plus-circle mr-2"></i>
+                    Gerenciar FAQs
+                </a>
+            <?php endif; ?>
+        </div>
         <div class="space-y-8">
-            <!-- Categoria: Acesso e Navegação -->
-            <div>
-                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Acesso e Navegação</h3>
+            <?php if (empty($faqs_public)): ?>
+                <p class="text-gray-600">Nenhuma FAQ encontrada. Por favor, adicione FAQs através da tela de gerenciamento.</p>
+            <?php else: ?>
                 <div class="space-y-4 pl-4 border-l-2 border-gray-200">
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">1. Como acesso a intranet?</div>
-                        <p class="text-gray-700 mt-1">Você pode acessar a intranet usando seu nome de usuário e senha, os mesmos utilizados para login nos computadores da empresa.</p>
-                    </div>
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">2. Esqueci minha senha. O que eu faço?</div>
-                        <p class="text-gray-700 mt-1">Caso tenha esquecido sua senha, por favor, entre em contato com o departamento de TI para solicitar a redefinição.</p>
-                    </div>
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">3. Como encontro o que preciso na intranet?</div>
-                        <p class="text-gray-700 mt-1">Utilize o menu lateral à esquerda para navegar entre as principais seções. Para uma busca mais específica, use a barra de "Buscar..." no topo da página.</p>
-                    </div>
+                    <?php $faq_number = 1; ?>
+                    <?php foreach ($faqs_public as $faq): ?>
+                        <div class="faq-item">
+                            <div class="font-semibold text-[#254c90]"><?php echo $faq_number++; ?>. <?php echo htmlspecialchars($faq['question']); ?></div>
+                            <p class="text-gray-700 mt-1"><?php echo nl2br(htmlspecialchars($faq['answer'])); ?></p>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
-            </div>
-
-            <!-- Categoria: Documentos e Arquivos -->
-            <div>
-                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Documentos e Arquivos</h3>
-                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">4. Onde encontro as Normas e Procedimentos da empresa?</div>
-                        <p class="text-gray-700 mt-1">No menu lateral, clique em "Normas e Procedimentos". Você pode clicar em "Ver Todos" ou selecionar um setor específico para filtrar os documentos.</p>
-                    </div>
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">5. Onde encontro formulários, relatórios e outros documentos?</div>
-                        <p class="text-gray-700 mt-1">Documentos em formato PDF estão na seção "Documentos PDF" e planilhas estão em "Planilhas". Use a busca dentro de cada seção para encontrar o que precisa.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Categoria: Comunicação e Contatos -->
-            <div>
-                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Comunicação e Contatos</h3>
-                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">6. Como encontro o ramal ou e-mail de um colega?</div>
-                        <p class="text-gray-700 mt-1">Acesse a seção "Informações" no menu e clique na aba "Matriz de Comunicação". Lá você pode pesquisar por nome, setor, e-mail ou ramal.</p>
-                    </div>
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">7. Onde vejo os comunicados oficiais da empresa?</div>
-                        <p class="text-gray-700 mt-1">Os comunicados mais recentes e importantes estão na Página Inicial e também na seção "Informações", na aba "Comunicados".</p>
-                    </div>
-                </div>
-            </div>
+            <?php endif; ?>
         </div>
     </div>
 </section>
@@ -1195,6 +1247,87 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <?php else: ?>
                     <p class="text-red-500">Acesso negado.</p>
                 <?php endif; ?>
+                </section>
+
+                <!-- Manage FAQs Section (Admin only) -->
+                <section id="manage_faq_section" class="hidden space-y-6">
+                    <?php if (can_view_section('manage_faq_section')): ?>
+                        <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
+                            <h1 class="text-3xl font-bold text-[#254c90] mb-6 border-b pb-3">Gerenciar Perguntas Frequentes (FAQs)</h1>
+
+                            <?php
+                            // Ajusta as classes das mensagens de feedback para o padrão do projeto
+                            if (!empty($manage_faq_message)) {
+                                $status_class = strpos($manage_faq_message, 'alert-success') !== false
+                                    ? 'bg-green-100 border-green-500 text-green-700'
+                                    : 'bg-red-100 border-red-500 text-red-700';
+                                echo '<div class="' . $status_class . ' border-l-4 p-4 mb-4 rounded-r-lg" role="alert">' . str_replace(['<div class="alert alert-success">', '<div class="alert alert-danger">', '</div>'], '', $manage_faq_message) . '</div>';
+                            }
+                            ?>
+
+                            <!-- Formulário de Adição/Edição de FAQ -->
+                            <div class="mb-8 p-6 border rounded-lg bg-gray-50">
+                                <h2 class="text-2xl font-semibold text-[#254c90] mb-4"><?php echo $manage_faq_to_edit ? 'Editar FAQ' : 'Adicionar Nova FAQ'; ?></h2>
+                                <form action="index.php?section=manage_faq_section" method="POST">
+                                    <?php if ($manage_faq_to_edit): ?>
+                                        <input type="hidden" name="id" value="<?php echo htmlspecialchars($manage_faq_to_edit['id']); ?>">
+                                        <input type="hidden" name="faq_action" value="edit">
+                                    <?php else: ?>
+                                        <input type="hidden" name="faq_action" value="add">
+                                    <?php endif; ?>
+
+                                    <div class="mb-4">
+                                        <label for="question" class="block text-sm font-medium text-[#254c90] mb-1">Pergunta:</label>
+                                        <input type="text" id="question" name="question" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" value="<?php echo htmlspecialchars($manage_faq_to_edit['question'] ?? ''); ?>" required>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label for="answer" class="block text-sm font-medium text-[#254c90] mb-1">Resposta:</label>
+                                        <textarea id="answer" name="answer" rows="5" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required><?php echo htmlspecialchars($manage_faq_to_edit['answer'] ?? ''); ?></textarea>
+                                    </div>
+                                    <div class="mb-4 flex items-center">
+                                        <input type="checkbox" id="is_active" name="is_active" class="mr-2 leading-tight" <?php echo ($manage_faq_to_edit['is_active'] ?? 1) ? 'checked' : ''; ?>>
+                                        <label for="is_active" class="text-sm text-gray-700">Ativa</label>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">Salvar FAQ</button>
+                                        <?php if ($manage_faq_to_edit): ?>
+                                            <a href="index.php?section=manage_faq_section" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar Edição</a>
+                                        <?php endif; ?>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Lista de FAQs Existentes (Accordion) -->
+                            <h2 class="text-2xl font-semibold text-[#254c90] mb-4">FAQs Existentes</h2>
+                            <?php if (empty($manage_faqs)): ?>
+                                <p class="text-gray-600">Nenhuma FAQ encontrada. Adicione uma nova FAQ acima.</p>
+                            <?php else: ?>
+                                <div class="space-y-4">
+                                    <?php foreach ($manage_faqs as $faq): ?>
+                                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                            <button class="faq-accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 focus:outline-none">
+                                                <span class="font-semibold text-[#254c90] text-left"><?php echo htmlspecialchars($faq['question']); ?></span>
+                                                <i class="fas fa-chevron-down text-gray-600 transform transition-transform duration-300"></i>
+                                            </button>
+                                            <div class="faq-accordion-content hidden p-4 bg-white border-t border-gray-200">
+                                                <p class="text-gray-700 mb-4"><?php echo nl2br(htmlspecialchars($faq['answer'])); ?></p>
+                                                <div class="flex space-x-2">
+                                                    <a href="index.php?section=manage_faq_section&faq_action=edit&id=<?php echo htmlspecialchars($faq['id']); ?>" class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-1 px-2 rounded">Editar</a>
+                                                    <form action="index.php?section=manage_faq_section" method="POST" class="inline-block" onsubmit="return confirm('Tem certeza que deseja excluir esta FAQ?');">
+                                                        <input type="hidden" name="faq_action" value="delete">
+                                                        <input type="hidden" name="id" value="<?php echo htmlspecialchars($faq['id']); ?>">
+                                                        <button type="submit" class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-1 px-2 rounded">Excluir</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-red-500">Acesso negado. Você não tem permissão para gerenciar FAQs.</p>
+                    <?php endif; ?>
                 </section>
 
                 <!-- Create Procedure Section (Admin only) -->
@@ -1541,7 +1674,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     </div>
                     <div>
                         <label for="new_password" class="block text-sm font-medium text-[#254c90]">Senha</label>
-                        <input type="password" name="password" id="new_password" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                        <input type="password" name="password" id="create_user_password" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                     </div>
                     <div>
                         <label for="new_user_role" class="block text-sm font-medium text-[#254c90]">Nível de Acesso</label>
@@ -1853,6 +1986,22 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 if (notificationsDropdown && !notificationsBell.contains(e.target) && !notificationsDropdown.contains(e.target)) {
                     notificationsDropdown.classList.add('hidden');
                 }
+            });
+
+            // Lógica do Acordeão para FAQs
+            document.querySelectorAll('.faq-accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling; // O conteúdo é o próximo irmão do cabeçalho
+                    const icon = header.querySelector('i.fa-chevron-down');
+
+                    if (content.classList.contains('hidden')) {
+                        content.classList.remove('hidden');
+                        icon.classList.add('rotate-180');
+                    } else {
+                        content.classList.add('hidden');
+                        icon.classList.remove('rotate-180');
+                    }
+                });
             });
         });
         // Dropdown do perfil
