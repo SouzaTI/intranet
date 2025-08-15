@@ -27,7 +27,7 @@ A intranet se estabeleceu como o principal hub de informações, agilizando o ac
 
 - ✅ **Autenticação Segura:** Login e registro com perfis de usuário (colaborador, administrador).
 - ✅ **Dashboard Interativo:** Exibição de comunicados, carrossel de imagens e atalhos rápidos.
-- ✅ **Gestão de Documentos:** Seções para PDFs e outros arquivos, incluindo criação de procedimentos padronizados.
+- ✅ **Gestão de Documentos (Normas e Procedimentos):** Seções dedicadas para PDFs e outros arquivos, incluindo criação de procedimentos padronizados.
 - ✅ **Normas e Procedimentos:** Consulta organizada de documentos normativos por setor.
 - ✅ **Sistema de Feedback:** Formulário para sugestões/reclamações com painel de gerenciamento para administradores.
 - ✅ **Painel Administrativo:** Área restrita para cadastro de informações, gestão de usuários, setores e sistemas.
