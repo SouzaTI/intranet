@@ -11,35 +11,34 @@
 
 **Contexto:**
 
-A Comercial Souza necessitava de um portal interno centralizado para otimizar a comunicação, organizar o compartilhamento de documentos e facilitar o acesso a ferramentas essenciais do dia a dia, visando aumentar a produtividade e o engajamento dos colaboradores.
+Desenvolvimento de uma intranet para a Comercial Souza, visando centralizar a comunicação, otimizar o compartilhamento de documentos e facilitar o acesso a ferramentas essenciais para os colaboradores.
 
 **Ação:**
 
-Foi desenvolvida uma Intranet moderna e responsiva, utilizando PHP, MySQL e TailwindCSS. O sistema oferece um dashboard dinâmico com comunicados e um carrossel de imagens, um repositório de arquivos (PDFs, planilhas), um sistema de sugestões e reclamações, e áreas de acesso restrito para administradores.
+Criação de uma intranet moderna e responsiva utilizando PHP, MySQL e TailwindCSS. O sistema integra um dashboard dinâmico, repositório de documentos, sistema de sugestões e áreas administrativas.
 
 **Resultado:**
 
-A Intranet se tornou o ponto central de acesso à informação para todos os colaboradores. A plataforma agiliza a busca por documentos, centraliza comunicados importantes e fornece um canal direto para feedback, fortalecendo a cultura organizacional e a eficiência operacional da empresa.
+A intranet se estabeleceu como o principal hub de informações, agilizando o acesso a documentos, centralizando comunicados e oferecendo um canal direto para feedback, aprimorando a eficiência e a cultura organizacional.
 
 ---
 
 ## 🔧 Funcionalidades Principais
 
-- ✅ **Autenticação Segura:** Sistema de login e registro com perfis de usuário (colaborador, administrador).
-- ✅ **Dashboard Dinâmico:** Exibe comunicados importantes, um carrossel de imagens e atalhos rápidos para as principais seções.
-- ✅ **Gestão de Documentos:** Seções dedicadas para PDFs e outros documentos, com criação de procedimentos padronizados.
-- ✅ **Normas e Procedimentos:** Área específica para consulta de documentos normativos, organizados por setor para fácil acesso.
-- ✅ **Sistema de Feedback:** Formulário para envio de sugestões e reclamações, com painel de gerenciamento para administradores atualizarem o status.
-- ✅ **Painel Administrativo:** Área restrita para cadastro de informações, gerenciamento de usuários, setores e sistemas.
-- ✅ **Notificações em Tempo Real:** Sistema de notificações para manter os usuários informados sobre novos procedimentos e outras atualizações.
-- ✅ **Design Responsivo:** Interface totalmente adaptada para desktops, tablets e celulares.
+- ✅ **Autenticação Segura:** Login e registro com perfis de usuário (colaborador, administrador).
+- ✅ **Dashboard Interativo:** Exibição de comunicados, carrossel de imagens e atalhos rápidos.
+- ✅ **Gestão de Documentos:** Seções para PDFs e outros arquivos, incluindo criação de procedimentos padronizados.
+- ✅ **Normas e Procedimentos:** Consulta organizada de documentos normativos por setor.
+- ✅ **Sistema de Feedback:** Formulário para sugestões/reclamações com painel de gerenciamento para administradores.
+- ✅ **Painel Administrativo:** Área restrita para cadastro de informações, gestão de usuários, setores e sistemas.
+- ✅ **Notificações em Tempo Real:** Alertas sobre novos procedimentos e atualizações.
+- ✅ **Design Responsivo:** Adaptação completa para desktops, tablets e smartphones.
 
 ---
 
 ## 📁 Estrutura do Projeto
 
----
-
+```
 intranet/
 ├── img/                      # Imagens e recursos visuais (logo, background)
 ├── uploads/                  # Pasta para arquivos enviados pelos usuários
@@ -56,25 +55,30 @@ intranet/
 ├── save_procedure.php        # API para salvar novos procedimentos em PDF
 ├── salvar_sugestao.php       # API para salvar novas sugestões
 └── README.md                 # Esta documentação
+```
+
 ---
 
 ## 🛠️ Como Executar (Ambiente Local)
 
-1. Instale o **XAMPP** (ou um ambiente similar com PHP e MySQL).
-2. Copie a pasta `intranet/` para o diretório `C:/xampp/htdocs/`.
-3. Inicie os módulos **Apache** e **MySQL** no painel de controle do XAMPP.
-4. Crie o banco de dados `intranet` no **phpMyAdmin** (`http://localhost/phpmyadmin`).
-5. Importe o arquivo `.sql` com a estrutura das tabelas para o banco de dados criado.
-6. Acesse a intranet no seu navegador:
+1.  Instale o **XAMPP** (ou um ambiente similar com PHP e MySQL).
+2.  Copie a pasta `intranet/` para o diretório `C:/xampp/htdocs/`.
+3.  Inicie os módulos **Apache** e **MySQL** no painel de controle do XAMPP.
+4.  Crie o banco de dados `intranet` no **phpMyAdmin** (`http://localhost/phpmyadmin`).
+5.  Importe o arquivo `.sql` com a estrutura das tabelas para o banco de dados criado.
+6.  Acesse a intranet no seu navegador:
+    ```
+    http://localhost/intranet/
+    ```
 
 ---
 
 ## 🔐 Usuários e Permissões
 
-- **Autenticação:** Os usuários são validados contra a tabela `users` no banco de dados `intranet`.
-- **Segurança:** As senhas são armazenadas de forma segura usando a função `password_hash` do PHP.
-- **Sessão:** Após o login, os dados do usuário (ID, nome, permissão) são armazenados na sessão PHP.
-- **Níveis de Acesso:** O sistema conta com os níveis `user`, `admin` e `god`. Administradores têm acesso a painéis de gerenciamento.
+-   **Autenticação:** Validação de usuários via tabela `users` no banco de dados `intranet`.
+-   **Segurança:** Senhas armazenadas de forma segura com `password_hash` do PHP.
+-   **Sessão:** Dados do usuário (ID, nome, permissão) armazenados na sessão PHP após o login.
+-   **Níveis de Acesso:** `user`, `admin` e `god`. Administradores possuem acesso a painéis de gerenciamento.
 
 ---
 
@@ -116,9 +120,9 @@ intranet/
 
 ## 👨‍💻 Autor
 
-- **Saulo Sampaio**
+**Saulo Sampaio**
 
-- **Matheus Cabral**
+**Matheus Cabral**
 
 *Sistema desenvolvido para centralizar a comunicação e os recursos da Comercial Souza.*
 
