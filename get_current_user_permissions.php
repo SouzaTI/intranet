@@ -37,6 +37,17 @@ $default_sections = ['dashboard', 'about', 'faq', 'profile'];
 $allowed_sections = array_merge($allowed_sections, $default_sections);
 $allowed_sections = array_unique($allowed_sections);
 
+// Se o usuário for admin ou god, adiciona todas as seções disponíveis
+if (in_array($user['role'], ['admin', 'god'])) {
+    $all_available_sections_keys = [
+        'dashboard', 'documents', 'information', 'matriz_comunicacao', 'sugestoes',
+        'create_procedure', 'faq', 'profile', 'about', 'sistema',
+        'info-upload', 'registros_sugestoes', 'settings', 'manage_faq_section'
+    ];
+    $allowed_sections = array_merge($allowed_sections, $all_available_sections_keys);
+    $allowed_sections = array_unique($allowed_sections);
+}
+
 // Ensure $allowed_sections is always treated as an array for json_encode
 // This is a redundant check given the code above, but adds robustness against unexpected types.
 if (!is_array($allowed_sections)) {

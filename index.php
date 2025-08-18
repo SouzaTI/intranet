@@ -1161,7 +1161,7 @@ if ($result_manage_faqs) {
         <div class="max-w-4xl mx-auto faq-chat-window">
             <!-- Cabeçalho da Janela de Chat -->
             <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
-                <img src="img/SAM.png" alt="SAM Avatar" class="w-24 h-24 rounded-full object-cover border-2 border-blue-200">
+                <img src="img/SAM.png" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200">
                 <div>
                     <h3 class="font-bold text-lg text-white">SAM - Assistente Virtual</h3>
                     <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
@@ -1398,11 +1398,6 @@ if ($result_manage_faqs) {
                                             <div>
                                                 <label for="question" class="block text-sm font-semibold text-[#254c90] mb-1">Pergunta:</label>
                                                 <input type="text" id="question" name="question" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" value="<?php echo htmlspecialchars($manage_faq_to_edit['question'] ?? ''); ?>" required>
-                                            </div>
-                                            <div>
-                                                <label for="atalho" class="block text-sm font-semibold text-[#254c90] mb-1">Atalho para esta Pergunta (Opcional):</label>
-                                                <input type="text" id="atalho" name="atalho" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" value="<?php echo htmlspecialchars($manage_faq_to_edit['atalho'] ?? ''); ?>" placeholder="ex: como-emitir-nota">
-                                                <p class="text-xs text-gray-500 mt-1">Use apenas letras minúsculas, números e hífens. Isso criará um link como: <code>/index.php?faq_atalho=seu-atalho</code></p>
                                             </div>
                                             <div>
                                                 <label for="answer" class="block text-sm font-semibold text-[#254c90] mb-1">Resposta:</label>
@@ -3030,7 +3025,7 @@ function processAnswerText(text) {
                 targetAttr = ' target="_blank" rel="noopener noreferrer"';
             }
 
-            return `<a href="${url}" class="text-blue-600 font-bold hover:underline"${targetAttr}>${linkText}</a>`;
+            return `<a href="${url}" class="text-main font-bold hover:underline"${targetAttr}>${linkText}</a>`;
         });
     }
 

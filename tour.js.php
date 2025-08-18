@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    const samImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM.png" alt="SAM - Assistente Virtual" style="width: 200px; height: auto; border: none;"></div>;
+    const samImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM.png" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
 
     const navigateTo = (tourStep, url) => {
         const section = new URLSearchParams(url.split('?')[1]).get('section');
