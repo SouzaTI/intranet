@@ -11,6 +11,24 @@ if ($result_faqs_public) {
     }
 }
 
+// --- Início da Lógica para Atalho de FAQ ---
+if (isset($_GET['faq_atalho']) && !empty($_GET['faq_atalho'])) {
+    $atalho_slug = $_GET['faq_atalho'];
+    $stmt_atalho = $conn->prepare("SELECT id FROM faqs WHERE atalho = ? AND is_active = 1");
+    if ($stmt_atalho) {
+        $stmt_atalho->bind_param("s", $atalho_slug);
+        $stmt_atalho->execute();
+        $result_atalho = $stmt_atalho->get_result();
+        if ($faq_row = $result_atalho->fetch_assoc()) {
+            // Redireciona para a seção de FAQ com um parâmetro para o JS identificar
+            header("Location: index.php?section=faq&highlight_faq=" . $faq_row['id']);
+            exit();
+        }
+        $stmt_atalho->close();
+    }
+}
+// --- Fim da Lógica para Atalho de FAQ ---
+
 // Verifica se o usuário está logado. Se não, redireciona para a página de login.
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -188,6 +206,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['faq_action'])) {
     if ($_POST['faq_action'] === 'add' || $_POST['faq_action'] === 'edit') {
         $question = $_POST['question'] ?? '';
         $answer = $_POST['answer'] ?? '';
+        $atalho = trim($_POST['atalho'] ?? '');
+        $atalho = empty($atalho) ? null : preg_replace('/[^a-z0-9\-]/', '', strtolower($atalho)); // Sanitiza o atalho
         $is_active = isset($_POST['is_active']) ? 1 : 0;
         $id = $_POST['id'] ?? null;
 
@@ -195,16 +215,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['faq_action'])) {
             $manage_faq_message = '<div class="alert alert-danger">Pergunta e resposta não podem ser vazias.</div>';
         } else {
             if ($_POST['faq_action'] === 'add') {
-                $stmt = $conn->prepare("INSERT INTO faqs (question, answer, is_active) VALUES (?, ?, ?)");
-                $stmt->bind_param("ssi", $question, $answer, $is_active);
+                $stmt = $conn->prepare("INSERT INTO faqs (question, answer, atalho, is_active) VALUES (?, ?, ?, ?)");
+                $stmt->bind_param("sssi", $question, $answer, $atalho, $is_active);
                 if ($stmt->execute()) {
                     $manage_faq_message = '<div class="alert alert-success">FAQ adicionada com sucesso!</div>';
                 } else {
                     $manage_faq_message = '<div class="alert alert-danger">Erro ao adicionar FAQ: ' . $conn->error . '</div>';
                 }
             } else { // faq_action is edit
-                $stmt = $conn->prepare("UPDATE faqs SET question = ?, answer = ?, is_active = ? WHERE id = ?");
-                $stmt->bind_param("ssii", $question, $answer, $is_active, $id);
+                $stmt = $conn->prepare("UPDATE faqs SET question = ?, answer = ?, atalho = ?, is_active = ? WHERE id = ?");
+                $stmt->bind_param("sssii", $question, $answer, $atalho, $is_active, $id);
                 if ($stmt->execute()) {
                     $manage_faq_message = '<div class="alert alert-success">FAQ atualizada com sucesso!</div>';
                 } else {
@@ -231,7 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['faq_action'])) {
 // Lidar com ações de GET (editar FAQ específica)
 if (isset($_GET['faq_action']) && $_GET['faq_action'] === 'edit' && isset($_GET['id'])) {
     $id = intval($_GET['id']);
-    $stmt = $conn->prepare("SELECT id, question, answer, is_active FROM faqs WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, question, answer, atalho, is_active FROM faqs WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -1380,9 +1400,47 @@ if ($result_manage_faqs) {
                                                 <input type="text" id="question" name="question" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" value="<?php echo htmlspecialchars($manage_faq_to_edit['question'] ?? ''); ?>" required>
                                             </div>
                                             <div>
+                                                <label for="atalho" class="block text-sm font-semibold text-[#254c90] mb-1">Atalho para esta Pergunta (Opcional):</label>
+                                                <input type="text" id="atalho" name="atalho" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" value="<?php echo htmlspecialchars($manage_faq_to_edit['atalho'] ?? ''); ?>" placeholder="ex: como-emitir-nota">
+                                                <p class="text-xs text-gray-500 mt-1">Use apenas letras minúsculas, números e hífens. Isso criará um link como: <code>/index.php?faq_atalho=seu-atalho</code></p>
+                                            </div>
+                                            <div>
                                                 <label for="answer" class="block text-sm font-semibold text-[#254c90] mb-1">Resposta:</label>
                                                 <textarea id="answer" name="answer" rows="5" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" required><?php echo htmlspecialchars($manage_faq_to_edit['answer'] ?? ''); ?></textarea>
                                             </div>
+
+                                            <!-- Nova Ferramenta de Links -->
+                                            <div class="p-4 border border-gray-200 rounded-md bg-gray-50 space-y-3">
+                                                <h3 class="text-md font-semibold text-[#254c90]">Ferramenta: Adicionar Link ao Texto da Resposta</h3>
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label for="link_text" class="block text-sm font-medium text-gray-700 mb-1">Texto do Link</label>
+                                                        <input type="text" id="link_text" placeholder="Ex: Clique aqui" class="w-full border-gray-300 rounded-md shadow-sm">
+                                                    </div>
+                                                    <div>
+                                                        <label for="link_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Destino</label>
+                                                        <select id="link_type" class="w-full border-gray-300 rounded-md shadow-sm">
+                                                            <option value="internal">Página Interna</option>
+                                                            <option value="external">URL Externa</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div id="link_destination_internal">
+                                                    <label for="link_internal_page" class="block text-sm font-medium text-gray-700 mb-1">Página da Intranet</label>
+                                                    <select id="link_internal_page" class="w-full border-gray-300 rounded-md shadow-sm">
+                                                        <?php foreach ($available_sections as $key => $label): ?>
+                                                            <option value="<?= $key ?>"><?= htmlspecialchars($label) ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div id="link_destination_external" class="hidden">
+                                                    <label for="link_external_url" class="block text-sm font-medium text-gray-700 mb-1">URL Completa</label>
+                                                    <input type="url" id="link_external_url" placeholder="https://www.exemplo.com" class="w-full border-gray-300 rounded-md shadow-sm">
+                                                </div>
+                                                <button type="button" id="insert_link_btn" class="mt-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">Inserir Link</button>
+                                            </div>
+
+                                            
                                             <div class="flex items-center">
                                                 <input type="checkbox" id="is_active" name="is_active" class="h-4 w-4 text-[#254c90] focus:ring-[#254c90] border-gray-300 rounded cursor-pointer" <?php echo ($manage_faq_to_edit['is_active'] ?? 1) ? 'checked' : ''; ?>>
                                                 <label for="is_active" class="ml-2 block text-sm text-gray-700 cursor-pointer">Ativa</label>
@@ -2078,6 +2136,8 @@ if ($result_manage_faqs) {
             const urlParams = new URLSearchParams(window.location.search);
             const section = urlParams.get('section');
             const tab = urlParams.get('tab');
+            const highlightFaqId = urlParams.get('highlight_faq');
+
             if (section) {
                 showSection(section);
                 // If it's the settings section and a tab is specified, click the tab button
@@ -2091,6 +2151,20 @@ if ($result_manage_faqs) {
                     // O click() já alterna a visibilidade e o estilo do botão
                     if (tabButton) tabButton.click();
                 }
+            }
+
+            // If a specific FAQ should be highlighted (from a shortcut link)
+            if (highlightFaqId) {
+                // The setupFaqChat function is called by showSection. We need to wait for the buttons to be created.
+                // A small delay or a more robust MutationObserver could work. A simple timeout is easiest here.
+                setTimeout(() => {
+                    const faqButton = document.querySelector(`.faq-suggestion-btn[data-faq-id="${highlightFaqId}"]`);
+                    if (faqButton) {
+                        faqButton.click();
+                        // Scroll the main window to the FAQ section for visibility
+                        document.getElementById('faq').scrollIntoView({ behavior: 'smooth' });
+                    }
+                }, 100); // 100ms delay to allow the chat UI to build
             }
 
             // Fechar dropdowns ao clicar fora
@@ -2690,6 +2764,54 @@ function visualizarArquivo(url, tipo) {
         });
     }
 
+    // Nova Ferramenta de Links para FAQ
+const linkTypeSelect = document.getElementById('link_type');
+const internalDestSelect = document.getElementById('link_destination_internal');
+const externalDestInput = document.getElementById('link_destination_external');
+
+if (linkTypeSelect) {
+    linkTypeSelect.addEventListener('change', () => {
+        if (linkTypeSelect.value === 'internal') {
+            internalDestSelect.classList.remove('hidden');
+            externalDestInput.classList.add('hidden');
+        } else {
+            internalDestSelect.classList.add('hidden');
+            externalDestInput.classList.remove('hidden');
+        }
+    });
+}
+
+document.addEventListener('click', function(event) {
+    if (event.target && event.target.id === 'insert_link_btn') {
+        const linkText = document.getElementById('link_text').value.trim();
+        if (!linkText) {
+            alert('Por favor, insira o texto que será exibido para o link.');
+            return;
+        }
+
+        let linkHtml = '';
+        if (linkTypeSelect.value === 'internal') {
+            const section = document.getElementById('link_internal_page').value;
+            linkHtml = `<a href="#" onclick="showSection('${section}', true); return false;">${linkText}</a>`;
+        } else {
+            const url = document.getElementById('link_external_url').value.trim();
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                alert('Por favor, insira uma URL externa válida, começando com http:// ou https://.');
+                return;
+            }
+            linkHtml = `<a href="${url}" target="_blank">${linkText}</a>`;
+        }
+
+        const answerTextarea = document.getElementById('answer');
+        if (answerTextarea) {
+            const cursorPos = answerTextarea.selectionStart;
+            const textBefore = answerTextarea.value.substring(0, cursorPos);
+            const textAfter = answerTextarea.value.substring(cursorPos);
+            answerTextarea.value = textBefore + linkHtml + textAfter;
+        }
+    }
+});
+
     // Inicialização do TinyMCE para os editores de procedimento
     tinymce.init({
         selector: 'textarea.procedure-editor',
@@ -2893,43 +3015,24 @@ function setupFaqChat() {
 }
 
 function processAnswerText(text) {
-    // Regex para encontrar placeholders como [link:secao|parametro]
-    const linkRegex = /\[link:([^|\]]+)(?:\|([^\]]+))?\]/g;
+        // Nova regex para encontrar placeholders no formato [[Texto do Link|tipo:destino]]
+        const newLinkRegex = /\[\[(.*?)\|(.*?)\]\]/g;
 
-    return text.replace(linkRegex, (match, section, param) => {
-        let url = '#';
-        let linkText = 'Clique aqui';
-        let targetAttr = ''; // Para abrir em nova aba
-        section = section.trim();
-        if(param) param = param.trim();
+        return text.replace(newLinkRegex, (match, linkText, linkData) => {
+            const [linkType, linkDest] = linkData.split(/:(.*)/s);
+            let url = '#';
+            let targetAttr = '';
 
-        switch(section) {
-            case 'sugestoes':
-                url = 'index.php?section=sugestoes';
-                linkText = param || 'abrir a tela de chamados';
-                break;
-            case 'glpi':
-                url = 'http://192.168.0.50:8080/glpi17/index.php';
-                linkText = param || 'abrir um chamado no GLPI';
+            if (linkType === 'internal') {
+                url = `index.php?section=${linkDest}`;
+            } else if (linkType === 'external') {
+                url = linkDest;
                 targetAttr = ' target="_blank" rel="noopener noreferrer"';
-                break;
-            case 'matriz_ti':
-                url = `index.php?section=matriz_comunicacao&setor=TI`;
-                linkText = param || 'ver os contatos de TI';
-                break;
-            case 'matriz':
-                if (param) {
-                    url = `index.php?section=matriz_comunicacao&setor=${encodeURIComponent(param)}`;
-                    linkText = `ver a matriz do setor ${param}`;
-                } else {
-                    url = 'index.php?section=matriz_comunicacao';
-                    linkText = 'acessar a Matriz de Comunicação';
-                }
-                break;
-        }
-        return `<a href="${url}" class="text-blue-600 font-bold hover:underline"${targetAttr}>${linkText}</a>`;
-    });
-}
+            }
+
+            return `<a href="${url}" class="text-blue-600 font-bold hover:underline"${targetAttr}>${linkText}</a>`;
+        });
+    }
 
 function handleFaqSuggestionClick(event) {
     const button = event.currentTarget;
