@@ -13,7 +13,7 @@ if (isset($_SESSION['user_id'])) {
     $userId = $_SESSION['user_id'];
 
     // Update the tour_completed status to 0 for the current user
-    $stmt = $conn->prepare("UPDATE users SET tour_completed = 0 WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE users SET has_completed_tour = 0 WHERE id = ?");
     $stmt->bind_param("i", $userId);
 
     if ($stmt->execute()) {

@@ -8,7 +8,7 @@ header('Content-Type: text/css');
 }
 
 .shepherd-element.shepherd-custom {
-    background-color: #ffffff; /* Overall container background to white */
+    background-color: #ffffffff; /* Altere aqui para a cor desejada */
     border-radius: 0.5rem;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
 }
@@ -38,7 +38,7 @@ header('Content-Type: text/css');
 }
 
 .shepherd-custom .shepherd-footer {
-    background-color: #ffffff; /* White background for the footer */
+    background-color: #ffffffff; /* White background for the footer */
     padding: 1rem;
 }
 
@@ -62,4 +62,9 @@ header('Content-Type: text/css');
 
 .shepherd-custom .shepherd-button.shepherd-button-secondary:not(:disabled):hover {
     background-color: #d1d5db;
+}
+
+/* Adicionado para transição suave do tour */
+body.shepherd-loading .shepherd-element {
+    display: none !important;
 }

@@ -579,10 +579,12 @@ if ($result_manage_faqs) {
                     <span>Matriz de Comunicação</span>
                 </a>
                 <?php endif; ?>
+                <?php if (can_view_section('create_procedure')): ?>
                 <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
                     <i class="fas fa-file-signature w-6"></i>
                     <span>Criar Procedimento</span>
                 </a>
+                <?php endif; ?>
                 <?php if (can_view_section('sugestoes')): ?>
                 <a href="#" data-section="sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sugestoes', true); return false;">
                     <i class="fas fa-comment-dots w-6"></i>
@@ -1203,7 +1205,7 @@ if ($result_manage_faqs) {
 <section id="sistema" class="hidden space-y-6">
     <h2 class="text-2xl font-bold text-[#254c90]">Acesso Rápido aos Sistemas</h2>
     <?php if (count($sistemas_externos) > 0): ?>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div id="systems-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <?php foreach ($sistemas_externos as $sistema): ?>
             <a href="<?= htmlspecialchars($sistema['link']) ?>" target="_blank" rel="noopener noreferrer" class="document-card bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-transform transform hover:-translate-y-1">
                     <i class="<?= htmlspecialchars($sistema['icon_class']) ?> text-4xl text-[#254c90] mb-3"></i>
