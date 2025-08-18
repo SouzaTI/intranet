@@ -289,10 +289,10 @@ if ($result_manage_faqs) {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8f9fb;
+            background-color: #F5F7FA; /* Light gray/off-white for a modern feel */
         }
         .sidebar {
-            background: #254c90 !important;
+            background: #2C3E50 !important; /* Softer dark blue for sidebar */
         }
         .document-card {
             transition: all 0.2s ease;
@@ -302,10 +302,10 @@ if ($result_manage_faqs) {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         .search-input:focus {
-            box-shadow: 0 0 0 3px rgba(37, 76, 144, 0.3);
+            box-shadow: 0 0 0 3px rgba(42, 78, 128, 0.3);
         }
         .hover\:bg-indigo-700:hover, .hover\:bg-indigo-600:hover, .hover\:bg-indigo-900:hover, .hover\:bg-gray-100:hover, .hover\:bg-gray-300:hover, .hover\:bg-gray-50:hover {
-            background-color: #1d3870 !important;
+            background-color: #34495E !important; /* New hover blue */
         }
         /* Sobrescreve o hover para os cards de documento/atalho para usar amarelo */
         .document-card:hover {
@@ -318,17 +318,17 @@ if ($result_manage_faqs) {
             box-shadow: 0 8px 16px rgba(0,0,0,0.15) !important;
         }
         .border, .border-gray-300, .border-gray-200, .border-dashed {
-            border: 1px solid #1d3870 !important;
+            border: 1px solid #4A6572 !important; /* Lighter dark blue for borders */
         }
         .focus\:ring-indigo-500:focus {
-            box-shadow: 0 0 0 2px #254c90 !important;
+            box-shadow: 0 0 0 2px #4A90E2 !important; /* New primary blue */
         }
         #excel-table-container {
             max-width: 100%;
             max-height: 500px;
             overflow: auto;
             background: #fff;
-            color: #254c90;
+            color: #4A90E2; /* New primary blue */
             border-radius: 0.5rem;
             box-shadow: 0 8px 16px rgba(0,0,0,0.10);
             margin-bottom: 1.5rem;
@@ -339,14 +339,14 @@ if ($result_manage_faqs) {
             border-collapse: collapse;
         }
         #excel-table-container th, #excel-table-container td {
-            border: 1px solid #254c90;
+            border: 1px solid #4A90E2; /* New primary blue */
             padding: 6px 10px;
             font-size: 0.95rem;
-            color: #254c90;
+            color: #4A90E2; /* New primary blue */
             background: #f8fafc;
         }
         #excel-table-container th {
-            background: #254c90;
+            background: #4A90E2; /* New primary blue */
             color: #fff;
             position: sticky;
             top: 0;
@@ -355,8 +355,8 @@ if ($result_manage_faqs) {
         table, th, td {
             font-family: 'Inter', Arial, sans-serif;
         }
-        .text-main { color: #254c90; }
-        .bg-main { background: #254c90; }
+        .text-main { color: #4A90E2; } /* New primary blue */
+        .bg-main { background: #4A90E2; } /* New primary blue */
 
         /* Ajuste de cor de hover para a Matriz de Comunicação */
         #matriz_comunicacao table tbody tr:hover {
@@ -461,7 +461,7 @@ if ($result_manage_faqs) {
             padding: 1px 5px;
             font-size: 0.65rem;
             font-weight: bold;
-            border: 2px solid #254c90; /* Cor de fundo do header */
+            border: 2px solid #2C3E50; /* Matches new header background */
         }
         .notification-item {
             border-bottom: 1px solid #e5e7eb; /* gray-200 */
@@ -524,22 +524,22 @@ if ($result_manage_faqs) {
             border-radius: 0.75rem; /* 12px */
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
             overflow: hidden;
-            border: 1px solid #e5e7eb; /* gray-200 */
+            border: 1px solid #D1D5DB; /* Lighter gray for border */
         }
         .faq-chat-body { 
             height: 60vh; max-height: 500px; 
-            background-color: #f0f2f5; /* Cor de fundo de chat mais padrão */
+            background-color: #F0F2F5; /* Cor de fundo de chat mais padrão */
             /* Padrão de doodles em SVG para o fundo */
             background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='doodles' width='80' height='80' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'%3E%3Cpath d='M10 10 L30 30 M50 10 L70 30 M10 50 L30 70 M50 50 L70 70 M30 10 L10 30 M70 10 L50 30 M30 50 L10 70 M70 50 L50 70' stroke='%23d1d5db' stroke-width='1' fill='none'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='400' height='400' fill='url(%23doodles)'/%3E%3C/svg%3E");
         }
         .faq-suggestion-btn {
-            background-color: #e0f2fe; /* Tailwind sky-100 */
-            color: #0369a1; /* Tailwind sky-700 */
-            border: 1px solid #bae6fd; /* Tailwind sky-200 */
+            background-color: #E0F7FA; /* Light blue */
+            color: #00796B; /* Darker blue/teal */
+            border: 1px solid #B2EBF2; /* Lighter blue */
             transition: all 0.2s ease-in-out;
         }
         .faq-suggestion-btn:hover {
-            background-color: #ccecfd;
+            background-color: #B2EBF2;
             transform: translateY(-2px);
             box-shadow: 0 2px 6px rgba(0,0,0,0.06);
         }
@@ -562,7 +562,7 @@ if ($result_manage_faqs) {
     </style>
 </head>
 <body>
-    <div class="flex h-screen bg-[#254c90]">
+    <div class="flex h-screen bg-[#F5F7FA]">
         <!-- Sidebar -->
         <div id="sidebar" class="sidebar text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform md:relative md:translate-x-0 transition duration-200 ease-in-out z-20">
             <div class="flex items-center justify-between px-4">
@@ -576,43 +576,43 @@ if ($result_manage_faqs) {
             <nav class="mt-10">
                 <div class="px-4 py-2 uppercase text-xs font-semibold">Menu Principal</div>
                 <?php if (can_view_section('dashboard')): ?>
-                <a href="#" data-section="dashboard" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('dashboard', true); return false;">
+                <a href="#" data-section="dashboard" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('dashboard', true); return false;">
                     <i class="fas fa-home w-6"></i>
                     <span>Página Inicial</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('documents')): ?>
-                <a href="#" data-section="documents" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('documents', true); return false;">
+                <a href="#" data-section="documents" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('documents', true); return false;">
                     <i class="fas fa-book w-6"></i>
                     <span>Normas e Procedimentos</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('information')): ?>
-                <a href="#" data-section="information" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('information', true); return false;">
+                <a href="#" data-section="information" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('information', true); return false;">
                     <i class="fas fa-info-circle w-6"></i>
                     <span>Informações</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('matriz_comunicacao')): ?>
-                <a href="#" data-section="matriz_comunicacao" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('matriz_comunicacao', true); return false;">
+                <a href="#" data-section="matriz_comunicacao" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('matriz_comunicacao', true); return false;">
                     <i class="fas fa-sitemap w-6"></i>
                     <span>Matriz de Comunicação</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('create_procedure')): ?>
-                <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
+                <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
                     <i class="fas fa-file-signature w-6"></i>
                     <span>Criar Procedimento</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('sugestoes')): ?>
-                <a href="#" data-section="sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sugestoes', true); return false;">
+                <a href="#" data-section="sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('sugestoes', true); return false;">
                     <i class="fas fa-comment-dots w-6"></i>
                     <span>Sugestões e Reclamações</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('sistema')): ?>
-                <a href="#" data-section="sistema" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sistema', true); return false;">
+                <a href="#" data-section="sistema" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('sistema', true); return false;">
                     <i class="fas fa-desktop w-6"></i>
                     <span>Sistemas</span>
                 </a>
@@ -623,19 +623,19 @@ if ($result_manage_faqs) {
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
                 
                 <?php if (can_view_section('settings')): ?>
-                <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('settings', true); return false;">
+                <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('settings', true); return false;">
                     <i class="fas fa-cog w-6"></i>
                     <span>Configurações</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('registros_sugestoes')): ?>
-                <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes', true); return false;">
+                <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes', true); return false;">
                         <i class="fas fa-clipboard-list w-6"></i>
                         <span>Registros de Sugestões</span>
                     </a>
                 <?php endif; ?>
                 <?php if (can_view_section('info-upload')): ?>
-                <a href="#" data-section="info-upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('info-upload', true); return false;">
+                <a href="#" data-section="info-upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('info-upload', true); return false;">
                     <i class="fas fa-bullhorn w-6"></i>
                     <span>Cadastrar Informação</span>
                 </a>
@@ -644,7 +644,7 @@ if ($result_manage_faqs) {
 
                 <!-- Links restantes -->
                 <?php if (can_view_section('about')): ?>
-                <a href="#" data-section="about" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('about', true); return false;">
+                <a href="#" data-section="about" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('about', true); return false;">
                     <i class="fas fa-users w-6"></i>
                     <span>Sobre Nós</span>
                 </a>
@@ -655,7 +655,7 @@ if ($result_manage_faqs) {
         <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Header -->
-            <header class="bg-[#254c90] shadow-sm z-10">
+            <header class="bg-[#2C3E50] shadow-sm z-10">
                 <div class="flex items-center justify-between p-4">
                     <div class="flex items-center space-x-3">
                         <button id="openSidebar" class="md:hidden focus:outline-none">
@@ -665,25 +665,25 @@ if ($result_manage_faqs) {
                     </div>
                     <div class="flex items-center space-x-4">
                         <div class="relative">
-                            <input type="text" placeholder="Buscar..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#1d3870] focus:outline-none focus:border-[#254c90] w-64 g-white text-[#254c90] placeholder-[#254c90]">
+                            <input type="text" placeholder="Buscar..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#4A6572] focus:outline-none focus:border-[#2C3E50] w-64 g-white text-[#4A90E2] placeholder-[#AAB7C4]">
                             <i class="fas fa-search text-white absolute left-3 top-3"></i>
                         </div>
                         <?php if (can_view_section('faq')): ?>
-                        <a href="#" data-section="faq" onclick="showSection('faq', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#1d3870]">
+                        <a href="#" data-section="faq" onclick="showSection('faq', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
                             <i class="fas fa-question-circle"></i>
                             <span>FAQ</span>
                         </a>
                         <?php endif; ?>
 
                         <!-- 2. Adicionar o botão para iniciar o tour -->
-                        <button id="startTourButton" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#1d3870]">
+                        <button id="startTourButton" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
                             <i class="fas fa-route"></i>
                             <span>Fazer Tour</span>
                         </button>
 
                         <!-- Ícone de Notificações -->
                         <div class="relative">
-                            <button id="notificationsBell" class="text-white hover:opacity-80 transition p-2 rounded-md hover:bg-[#1d3870] relative">
+                            <button id="notificationsBell" class="text-white hover:opacity-80 transition p-2 rounded-md hover:bg-[#34495E] relative">
                                 <i class="fas fa-bell"></i>
                                 <span id="notification-count-badge" class="notification-badge hidden"></span>
                             </button>
@@ -705,7 +705,7 @@ if ($result_manage_faqs) {
                                 <?php if (!empty($_SESSION['profile_photo']) && file_exists($_SESSION['profile_photo'])): ?>
                                     <img src="<?= htmlspecialchars($_SESSION['profile_photo']) ?>" alt="Foto de Perfil" class="w-8 h-8 rounded-full object-cover">
                                 <?php else: ?>
-                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
+                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#2C3E50] font-semibold">
                                         <?= strtoupper(substr($username, 0, 1)); ?>
                                     </div>
                                 <?php endif; ?>
@@ -713,8 +713,8 @@ if ($result_manage_faqs) {
                                 <i class="fas fa-chevron-down text-white text-xs"></i>
                             </button>
                             <div id="profileDropdown" class="absolute right-0 mt-12 w-40 bg-white rounded-lg shadow-lg py-2 z-50 hidden">
-                                <a href="#" data-section="profile" onclick="showSection('profile', true); return false;" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Meu Perfil</a>
-                                <a href="logout.php" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Sair</a>
+                                <a href="#" data-section="profile" onclick="showSection('profile', true); return false;" class="block px-4 py-2 text-[#4A90E2] hover:bg-[#e5e7eb] text-sm">Meu Perfil</a>
+                                <a href="logout.php" class="block px-4 py-2 text-[#4A90E2] hover:bg-[#e5e7eb] text-sm">Sair</a>
                             </div>
                         </div>
                     </div>
@@ -743,8 +743,8 @@ if ($result_manage_faqs) {
                 <section id="dashboard" class="space-y-6">
                     <!-- Bem-vindo -->
                     <div class="bg-white rounded-lg shadow p-6 mb-6">
-                        <h1 class="text-3xl font-bold text-[#254c90] mb-2">Bem-vindo à Intranet da Comercial Souza!</h1>
-                        <p class="text-[#254c90] text-lg">Aqui você encontra as informações e ferramentas que precisa para o seu dia a dia.</p>
+                        <h1 class="text-3xl font-bold text-[#4A90E2] mb-2">Bem-vindo à Intranet da Comercial Souza!</h1>
+                        <p class="text-[#4A90E2] text-lg">Aqui você encontra as informações e ferramentas que precisa para o seu dia a dia.</p>
                     </div>
 
                     <!-- Comunicados Importantes -->
@@ -791,7 +791,7 @@ if ($result_manage_faqs) {
                                                 'orange' => 'border-orange-500'
                                             ][$cor] ?? 'border-blue-500';
                                         ?>">
-                                            <div class="font-semibold text-[#254c90]"><?php echo htmlspecialchars($row['titulo']); ?></div>
+                                            <div class="font-semibold text-[#4A90E2]"><?php echo htmlspecialchars($row['titulo']); ?></div>
                                             <div class="text-gray-700"><?php echo nl2br(htmlspecialchars($row['descricao'])); ?></div>
                                             <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: <?php echo date('d/m/Y', strtotime($row['data_publicacao'])); ?></div>
                                         </li>
@@ -853,7 +853,7 @@ if ($result_manage_faqs) {
                     <!-- Substitua o bloco do rodapé por este, logo após o grid dos comunicados/carrossel, ainda dentro do <main> -->
                     <div class="w-full flex justify-center mt-12">
     <footer class="w-full max-w-5xl flex flex-col items-center justify-center">
-        <div class="text-[#254c90] text-sm font-medium mb-2 text-center">
+        <div class="text-[#4A90E2] text-sm font-medium mb-2 text-center">
             Todos os direitos reservados à Comercial Souza &copy; 2025
         </div>
         <div class="flex flex-wrap justify-center items-center gap-4 mb-2">
@@ -876,10 +876,10 @@ if ($result_manage_faqs) {
                     <div class="flex justify-between items-center">
                         <div class="flex space-x-2">
                             <div class="relative">
-                                <input type="text" id="search-input-docs" placeholder="Filtrar normas e procedimentos..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#1d3870] focus:outline-none focus:border-[#254c90] w-64 bg-white text-[#254c90] placeholder-[#254c90]">
-                                <i class="fas fa-search text-[#254c90] absolute left-3 top-3"></i>
+                                <input type="text" id="search-input-docs" placeholder="Filtrar normas e procedimentos..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#1d3870] focus:outline-none focus:border-[#254c90] w-64 bg-white text-[#4A90E2] placeholder-[#254c90]">
+                                <i class="fas fa-search text-[#4A90E2] absolute left-3 top-3"></i>
                             </div>
-                            <select id="department-filter-docs" class="border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:border-[#254c90] bg-white text-[#254c90]">
+                            <select id="department-filter-docs" class="border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:border-[#254c90] bg-white text-[#4A90E2]">
                                 <option value="all">Todos os departamentos</option>
                                 <?php
                                 // Busca os departamentos distintos diretamente da tabela de arquivos para popular o filtro
@@ -983,7 +983,7 @@ if ($result_manage_faqs) {
                         <!-- Conteúdo da Aba: Comunicados -->
                         <div id="info-tab-comunicados" class="info-tab-content space-y-6">
                             <div class="bg-white rounded-lg shadow mb-6">
-                                <div class="p-4 border-b font-semibold text-lg text-[#254c90]">Comunicados Importantes</div>
+                                <div class="p-4 border-b font-semibold text-lg text-[#4A90E2]">Comunicados Importantes</div>
                                 <div class="p-4 space-y-4">
                                     <?php
                                     $hoje = date('Y-m-d');
@@ -997,7 +997,7 @@ if ($result_manage_faqs) {
                                                 'orange' => 'border-orange-500'
                                             ][$cor] ?? 'border-blue-500';
                                             echo '<div class="border-l-4 '.$corBarra.' pl-4">
-                                                <div class="font-semibold text-[#254c90]">'.htmlspecialchars($row['titulo']).'</div>
+                                                <div class="font-semibold text-[#4A90E2]">'.htmlspecialchars($row['titulo']).'</div>
                                                 <div class="text-gray-700">'.nl2br(htmlspecialchars($row['descricao'])).'</div>
                                                 <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: '.date('d/m/Y', strtotime($row['data_publicacao'])).'</div>
                                             </div>';
@@ -1009,14 +1009,14 @@ if ($result_manage_faqs) {
                                 </div>
                             </div>
                             <div class="bg-white rounded-lg shadow">
-                                <div class="p-4 border-b font-semibold text-lg text-[#254c90]">Informações Úteis</div>
+                                <div class="p-4 border-b font-semibold text-lg text-[#4A90E2]">Informações Úteis</div>
                                 <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <?php
                                     $result = $conn->query("SELECT * FROM informacoes WHERE categoria='Informações Úteis' ORDER BY data_publicacao DESC");
                                     if ($result && $result->num_rows > 0) {
                                         while ($row = $result->fetch_assoc()) {
                                             echo '<div class="border rounded-lg p-4 bg-gray-50">
-                                                <div class="font-semibold text-[#254c90]">'.htmlspecialchars($row['titulo']).'</div>
+                                                <div class="font-semibold text-[#4A90E2]">'.htmlspecialchars($row['titulo']).'</div>
                                                 <div class="text-gray-700">'.nl2br(htmlspecialchars($row['descricao'])).'</div>
                                                 <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: '.date('d/m/Y', strtotime($row['data_publicacao'])).'</div>
                                                 <a href="#" class="text-indigo-600 text-xs mt-2 inline-block">Ver detalhes &gt;</a>
@@ -1037,50 +1037,50 @@ if ($result_manage_faqs) {
                 <section id="info-upload" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="p-6 border-b border-[#254c90]">
-            <h3 class="text-lg font-semibold text-[#254c90]">Cadastrar Aviso/Informação</h3>
+            <h3 class="text-lg font-semibold text-[#4A90E2]">Cadastrar Aviso/Informação</h3>
         </div>
         <div class="p-6">
             <form id="infoForm" class="space-y-6" method="POST" action="cadastrar_informacao.php">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-1">Título</label>
-                        <input type="text" name="titulo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Título</label>
+                        <input type="text" name="titulo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-1">Categoria</label>
-                        <select name="categoria" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Categoria</label>
+                        <select name="categoria" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" required>
                             <option value="Comunicados Importantes">Comunicados Importantes</option>
                             <option value="Informações Úteis">Informações Úteis</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-1">Exibir a partir de</label>
-                        <input type="date" name="data_inicial" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Exibir a partir de</label>
+                        <input type="date" name="data_inicial" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-1">Exibir até</label>
-                        <input type="date" name="data_final" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Exibir até</label>
+                        <input type="date" name="data_final" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-[#254c90] mb-1">Descrição</label>
-                    <textarea name="descricao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" rows="4" required></textarea>
+                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Descrição</label>
+                    <textarea name="descricao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" rows="4" required></textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-[#254c90] mb-1">Data de Publicação</label>
-                    <input type="date" name="data_publicacao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Data de Publicação</label>
+                    <input type="date" name="data_publicacao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" required>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-[#254c90] mb-1">Cor da Barra (opcional)</label>
-                    <select name="cor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Cor da Barra (opcional)</label>
+                    <select name="cor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                         <option value="blue">Azul</option>
                         <option value="green">Verde</option>
                         <option value="orange">Laranja</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-[#254c90] mb-1">Imagem (opcional)</label>
-                    <input type="file" name="imagem" accept="image/*" class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#254c90]">
+                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Imagem (opcional)</label>
+                    <input type="file" name="imagem" accept="image/*" class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#4A90E2]">
                     <span class="text-xs text-gray-500">Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.</span>
                 </div>
                 <div class="flex justify-end">
@@ -1093,11 +1093,11 @@ if ($result_manage_faqs) {
     </div>
     <!-- Formulário para cadastrar imagem do carrossel -->
     <div class="bg-white rounded-lg shadow p-6 mt-8">
-        <h3 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Imagem ao Carrossel</h3>
+        <h3 class="text-lg font-semibold text-[#4A90E2] mb-4">Adicionar Imagem ao Carrossel</h3>
         <form method="POST" enctype="multipart/form-data" action="cadastrar_carrossel.php">
             <div>
-                <label class="block text-sm font-medium text-[#254c90] mb-1">Imagem</label>
-                <input type="file" name="imagem" accept="image/*" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#254c90]">
+                <label class="block text-sm font-medium text-[#4A90E2] mb-1">Imagem</label>
+                <input type="file" name="imagem" accept="image/*" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#4A90E2]">
                 <span class="text-xs text-gray-500">Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.</span>
             </div>
             <div class="flex justify-end mt-4">
@@ -1109,13 +1109,13 @@ if ($result_manage_faqs) {
                 <!-- Sugestões e Reclamações Section -->
                 <section id="sugestoes" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-[#254c90] mb-2">Sugestões e Reclamações</h2>
-                        <p class="text-[#254c90] mb-6">Sua opinião é muito importante para nós. Envie sua sugestão ou reclamação para ajudar a melhorar nosso ambiente de trabalho!</p>
+                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-2">Sugestões e Reclamações</h2>
+                        <p class="text-[#4A90E2] mb-6">Sua opinião é muito importante para nós. Envie sua sugestão ou reclamação para ajudar a melhorar nosso ambiente de trabalho!</p>
                         
                         <form id="sugestaoForm" class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-[#254c90] mb-1">Tipo de Mensagem</label>
-                                <select name="tipo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                                <label class="block text-sm font-medium text-[#4A90E2] mb-1">Tipo de Mensagem</label>
+                                <select name="tipo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" required>
                                     <option value="">Selecione...</option>
                                     <option value="sugestao">Sugestão</option>
                                     <option value="reclamacao">Reclamação</option>
@@ -1123,17 +1123,17 @@ if ($result_manage_faqs) {
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Seu E-mail (Opcional)</label>
-                                    <input type="email" name="email" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="seunome@comercialsouza.com.br">
+                                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Seu E-mail (Opcional)</label>
+                                    <input type="email" name="email" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" placeholder="seunome@comercialsouza.com.br">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Seu Telefone (Opcional)</label>
-                                    <input type="tel" name="telefone" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="(XX) XXXXX-XXXX">
+                                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Seu Telefone (Opcional)</label>
+                                    <input type="tel" name="telefone" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" placeholder="(XX) XXXXX-XXXX">
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-[#254c90] mb-1">Sua Mensagem</label>
-                                <textarea name="mensagem" rows="5" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="Digite sua mensagem aqui..." required></textarea>
+                                <label class="block text-sm font-medium text-[#4A90E2] mb-1">Sua Mensagem</label>
+                                <textarea name="mensagem" rows="5" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" placeholder="Digite sua mensagem aqui..." required></textarea>
                             </div>
                             <div class="flex justify-end">
                                 <button type="submit" class="px-6 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
@@ -1148,7 +1148,7 @@ if ($result_manage_faqs) {
                 <section id="faq" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex justify-between items-center mb-6 border-b pb-3">
-            <h2 class="text-3xl font-bold text-[#254c90]">FAQ - Perguntas Frequentes</h2>
+            <h2 class="text-3xl font-bold text-[#4A90E2]">FAQ - Perguntas Frequentes</h2>
             <?php if (can_view_section('manage_faq_section')): ?>
                 <a href="#" data-section="manage_faq_section" onclick="showSection('manage_faq_section', true); return false;" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
                     <i class="fas fa-plus-circle mr-2"></i>
@@ -1191,25 +1191,25 @@ if ($result_manage_faqs) {
 <!-- Sobre Nós Section -->
 <section id="about" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Sobre Nós</h2>
-        <p class="text-[#254c90] mb-4">
+        <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Sobre Nós</h2>
+        <p class="text-[#4A90E2] mb-4">
             A Comercial Souza iniciou sua jornada somente com os dois irmãos que compravam, vendiam e entregavam, e desde então vem construindo uma história de sucesso. Ao longo dessa trajetória buscamos sempre o comprometimento com nossos clientes, colaboradores e fornecedores. Nossa equipe é composta por profissionais especializados e capacitados para oferecer o melhor serviço e atendimento, nosso relacionamento se dá de maneira consultiva, visitando o cliente e entendendo suas necessidades. Atualmente atendemos redes de supermercados e mercados de pequeno e médio porte com uma ampla linha de produtos, nos segmentos: Alimentar, bebidas, perfumaria, limpeza e bazar, com mais de 3.000 itens, 7 supervisores e mais de 150 representantes externos. Contamos com um amplo CD de armazenagem e tecnologia de ponta (ERP e Força de Vendas), a Comercial Souza vem se constituindo no mercado como uma empresa inovadora, temos agilidade em nossas entregas e com isso melhorando o abastecimento e rentabilidades em nossos clientes.
         </p>
         <div class="mb-4">
             <div class="font-bold text-white bg-blue-600 rounded-t px-4 py-2">Nossa Visão</div>
-            <div class="bg-white border border-blue-600 rounded-b px-4 py-2 text-[#254c90]">
+            <div class="bg-white border border-blue-600 rounded-b px-4 py-2 text-[#4A90E2]">
                 Ser referência em distribuição na área de atuação com produtos de qualidade, buscando sempre excelência em logística, inovações e tecnologias para atender melhor às necessidades dos nossos clientes.
             </div>
         </div>
         <div class="mb-4">
             <div class="font-bold text-white bg-green-600 rounded-t px-4 py-2">Nossa Missão</div>
-            <div class="bg-white border border-green-600 rounded-b px-4 py-2 text-[#254c90]">
+            <div class="bg-white border border-green-600 rounded-b px-4 py-2 text-[#4A90E2]">
                 Entregar eficiência, qualidade no atendimento e agilidade em todos os processos. Agregar valores para nossos clientes, colaboradores e fornecedores.
             </div>
         </div>
         <div>
             <div class="font-bold text-white bg-cyan-600 rounded-t px-4 py-2">Nossos Valores</div>
-            <div class="bg-white border border-cyan-600 rounded-b px-4 py-2 text-[#254c90]">
+            <div class="bg-white border border-cyan-600 rounded-b px-4 py-2 text-[#4A90E2]">
                 <ul class="list-disc pl-5">
                     <li>Confiança e respeito às pessoas;</li>
                     <li>Simplicidade, ética e Transparência;</li>
@@ -1223,12 +1223,12 @@ if ($result_manage_faqs) {
 
 <!-- Sistemas Section -->
 <section id="sistema" class="hidden space-y-6">
-    <h2 class="text-2xl font-bold text-[#254c90]">Acesso Rápido aos Sistemas</h2>
+    <h2 class="text-2xl font-bold text-[#4A90E2]">Acesso Rápido aos Sistemas</h2>
     <?php if (count($sistemas_externos) > 0): ?>
         <div id="systems-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <?php foreach ($sistemas_externos as $sistema): ?>
             <a href="<?= htmlspecialchars($sistema['link']) ?>" target="_blank" rel="noopener noreferrer" class="document-card bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-transform transform hover:-translate-y-1">
-                    <i class="<?= htmlspecialchars($sistema['icon_class']) ?> text-4xl text-[#254c90] mb-3"></i>
+                    <i class="<?= htmlspecialchars($sistema['icon_class']) ?> text-4xl text-[#4A90E2] mb-3"></i>
                     <h3 class="font-semibold text-lg text-[#1d3870]"><?= htmlspecialchars($sistema['nome']) ?></h3>
                 </a>
             <?php endforeach; ?>
@@ -1236,7 +1236,7 @@ if ($result_manage_faqs) {
     <?php else: ?>
         <div class="bg-white rounded-lg shadow p-6 text-center">
             <i class="fas fa-info-circle text-3xl text-gray-400 mb-3"></i>
-            <p class="text-[#254c90]">
+            <p class="text-[#4A90E2]">
                 Nenhum atalho de sistema foi cadastrado ainda.
             </p>
             <p class="text-sm text-gray-500 mt-1">Peça a um administrador para adicionar os atalhos na tela de Configurações.</p>
@@ -1247,8 +1247,8 @@ if ($result_manage_faqs) {
                 <!-- Registros de Sugestões Section (Admin only) -->
                 <section id="registros_sugestoes" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Registros de Sugestões e Reclamações</h2>
-                        <p class="text-[#254c90] mb-6">Acompanhe e gerencie as mensagens enviadas pelos colaboradores.</p>
+                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Registros de Sugestões e Reclamações</h2>
+                        <p class="text-[#4A90E2] mb-6">Acompanhe e gerencie as mensagens enviadas pelos colaboradores.</p>
                         <div id="registros-container">
                             <!-- O conteúdo da tabela será carregado aqui via JavaScript -->
                         </div>
@@ -1274,7 +1274,7 @@ if ($result_manage_faqs) {
                         <!-- Conteúdo da Aba: Usuários/Permissões -->                        
                         <div id="settings-tab-users" class="settings-tab-content">
                             <div class="flex justify-between items-center mb-4 border-b pb-2">
-                                <h3 class="text-lg font-semibold text-[#254c90]">Gerenciar Usuários e Permissões</h3>
+                                <h3 class="text-lg font-semibold text-[#4A90E2]">Gerenciar Usuários e Permissões</h3>
                                 <button id="openCreateUserModalBtn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
                                     <i class="fas fa-plus mr-2"></i>Criar Novo Usuário
                                 </button>
@@ -1303,24 +1303,24 @@ if ($result_manage_faqs) {
 
                         <!-- Conteúdo da Aba: Acesso -->
                         <div id="settings-tab-acesso" class="settings-tab-content hidden">
-                            <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Gerenciar Acessos</h3>
+                            <h3 class="text-lg font-semibold text-[#4A90E2] mb-4 border-b pb-2">Gerenciar Acessos</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <!-- Card para Adicionar Atalho de Sistema -->
                                 <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
-                                    <h4 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Novo Atalho de Sistema</h4>
+                                    <h4 class="text-lg font-semibold text-[#4A90E2] mb-4">Adicionar Novo Atalho de Sistema</h4>
                                     <form action="gerenciar_sistemas.php" method="POST" class="space-y-4">
                                         <input type="hidden" name="action" value="add">
                                         <div>
-                                            <label for="nome_sistema" class="block text-sm font-medium text-[#254c90]">Nome do Sistema</label>
+                                            <label for="nome_sistema" class="block text-sm font-medium text-[#4A90E2]">Nome do Sistema</label>
                                             <input type="text" id="nome_sistema" name="nome" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                         </div>
                                         <div>
-                                            <label for="link_sistema" class="block text-sm font-medium text-[#254c90]">Link do Sistema</label>
+                                            <label for="link_sistema" class="block text-sm font-medium text-[#4A90E2]">Link do Sistema</label>
                                             <input type="url" id="link_sistema" name="link" required placeholder="https://..." class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                         </div>
                                         <div>
-                                            <label for="departamento_sistema" class="block text-sm font-medium text-[#254c90]">Departamento (Opcional)</label>
-                                            <select id="departamento_sistema" name="setor_id" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                            <label for="departamento_sistema" class="block text-sm font-medium text-[#4A90E2]">Departamento (Opcional)</label>
+                                            <select id="departamento_sistema" name="setor_id" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                                                 <option value="">Visível para Todos</option>
                                                 <?php foreach ($setores as $setor): ?>
                                                     <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
@@ -1329,7 +1329,7 @@ if ($result_manage_faqs) {
                                             <p class="text-xs text-gray-500 mt-1">Selecione um departamento ou deixe em "Todos".</p>
                                         </div>
                                         <div>
-                                            <label for="icon_sistema" class="block text-sm font-medium text-[#254c90]">Ícone (Font Awesome)</label>
+                                            <label for="icon_sistema" class="block text-sm font-medium text-[#4A90E2]">Ícone (Font Awesome)</label>
                                             <input type="text" id="icon_sistema" name="icon_class" placeholder="Ex: fas fa-cogs" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                             <p class="text-xs text-gray-500 mt-1">Opcional. Veja os ícones em <a href="https://fontawesome.com/v6/search" target="_blank" class="text-blue-500 underline">fontawesome.com</a>.</p>
                                         </div>
@@ -1340,12 +1340,12 @@ if ($result_manage_faqs) {
                                 </div>
                                 <!-- Card para Listar Atalhos -->
                                 <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
-                                    <h4 class="text-lg font-semibold text-[#254c90] mb-4">Atalhos Cadastrados</h4>
+                                    <h4 class="text-lg font-semibold text-[#4A90E2] mb-4">Atalhos Cadastrados</h4>
                                     <ul class="space-y-3 max-h-96 overflow-y-auto">
                                         <?php foreach ($sistemas_externos as $sistema): ?>
                                             <li class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                                                 <div>
-                                                    <span class="text-[#254c90] font-medium"><i class="<?= htmlspecialchars($sistema['icon_class']) ?> mr-2 text-gray-500"></i><?= htmlspecialchars($sistema['nome']) ?></span>
+                                                    <span class="text-[#4A90E2] font-medium"><i class="<?= htmlspecialchars($sistema['icon_class']) ?> mr-2 text-gray-500"></i><?= htmlspecialchars($sistema['nome']) ?></span>
                                                     <span class="block text-xs text-gray-500 ml-6"><?= htmlspecialchars($sistema['departamento'] ?? 'Visível para Todos') ?></span>
                                                 </div>
                                                 <form action="gerenciar_sistemas.php" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este atalho?');">
@@ -1370,7 +1370,7 @@ if ($result_manage_faqs) {
                 <section id="manage_faq_section" class="hidden space-y-6">
                     <?php if (can_view_section('manage_faq_section')): ?>
                         <div class="max-w-6xl mx-auto bg-white p-8 rounded-lg shadow-xl border border-gray-200">
-                            <h1 class="text-3xl font-extrabold text-[#254c90] mb-6 pb-3 border-b-4 border-[#254c90]/50">Gerenciar Perguntas Frequentes (FAQs)</h1>
+                            <h1 class="text-3xl font-extrabold text-[#4A90E2] mb-6 pb-3 border-b-4 border-[#254c90]/50">Gerenciar Perguntas Frequentes (FAQs)</h1>
 
                             <?php
                             // Ajusta as classes das mensagens de feedback para o padrão do projeto
@@ -1386,7 +1386,7 @@ if ($result_manage_faqs) {
                                 <!-- Formulário de Adição/Edição de FAQ -->
                                 <div>
                                     <div class="p-6 border border-gray-200 rounded-lg bg-gradient-to-r from-gray-50 to-white shadow-sm h-full">
-                                        <h2 class="text-2xl font-bold text-[#254c90] mb-5"><?php echo $manage_faq_to_edit ? 'Editar FAQ' : 'Adicionar Nova FAQ'; ?></h2>
+                                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-5"><?php echo $manage_faq_to_edit ? 'Editar FAQ' : 'Adicionar Nova FAQ'; ?></h2>
                                         <form id="faqManageForm" action="index.php?section=manage_faq_section" method="POST" class="space-y-4">
                                             <?php if ($manage_faq_to_edit): ?>
                                                 <input type="hidden" name="id" value="<?php echo htmlspecialchars($manage_faq_to_edit['id']); ?>">
@@ -1396,17 +1396,17 @@ if ($result_manage_faqs) {
                                             <?php endif; ?>
 
                                             <div>
-                                                <label for="question" class="block text-sm font-semibold text-[#254c90] mb-1">Pergunta:</label>
+                                                <label for="question" class="block text-sm font-semibold text-[#4A90E2] mb-1">Pergunta:</label>
                                                 <input type="text" id="question" name="question" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" value="<?php echo htmlspecialchars($manage_faq_to_edit['question'] ?? ''); ?>" required>
                                             </div>
                                             <div>
-                                                <label for="answer" class="block text-sm font-semibold text-[#254c90] mb-1">Resposta:</label>
+                                                <label for="answer" class="block text-sm font-semibold text-[#4A90E2] mb-1">Resposta:</label>
                                                 <textarea id="answer" name="answer" rows="5" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" required><?php echo htmlspecialchars($manage_faq_to_edit['answer'] ?? ''); ?></textarea>
                                             </div>
 
                                             <!-- Nova Ferramenta de Links -->
                                             <div class="p-4 border border-gray-200 rounded-md bg-gray-50 space-y-3">
-                                                <h3 class="text-md font-semibold text-[#254c90]">Ferramenta: Adicionar Link ao Texto da Resposta</h3>
+                                                <h3 class="text-md font-semibold text-[#4A90E2]">Ferramenta: Adicionar Link ao Texto da Resposta</h3>
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label for="link_text" class="block text-sm font-medium text-gray-700 mb-1">Texto do Link</label>
@@ -1437,7 +1437,7 @@ if ($result_manage_faqs) {
 
                                             
                                             <div class="flex items-center">
-                                                <input type="checkbox" id="is_active" name="is_active" class="h-4 w-4 text-[#254c90] focus:ring-[#254c90] border-gray-300 rounded cursor-pointer" <?php echo ($manage_faq_to_edit['is_active'] ?? 1) ? 'checked' : ''; ?>>
+                                                <input type="checkbox" id="is_active" name="is_active" class="h-4 w-4 text-[#4A90E2] focus:ring-[#254c90] border-gray-300 rounded cursor-pointer" <?php echo ($manage_faq_to_edit['is_active'] ?? 1) ? 'checked' : ''; ?>>
                                                 <label for="is_active" class="ml-2 block text-sm text-gray-700 cursor-pointer">Ativa</label>
                                             </div>
                                             <div class="flex items-center space-x-4">
@@ -1452,7 +1452,7 @@ if ($result_manage_faqs) {
 
                                 <!-- Lista de FAQs Existentes (Accordion) -->
                                 <div>
-                                    <h2 class="text-2xl font-bold text-[#254c90] mb-4">FAQs Existentes</h2>
+                                    <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">FAQs Existentes</h2>
                                     <?php if (empty($manage_faqs)): ?>
                                         <p class="text-gray-600 p-4 bg-gray-50 rounded-md border border-gray-200">Nenhuma FAQ encontrada. Adicione uma nova FAQ acima.</p>
                                     <?php else: ?>
@@ -1460,7 +1460,7 @@ if ($result_manage_faqs) {
                                             <?php foreach ($manage_faqs as $faq): ?>
                                                 <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                                                     <button class="faq-accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 focus:outline-none transition duration-200 ease-in-out">
-                                                        <span class="font-semibold text-[#254c90] text-left text-lg"><?php echo htmlspecialchars($faq['question']); ?></span>
+                                                        <span class="font-semibold text-[#4A90E2] text-left text-lg"><?php echo htmlspecialchars($faq['question']); ?></span>
                                                         <i class="fas fa-chevron-down text-gray-600 transform transition-transform duration-300 text-xl"></i>
                                                     </button>
                                                     <div class="faq-accordion-content hidden p-4 bg-white border-t border-gray-200">
@@ -1494,7 +1494,7 @@ if ($result_manage_faqs) {
                 <section id="create_procedure" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow overflow-hidden">
                         <div class="p-6 border-b border-[#254c90]">
-                            <h3 class="text-lg font-semibold text-[#254c90]">Criar Novo Procedimento</h3>
+                            <h3 class="text-lg font-semibold text-[#4A90E2]">Criar Novo Procedimento</h3>
                             <p class="text-sm text-gray-600 mt-1">Preencha os campos abaixo para gerar um novo documento de procedimento em PDF.</p>
                         </div>
                         <div class="p-6">
@@ -1502,29 +1502,29 @@ if ($result_manage_faqs) {
                                 <!-- Cabeçalho do Documento -->
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                     <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Título do Procedimento</label>
+                                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Título do Procedimento</label>
                                         <input type="text" name="titulo" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Código</label>
+                                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Código</label>
                                         <input type="text" name="codigo" placeholder="Ex: CS-PRO-GA-01" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Versão</label>
+                                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Versão</label>
                                         <input type="text" name="versao" placeholder="Ex: v1.0" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Data de Emissão</label>
+                                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Data de Emissão</label>
                                         <input type="text" name="data_emissao" value="<?= date('d/m/Y') ?>" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Descrição da Alteração</label>
+                                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Descrição da Alteração</label>
                                     <input type="text" name="descricao_alteracao" value="Emissão inicial" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Departamento</label>
-                                    <select name="setor_id" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Departamento</label>
+                                    <select name="setor_id" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                                         <option value="">Selecione um setor</option>
                                         <?php foreach ($setores as $setor): ?>
                                             <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
@@ -1535,14 +1535,14 @@ if ($result_manage_faqs) {
                                 <!-- Corpo do Procedimento -->
                                 <div class="space-y-4">
                                     <h4 class="text-md font-semibold text-[#1d3870]">Conteúdo do Procedimento</h4>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">1. Objetivo</label><textarea name="objetivo" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">2. Campo de Aplicação</label><textarea name="aplicacao" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">3. Referências</label><textarea name="referencias" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">4. Definições</label><textarea name="definicoes" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">5. Responsabilidades</label><textarea name="responsabilidades" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">6. Descrição do Procedimento</label><textarea name="descricao_procedimento" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">7. Registros</label><textarea name="registros" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">8. Anexos</label><textarea name="anexos" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">1. Objetivo</label><textarea name="objetivo" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">2. Campo de Aplicação</label><textarea name="aplicacao" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">3. Referências</label><textarea name="referencias" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">4. Definições</label><textarea name="definicoes" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">5. Responsabilidades</label><textarea name="responsabilidades" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">6. Descrição do Procedimento</label><textarea name="descricao_procedimento" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">7. Registros</label><textarea name="registros" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">8. Anexos</label><textarea name="anexos" class="procedure-editor"></textarea></div>
                                 </div>
                                 <div class="flex justify-end pt-4 border-t">
                                     <button type="reset" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md mr-2 hover:bg-gray-300">Limpar</button>
@@ -1558,7 +1558,7 @@ if ($result_manage_faqs) {
                 <!-- Profile Section -->
                 <section id="profile" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-[#254c90] mb-6 border-b pb-3">Meu Perfil</h2>
+                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-6 border-b pb-3">Meu Perfil</h2>
                         
                         <form action="update_profile.php" method="POST" enctype="multipart/form-data" class="space-y-8">
 
@@ -1575,7 +1575,7 @@ if ($result_manage_faqs) {
                                     <?php endif; ?>
                                     <div>
                                         <label for="profile_photo" class="block text-sm font-medium text-gray-700">Nova foto</label>
-                                        <input type="file" name="profile_photo" id="profile_photo" accept="image/png, image/jpeg, image/gif" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#e9eef5] file:text-[#254c90] hover:file:bg-[#dbeafe]">
+                                        <input type="file" name="profile_photo" id="profile_photo" accept="image/png, image/jpeg, image/gif" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#e9eef5] file:text-[#4A90E2] hover:file:bg-[#dbeafe]">
                                         <p class="text-xs text-gray-500 mt-1">PNG, JPG ou GIF (Máx. 2MB).</p>
                                     </div>
                                 </div>
@@ -1616,7 +1616,7 @@ if ($result_manage_faqs) {
                 <!-- Matriz de Comunicação Section -->
                 <section id="matriz_comunicacao" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Matriz de Comunicação</h2>
+                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Matriz de Comunicação</h2>
                         
                         <!-- Formulário de Filtros -->
                         <form id="matriz-filter-form" action="index.php" method="GET" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
@@ -1666,7 +1666,7 @@ if ($result_manage_faqs) {
 
                         <!-- Formulário para Adicionar Novo Funcionário (oculto por padrão) -->
                         <div id="form-adicionar-funcionario" class="hidden bg-gray-100 p-6 rounded-lg border border-gray-300 my-6">
-                            <h3 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Novo Funcionário</h3>
+                            <h3 class="text-lg font-semibold text-[#4A90E2] mb-4">Adicionar Novo Funcionário</h3>
                             <form action="adicionar_funcionario_matriz.php" method="POST" class="space-y-4">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -1756,7 +1756,7 @@ if ($result_manage_faqs) {
                                     for ($i = 1; $i <= $total_paginas_matriz; $i++):
                                         $query_params['pagina'] = $i;                                        
                                         $link = 'index.php?' . http_build_query($query_params);
-                                        $active_class = ($i == $pagina_atual_matriz) ? 'bg-[#254c90] text-white' : 'bg-white text-[#254c90] hover:bg-gray-100';
+                                        $active_class = ($i == $pagina_atual_matriz) ? 'bg-[#254c90] text-white' : 'bg-white text-[#4A90E2] hover:bg-gray-100';
                                 ?>
                                     <a href="<?= $link ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm <?= $active_class ?>"><?= $i ?></a>
                                 <?php endfor; endif; ?>
@@ -1771,7 +1771,7 @@ if ($result_manage_faqs) {
     <div id="permissionsModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl transform transition-all scale-95 opacity-0">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-semibold text-[#254c90]">Gerenciar Permissões: <span id="modalUsername" class="font-bold"></span></h3>
+                <h3 class="text-xl font-semibold text-[#4A90E2]">Gerenciar Permissões: <span id="modalUsername" class="font-bold"></span></h3>
                 <button id="closePermissionsModal" class="text-gray-500 hover:text-gray-800">&times;</button>
             </div>
             <form id="permissionsForm" action="update_user_permissions.php" method="POST">
@@ -1779,8 +1779,8 @@ if ($result_manage_faqs) {
                 <div class="space-y-6">
                     <!-- Nível de Acesso (Role) -->
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-2">Nível de Acesso Principal</label>
-                        <select name="role" id="modalUserRole" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-2">Nível de Acesso Principal</label>
+                        <select name="role" id="modalUserRole" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="user">Usuário</option>
                             <option value="admin">Admin</option>
                             <option value="god">God</option>
@@ -1789,8 +1789,8 @@ if ($result_manage_faqs) {
                     </div>
                     <!-- Setor do Usuário -->
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-2">Setor</label>
-                        <select name="setor_id" id="modalUserSetor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-2">Setor</label>
+                        <select name="setor_id" id="modalUserSetor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="">Nenhum</option>
                             <?php foreach ($setores as $setor): ?>
                                 <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
@@ -1799,12 +1799,12 @@ if ($result_manage_faqs) {
                     </div>
                     <!-- Permissões de Tela (Sections) -->
                     <div id="sectionsPermissionsContainer">
-                        <label class="block text-sm font-medium text-[#254c90] mb-2">Acesso às Telas (para nível "Usuário")</label>
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-2">Acesso às Telas (para nível "Usuário")</label>
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 border p-4 rounded-md max-h-64 overflow-y-auto">
                             <?php foreach ($available_sections as $key => $label): ?>
                                 <div>
                                     <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="checkbox" name="sections[]" value="<?= $key ?>" class="form-checkbox h-5 w-5 text-[#254c90] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
+                                        <input type="checkbox" name="sections[]" value="<?= $key ?>" class="form-checkbox h-5 w-5 text-[#4A90E2] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
                                         <span class="text-gray-700"><?= htmlspecialchars($label) ?></span>
                                     </label>
                                 </div>
@@ -1823,29 +1823,29 @@ if ($result_manage_faqs) {
     <div id="createUserModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform transition-all scale-95 opacity-0">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-semibold text-[#254c90]">Criar Novo Usuário</h3>
+                <h3 class="text-xl font-semibold text-[#4A90E2]">Criar Novo Usuário</h3>
                 <button id="closeCreateUserModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
             <form id="createUserForm" action="create_user_admin.php" method="POST">
                 <div class="space-y-4">
                     <div>
-                        <label for="new_username" class="block text-sm font-medium text-[#254c90]">Nome de Usuário</label>
+                        <label for="new_username" class="block text-sm font-medium text-[#4A90E2]">Nome de Usuário</label>
                         <input type="text" name="username" id="new_username" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                     </div>
                     <div>
-                        <label for="new_password" class="block text-sm font-medium text-[#254c90]">Senha</label>
+                        <label for="new_password" class="block text-sm font-medium text-[#4A90E2]">Senha</label>
                         <input type="password" name="password" id="create_user_password" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                     </div>
                     <div>
-                        <label for="new_user_role" class="block text-sm font-medium text-[#254c90]">Nível de Acesso</label>
-                        <select name="role" id="new_user_role" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label for="new_user_role" class="block text-sm font-medium text-[#4A90E2]">Nível de Acesso</label>
+                        <select name="role" id="new_user_role" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="user">Usuário</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
                     <div>
-                        <label for="new_user_setor" class="block text-sm font-medium text-[#254c90]">Setor</label>
-                        <select name="setor_id" id="new_user_setor" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label for="new_user_setor" class="block text-sm font-medium text-[#4A90E2]">Setor</label>
+                        <select name="setor_id" id="new_user_setor" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="" disabled selected>Selecione um setor...</option>
                             <?php foreach ($setores as $setor): ?>
                                 <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
@@ -1867,8 +1867,8 @@ if ($result_manage_faqs) {
                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
                     <i class="fas fa-check text-green-600 text-xl"></i>
                 </div>
-                <h3 class="text-lg font-medium text-[#254c90] mb-2">Sucesso!</h3>
-                <p class="text-[#254c90] mb-6">Seu arquivo foi enviado com sucesso e está disponível no sistema.</p>
+                <h3 class="text-lg font-medium text-[#4A90E2] mb-2">Sucesso!</h3>
+                <p class="text-[#4A90E2] mb-6">Seu arquivo foi enviado com sucesso e está disponível no sistema.</p>
                 <button id="closeModal" class="w-full px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                     Fechar
                 </button>
@@ -1878,7 +1878,7 @@ if ($result_manage_faqs) {
     <div id="excel-viewer" class="w-full h-[700px] mb-6 hidden">
         <iframe id="excel-iframe" class="w-full h-full rounded-lg border" frameborder="0"></iframe>
         <div class="flex justify-end mt-2">
-            <button id="close-excel-viewer" class="px-3 py-1 bg-white text-[#254c90] rounded hover:bg-[#e5e7eb]">Fechar</button>
+            <button id="close-excel-viewer" class="px-3 py-1 bg-white text-[#4A90E2] rounded hover:bg-[#e5e7eb]">Fechar</button>
         </div>
     </div>
     <div id="excel-table-container" class="w-full mb-6 hidden bg-[#1d3870] rounded-lg shadow p-4 overflow-auto text-white"></div>
@@ -1934,7 +1934,7 @@ if ($result_manage_faqs) {
             // Carrega dinamicamente a lista de sugestões para admins
             if (sectionId === 'registros_sugestoes') {
                 const container = document.getElementById('registros-container');
-                container.innerHTML = '<p class="text-center text-[#254c90]">Carregando registros...</p>';
+                container.innerHTML = '<p class="text-center text-[#4A90E2]">Carregando registros...</p>';
                 fetch('registros_sugestoes.php')
                     .then(response => response.text())
                     .then(html => container.innerHTML = html)
@@ -2861,7 +2861,7 @@ async function fetchFaqList() {
                     faqHtml += `
                         <div class=\'border border-gray-200 rounded-lg shadow-sm overflow-hidden\'>
                             <button class=\'faq-accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 focus:outline-none transition duration-200 ease-in-out\'>
-                                <span class=\'font-semibold text-[#254c90] text-left text-lg\'>${faq.question}</span>
+                                <span class=\'font-semibold text-[#4A90E2] text-left text-lg\'>${faq.question}</span>
                                 <i class=\'fas fa-chevron-down text-gray-600 transform transition-transform duration-300 text-xl\'></i>
                             </button>
                             <div class=\'faq-accordion-content hidden p-4 bg-white border-t border-gray-200\'>
