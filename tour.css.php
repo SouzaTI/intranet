@@ -8,13 +8,13 @@ header('Content-Type: text/css');
 }
 
 .shepherd-element.shepherd-custom {
-    background-color: #f8f9fb;
+    background-color: #ffffff; /* Overall container background to white */
     border-radius: 0.5rem;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
 }
 
 .shepherd-custom .shepherd-header {
-    background-color: #254c90;
+    background-color: #254c90; /* Dark background for the header */
     padding: 1rem;
 }
 
@@ -30,10 +30,16 @@ header('Content-Type: text/css');
 }
 
 .shepherd-custom .shepherd-text {
-    color: #1d3870;
+    background-color: #f0f0f0; /* Light gray background for content */
+    color: #333333; /* Dark text color */
     padding: 1rem;
     font-size: 0.95rem;
     line-height: 1.6;
+}
+
+.shepherd-custom .shepherd-footer {
+    background-color: #ffffff; /* White background for the footer */
+    padding: 1rem;
 }
 
 .shepherd-custom .shepherd-button {

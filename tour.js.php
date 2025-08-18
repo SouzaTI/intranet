@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
     tour.addStep({
         id: 'welcome',
         title: 'Bem-vindo à Intranet!',
-        text: 'Vamos fazer um tour guiado pelas principais funcionalidades do sistema. Clique em "Próximo" para começar ou em "Sair" para explorar por conta própria.',
+        text: '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM.png" alt="SAM - Assistente Virtual" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #fff;"></div>Vamos fazer um tour guiado pelas principais funcionalidades do sistema. Clique em "Próximo" para começar ou em "Sair" para explorar por conta própria.',
         buttons: [
             {
                 action() { return this.cancel(); },
@@ -225,6 +225,26 @@ document.addEventListener('DOMContentLoaded', function () {
         ]
     });
 
+    // Passo 12: Seu Perfil
+    tour.addStep({
+        id: 'user-profile-link',
+        title: 'Seu Perfil',
+        text: 'Acesse e gerencie suas informações pessoais, como nome, e-mail e foto de perfil, aqui.',
+        attachTo: {
+            element: 'a[data-section="profile"]', // Assumindo que há um link para o perfil com data-section="profile"
+            on: 'right'
+        },
+        when: {
+            show: () => {
+                showSection('profile'); // Assumindo que a função showSection pode navegar para a seção de perfil
+            }
+        },
+        buttons: [
+            { text: 'Voltar', action: tour.back },
+            { text: 'Próximo', action: tour.next }
+        ]
+    });
+
     // Passos exclusivos para Administradores
     if (isAdmin) {
         tour.addStep({
@@ -257,6 +277,131 @@ document.addEventListener('DOMContentLoaded', function () {
             when: {
                 show: () => {
                     showSection('settings'); // Navega para as configurações
+                    // Ativa a aba "Usuários/Permissões" dentro da seção de configurações
+                    const usersTabButton = document.querySelector('#settings .folder-tab[data-tab="users"]');
+                    if (usersTabButton) {
+                        usersTabButton.click(); // Simula um clique para ativar a aba
+                    }
+                }
+            },
+            buttons: [
+                { text: 'Voltar', action: tour.back },
+                { text: 'Próximo', action: tour.next }
+            ]
+        });
+
+        // Passo Admin: Gerenciar Carrossel
+        tour.addStep({
+            id: 'manage-carousel-link',
+            title: 'Gerenciar Carrossel',
+            text: 'Como administrador, você pode adicionar, editar e remover imagens do carrossel principal.',
+            attachTo: {
+                element: 'a[data-section="carousel-management"]',
+                on: 'right'
+            },
+            when: {
+                show: () => {
+                    showSection('carousel-management');
+                }
+            },
+            buttons: [
+                { text: 'Voltar', action: tour.back },
+                { text: 'Próximo', action: tour.next }
+            ]
+        });
+
+        // Passo Admin: Gerenciar Informações
+        tour.addStep({
+            id: 'manage-info-link',
+            title: 'Gerenciar Informações',
+            text: 'Publique e organize comunicados e informações importantes para todos os usuários.',
+            attachTo: {
+                element: 'a[data-section="info-management"]',
+                on: 'right'
+            },
+            when: {
+                show: () => {
+                    showSection('info-management');
+                }
+            },
+            buttons: [
+                { text: 'Voltar', action: tour.back },
+                { text: 'Próximo', action: tour.next }
+            ]
+        });
+
+        // Passo Admin: Gerenciar Setores
+        tour.addStep({
+            id: 'manage-sectors-link',
+            title: 'Gerenciar Setores',
+            text: 'Mantenha a lista de setores da empresa atualizada.',
+            attachTo: {
+                element: 'a[data-section="manage-sectors"]',
+                on: 'right'
+            },
+            when: {
+                show: () => {
+                    showSection('manage-sectors');
+                }
+            },
+            buttons: [
+                { text: 'Voltar', action: tour.back },
+                { text: 'Próximo', action: tour.next }
+            ]
+        });
+
+        // Passo Admin: Gerenciar Sistemas
+        tour.addStep({
+            id: 'manage-systems-link',
+            title: 'Gerenciar Atalhos de Sistemas',
+            text: 'Adicione ou edite os atalhos para sistemas externos disponíveis na intranet.',
+            attachTo: {
+                element: 'a[data-section="manage-systems"]',
+                on: 'right'
+            },
+            when: {
+                show: () => {
+                    showSection('manage-systems');
+                }
+            },
+            buttons: [
+                { text: 'Voltar', action: tour.back },
+                { text: 'Próximo', action: tour.next }
+            ]
+        });
+
+        // Passo Admin: Registros de Sugestões
+        tour.addStep({
+            id: 'suggestion-records-link',
+            title: 'Registros de Sugestões',
+            text: 'Visualize e gerencie todas as sugestões e reclamações enviadas pelos usuários.',
+            attachTo: {
+                element: 'a[data-section="suggestion-records"]',
+                on: 'right'
+            },
+            when: {
+                show: () => {
+                    showSection('suggestion-records');
+                }
+            },
+            buttons: [
+                { text: 'Voltar', action: tour.back },
+                { text: 'Próximo', action: tour.next }
+            ]
+        });
+
+        // Passo Admin: Visualizar Logs
+        tour.addStep({
+            id: 'view-logs-link',
+            title: 'Visualizar Logs de Atividade',
+            text: 'Acompanhe as atividades do sistema para auditoria e monitoramento.',
+            attachTo: {
+                element: 'a[data-section="view-logs"]',
+                on: 'right'
+            },
+            when: {
+                show: () => {
+                    showSection('view-logs');
                 }
             },
             buttons: [
@@ -270,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function () {
     tour.addStep({
         id: 'finish',
         title: 'Tour Concluído!',
-        text: 'Você agora conhece as principais áreas da intranet. Explore à vontade e, se tiver dúvidas, pode refazer este tour a qualquer momento!',
+        text: '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM.png" alt="SAM - Assistente Virtual" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #fff;"></div>Você agora conhece as principais áreas da intranet. Explore à vontade e, se tiver dúvidas, pode refazer este tour a qualquer momento!',
         buttons: [
             { text: 'Voltar', action: tour.back },
             {
@@ -295,6 +440,33 @@ document.addEventListener('DOMContentLoaded', function () {
  
     // Expor a instância do tour globalmente para que o botão possa iniciá-la.
     window.intranetTour = tour;
+
+    // Adiciona um listener para o botão "Fazer Tour" (assumindo o ID 'startTourButton')
+    const startTourButton = document.getElementById('startTourButton');
+    if (startTourButton) {
+        console.log('Botão startTourButton encontrado.');
+        startTourButton.addEventListener('click', () => {
+            console.log('Botão startTourButton clicado. Tentando resetar status do tour...');
+            // Resetar o status do tour no servidor antes de iniciar
+            fetch('reset_tour_status.php', { method: 'POST' })
+                .then(response => {
+                    console.log('Resposta de reset_tour_status.php recebida.', response);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        console.log('Tour status reset on server. Starting tour...', data.message);
+                        if (window.intranetTour) {
+                            window.intranetTour.start();
+                            console.log('Tour iniciado.');
+                        }
+                    } else {
+                        console.error('Failed to reset tour status:', data.message);
+                    }
+                })
+                .catch(error => console.error('Error resetting tour status:', error));
+        });
+    }
  
     // Verifica se o tour deve iniciar automaticamente.
     const shouldShowTour = <?php echo (isset($_SESSION['show_tour']) && $_SESSION['show_tour']) ? 'true' : 'false'; ?>;

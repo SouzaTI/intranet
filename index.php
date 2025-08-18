@@ -654,7 +654,7 @@ if ($result_manage_faqs) {
                         <?php endif; ?>
 
                         <!-- 2. Adicionar o botão para iniciar o tour -->
-                        <button id="start-tour-btn" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#1d3870]">
+                        <button id="startTourButton" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#1d3870]">
                             <i class="fas fa-route"></i>
                             <span>Fazer Tour</span>
                         </button>
