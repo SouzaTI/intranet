@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    const samImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM.png" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
+    const samImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM.png" alt="SAM - Assistente Virtual" style="width: 200px; height: auto; border: none;"></div>;
 
     const navigateTo = (tourStep, url) => {
         const section = new URLSearchParams(url.split('?')[1]).get('section');
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ]
             });
 
-            if (allowedSections.includes('dashboard')) {
+            if (isAdmin || allowedSections.includes('dashboard')) {
                 tour.addStep({
                     id: 'dashboard',
                     title: 'Página Inicial',
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('documents')) {
+            if (isAdmin || allowedSections.includes('documents')) {
                 tour.addStep({
                     id: 'documents',
                     title: 'Normas e Procedimentos',
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
             
-            if (allowedSections.includes('information')) {
+            if (isAdmin || allowedSections.includes('information')) {
                 tour.addStep({
                     id: 'information',
                     title: 'Informações',
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('matriz_comunicacao')) {
+            if (isAdmin || allowedSections.includes('matriz_comunicacao')) {
                 tour.addStep({
                     id: 'matriz_comunicacao',
                     title: 'Matriz de Comunicação',
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('create_procedure')) {
+            if (isAdmin || allowedSections.includes('create_procedure')) {
                 tour.addStep({
                     id: 'create_procedure',
                     title: 'Criar Procedimento',
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('sugestoes')) {
+            if (isAdmin || allowedSections.includes('sugestoes')) {
                 tour.addStep({
                     id: 'sugestoes',
                     title: 'Sugestões e Reclamações',
@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('sistema')) {
+            if (isAdmin || allowedSections.includes('sistema')) {
                 tour.addStep({
                     id: 'sistema',
                     title: 'Sistemas',
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (isAdmin && allowedSections.includes('settings')) {
+            if (isAdmin) {
                 tour.addStep({
                     id: 'settings',
                     title: 'Configurações',
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (isAdmin && allowedSections.includes('registros_sugestoes')) {
+            if (isAdmin) {
                 tour.addStep({
                     id: 'registros_sugestoes',
                     title: 'Registros de Sugestões',
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('info-upload')) {
+            if (isAdmin || allowedSections.includes('info-upload')) {
                 tour.addStep({
                     id: 'info_upload',
                     title: 'Cadastrar Informação',
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('about')) {
+            if (isAdmin || allowedSections.includes('about')) {
                 tour.addStep({
                     id: 'about',
                     title: 'Sobre Nós',
@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('faq')) {
+            if (isAdmin || allowedSections.includes('faq')) {
                 tour.addStep({
                     id: 'faq',
                     title: 'FAQ',
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (allowedSections.includes('profile')) {
+            if (isAdmin || allowedSections.includes('profile')) {
                 tour.addStep({
                     id: 'profile',
                     title: 'Perfil do Usuário',

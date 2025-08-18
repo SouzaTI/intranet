@@ -1161,7 +1161,7 @@ if ($result_manage_faqs) {
         <div class="max-w-4xl mx-auto faq-chat-window">
             <!-- Cabeçalho da Janela de Chat -->
             <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
-                <img src="img/SAM.png" alt="SAM Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-blue-200">
+                <img src="img/SAM.png" alt="SAM Avatar" class="w-24 h-24 rounded-full object-cover border-2 border-blue-200">
                 <div>
                     <h3 class="font-bold text-lg text-white">SAM - Assistente Virtual</h3>
                     <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
