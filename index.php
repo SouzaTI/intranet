@@ -511,8 +511,8 @@ if ($result_manage_faqs) {
         }
 
         .chat-avatar {
-            width: 40px; /* Reduzido para um visual mais compacto */
-            height: 40px;
+            width: 70px; /* Reduzido para um visual mais compacto */
+            /*height: 120px;
             border-radius: 9999px; /* full */
             object-fit: cover;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
