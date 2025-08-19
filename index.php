@@ -2795,17 +2795,17 @@ document.addEventListener('click', function(event) {
             return;
         }
 
-        let linkHtml = '';
+        let linkPlaceholder = '';
         if (linkTypeSelect.value === 'internal') {
             const section = document.getElementById('link_internal_page').value;
-            linkHtml = `<a href="#" onclick="showSection('${section}', true); return false;">${linkText}</a>`;
+            linkPlaceholder = `[[${linkText}|internal:${section}]]`;
         } else {
             const url = document.getElementById('link_external_url').value.trim();
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 alert('Por favor, insira uma URL externa válida, começando com http:// ou https://.');
                 return;
             }
-            linkHtml = `<a href="${url}" target="_blank">${linkText}</a>`;
+            linkPlaceholder = `[[${linkText}|external:${url}]]`;
         }
 
         const answerTextarea = document.getElementById('answer');
@@ -2813,7 +2813,7 @@ document.addEventListener('click', function(event) {
             const cursorPos = answerTextarea.selectionStart;
             const textBefore = answerTextarea.value.substring(0, cursorPos);
             const textAfter = answerTextarea.value.substring(cursorPos);
-            answerTextarea.value = textBefore + linkHtml + textAfter;
+            answerTextarea.value = textBefore + linkPlaceholder + textAfter;
         }
     }
 });
@@ -3028,15 +3028,21 @@ function processAnswerText(text) {
             const [linkType, linkDest] = linkData.split(/:(.*)/s);
             let url = '#';
             let targetAttr = '';
+            let iconHtml = ''; // Variável para o ícone
 
             if (linkType === 'internal') {
                 url = `index.php?section=${linkDest}`;
+                // Ícone para link interno
+                iconHtml = '<i class="fas fa-arrow-circle-right mr-1"></i>';
             } else if (linkType === 'external') {
                 url = linkDest;
                 targetAttr = ' target="_blank" rel="noopener noreferrer"';
+                // Ícone para link externo
+                iconHtml = '<i class="fas fa-external-link-alt mr-1"></i>';
             }
 
-            return `<a href="${url}" class="text-main font-bold hover:underline"${targetAttr}>${linkText}</a>`;
+            // Adiciona o ícone antes do texto do link e classes para alinhamento
+            return `<a href="${url}" class="font-bold hover:underline inline-flex items-center" style="color: #254c90;"${targetAttr}>${iconHtml}${linkText}</a>`;
         });
     }
 
