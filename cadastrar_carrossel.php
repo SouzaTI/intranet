@@ -1,48 +1,56 @@
 <?php
 session_start();
 require_once 'conexao.php';
-require_once 'log_activity.php'; // Inclui o arquivo de log
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $imagem = null;
-    $status = 'error';
-    $msg = 'Nenhuma imagem válida foi enviada ou ocorreu um erro.';
-
-    $userId = $_SESSION['user_id'] ?? null;
-    $username = $_SESSION['username'] ?? 'N/A';
-
-    if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] == UPLOAD_ERR_OK) {
-        $ext = strtolower(pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION));
-        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-        if (in_array($ext, $allowed)) {
-            $nomeImagem = uniqid('carrossel_').'.'.$ext;
-            if (move_uploaded_file($_FILES['imagem']['tmp_name'], 'uploads/'.$nomeImagem)) {
-                $imagem = $nomeImagem;
-            } else {
-                $msg = 'Falha ao mover o arquivo para a pasta de uploads.';
-                logActivity($userId, "Erro Upload Carrossel", "Usuário {$username} falhou ao mover a imagem para uploads: {$nomeImagem}.", "error");
-            }
-        } else {
-            $msg = 'Formato de arquivo não permitido. Use JPG, PNG ou GIF.';
-            logActivity($userId, "Erro Upload Carrossel", "Usuário {$username} tentou fazer upload de imagem com formato não permitido: {$ext}.", "error");
-        }
-    } else {
-        logActivity($userId, "Erro Upload Carrossel", "Usuário {$username} tentou fazer upload de imagem para carrossel, mas nenhum arquivo válido foi enviado.", "error");
-    }
-
-    if ($imagem) {
-        $stmt = $conn->prepare("INSERT INTO carrossel_imagens (imagem) VALUES (?)");
-        $stmt->bind_param("s", $imagem);
-        if ($stmt->execute()) {
-            $status = 'success';
-            $msg = 'Imagem adicionada ao carrossel com sucesso!';
-            logActivity($userId, "Imagem Carrossel Adicionada", "Usuário {$username} adicionou a imagem {$imagem} ao carrossel.");
-        } else {
-            $msg = 'Erro ao salvar imagem no banco de dados.';
-            logActivity($userId, "Erro DB Carrossel", "Usuário {$username} falhou ao salvar imagem {$imagem} no DB. Erro: " . $stmt->error, "error");
-        }
-    }
-    header("Location: index.php?section=upload&status=$status&msg=" . urlencode($msg));
+// Verifica se o usuário está logado e é admin
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'god'])) {
+    header("Location: index.php?status=error&msg=Acesso negado.");
     exit();
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagem'])) {
+    $target_dir = "uploads/";
+    $image_name = 'carrossel_' . uniqid() . '_' . basename($_FILES["imagem"]["name"]);
+    $target_file = $target_dir . $image_name;
+    $uploadOk = 1;
+    $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+
+    // Verifica se o arquivo é uma imagem
+    $check = getimagesize($_FILES["imagem"]["tmp_name"]);
+    if ($check === false) {
+        header("Location: index.php?section=info-upload&status=error&msg=O arquivo não é uma imagem.");
+        exit();
+    }
+
+    // Verifica o tamanho do arquivo
+    if ($_FILES["imagem"]["size"] > 5000000) { // 5MB
+        header("Location: index.php?section=info-upload&status=error&msg=O arquivo é muito grande.");
+        exit();
+    }
+
+    // Permite certos formatos de arquivo
+    if ($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg" && $imageFileType != "gif") {
+        header("Location: index.php?section=info-upload&status=error&msg=Apenas arquivos JPG, JPEG, PNG e GIF são permitidos.");
+        exit();
+    }
+
+    if (move_uploaded_file($_FILES["imagem"]["tmp_name"], $target_file)) {
+        // Insere no banco de dados
+        $stmt = $conn->prepare("INSERT INTO carrossel_imagens (imagem, data_upload) VALUES (?, NOW())");
+        $stmt->bind_param("s", $image_name);
+
+        if ($stmt->execute()) {
+            header("Location: index.php?section=info-upload&status=success&msg=Imagem do carrossel adicionada com sucesso.");
+        } else {
+            header("Location: index.php?section=info-upload&status=error&msg=Erro ao salvar a imagem no banco de dados.");
+        }
+        $stmt->close();
+    } else {
+        header("Location: index.php?section=info-upload&status=error&msg=Erro ao fazer upload da imagem.");
+    }
+} else {
+    header("Location: index.php?section=info-upload&status=error&msg=Requisição inválida.");
+}
+
+$conn->close();
 ?>

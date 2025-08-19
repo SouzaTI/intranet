@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'log_activity.php'; // Adicionado para logar a atividade
 $conn = new mysqli("localhost", "root", "", "intranet");
 
 $token = $_GET['token'] ?? '';
@@ -18,9 +19,11 @@ if ($token) {
 
     if (!$user_info) {
         $error = "Token inválido, expirado ou já utilizado.";
+        logActivity(null, 'Tentativa de redefinição de senha falhou', 'Token inválido, expirado ou já utilizado para o token: ' . $token, 'error');
     }
 } else {
     $error = "Nenhum token fornecido. Por favor, use o link enviado para o seu email.";
+    logActivity(null, 'Tentativa de redefinição de senha falhou', 'Nenhum token fornecido.', 'error');
 }
 
 // Se o formulário for enviado e o token for válido
@@ -41,6 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_info) {
         $stmt->bind_param("i", $user_info['id']);
         $stmt->execute();
         $stmt->close();
+
+        logActivity($user_info['user_id'], 'Senha redefinida com sucesso', 'A senha para o usuário ' . $user_info['username'] . ' foi redefinida com sucesso.', 'success');
 
         $success = "Senha redefinida com sucesso! Você já pode retornar e fazer login com sua nova senha.";
         // Limpa as informações do usuário para não exibir mais o formulário

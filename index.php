@@ -2,6 +2,33 @@
 session_start();
 require_once 'conexao.php'; // ajuste o nome se for diferente
 
+// Obter todas as FAQs ativas para exibição na página principal
+$faqs_public = [];
+$result_faqs_public = $conn->query("SELECT id, question, answer FROM faqs WHERE is_active = 1 ORDER BY id ASC");
+if ($result_faqs_public) {
+    while ($row = $result_faqs_public->fetch_assoc()) {
+        $faqs_public[] = $row;
+    }
+}
+
+// --- Início da Lógica para Atalho de FAQ ---
+if (isset($_GET['faq_atalho']) && !empty($_GET['faq_atalho'])) {
+    $atalho_slug = $_GET['faq_atalho'];
+    $stmt_atalho = $conn->prepare("SELECT id FROM faqs WHERE atalho = ? AND is_active = 1");
+    if ($stmt_atalho) {
+        $stmt_atalho->bind_param("s", $atalho_slug);
+        $stmt_atalho->execute();
+        $result_atalho = $stmt_atalho->get_result();
+        if ($faq_row = $result_atalho->fetch_assoc()) {
+            // Redireciona para a seção de FAQ com um parâmetro para o JS identificar
+            header("Location: index.php?section=faq&highlight_faq=" . $faq_row['id']);
+            exit();
+        }
+        $stmt_atalho->close();
+    }
+}
+// --- Fim da Lógica para Atalho de FAQ ---
+
 // Verifica se o usuário está logado. Se não, redireciona para a página de login.
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -54,10 +81,11 @@ $available_sections = [
     'about' => 'Sobre Nós',
     'sistema' => 'Sistema',
     // Seções de Admin
-    'upload' => 'Upload de Arquivos (Admin)',
+    
     'info-upload' => 'Cadastrar Informação (Admin)',
     'registros_sugestoes' => 'Registros de Sugestões (Admin)',
     'settings' => 'Configurações (Admin)',
+    'manage_faq_section' => 'Gerenciar FAQs',
 ];
 
 // Busca todos os usuários para a aba de permissões (apenas para admins)
@@ -80,6 +108,7 @@ if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
 $sistemas_externos = [];
 $user_setor_id = $_SESSION['setor_id'] ?? null;
 $user_role = $_SESSION['role'] ?? 'user';
+$user_department = $_SESSION['department'] ?? null;
 
 // Se o usuário for admin ou god, mostra todos os sistemas. Senão, filtra por setor.
 if (in_array($user_role, ['admin', 'god'])) {
@@ -168,6 +197,78 @@ $result_matriz = $stmt_main->get_result();
 $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 // --- Fim da Lógica para Matriz de Comunicação ---
 
+// --- Início da Lógica para Gerenciar FAQs (incorporado de manage_faq.php) ---
+$manage_faq_message = '';
+$manage_faq_to_edit = null;
+
+// Lidar com ações de POST (adicionar, editar, excluir) para FAQs
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['faq_action'])) {
+    if ($_POST['faq_action'] === 'add' || $_POST['faq_action'] === 'edit') {
+        $question = $_POST['question'] ?? '';
+        $answer = $_POST['answer'] ?? '';
+        $atalho = trim($_POST['atalho'] ?? '');
+        $atalho = empty($atalho) ? null : preg_replace('/[^a-z0-9\-]/', '', strtolower($atalho)); // Sanitiza o atalho
+        $is_active = isset($_POST['is_active']) ? 1 : 0;
+        $id = $_POST['id'] ?? null;
+
+        if (empty($question) || empty($answer)) {
+            $manage_faq_message = '<div class="alert alert-danger">Pergunta e resposta não podem ser vazias.</div>';
+        } else {
+            if ($_POST['faq_action'] === 'add') {
+                $stmt = $conn->prepare("INSERT INTO faqs (question, answer, atalho, is_active) VALUES (?, ?, ?, ?)");
+                $stmt->bind_param("sssi", $question, $answer, $atalho, $is_active);
+                if ($stmt->execute()) {
+                    $manage_faq_message = '<div class="alert alert-success">FAQ adicionada com sucesso!</div>';
+                } else {
+                    $manage_faq_message = '<div class="alert alert-danger">Erro ao adicionar FAQ: ' . $conn->error . '</div>';
+                }
+            } else { // faq_action is edit
+                $stmt = $conn->prepare("UPDATE faqs SET question = ?, answer = ?, atalho = ?, is_active = ? WHERE id = ?");
+                $stmt->bind_param("sssii", $question, $answer, $atalho, $is_active, $id);
+                if ($stmt->execute()) {
+                    $manage_faq_message = '<div class="alert alert-success">FAQ atualizada com sucesso!</div>';
+                } else {
+                    $manage_faq_message = '<div class="alert alert-danger">Erro ao atualizar FAQ: ' . $conn->error . '</div>';
+                }
+            }
+            $stmt->close();
+        }
+    } elseif ($_POST['faq_action'] === 'delete') {
+        $id = $_POST['id'] ?? null;
+        if ($id) {
+            $stmt = $conn->prepare("DELETE FROM faqs WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            if ($stmt->execute()) {
+                $manage_faq_message = '<div class="alert alert-success">FAQ excluída com sucesso!</div>';
+            } else {
+                $manage_faq_message = '<div class="alert alert-danger">Erro ao excluir FAQ: ' . $conn->error . '</div>';
+            }
+            $stmt->close();
+        }
+    }
+}
+
+// Lidar com ações de GET (editar FAQ específica)
+if (isset($_GET['faq_action']) && $_GET['faq_action'] === 'edit' && isset($_GET['id'])) {
+    $id = intval($_GET['id']);
+    $stmt = $conn->prepare("SELECT id, question, answer, atalho, is_active FROM faqs WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $manage_faq_to_edit = $result->fetch_assoc();
+    $stmt->close();
+}
+
+// Obter todas as FAQs para exibição na seção de gerenciamento
+$manage_faqs = [];
+$result_manage_faqs = $conn->query("SELECT id, question, answer, is_active FROM faqs ORDER BY created_at DESC");
+if ($result_manage_faqs) {
+    while ($row = $result_manage_faqs->fetch_assoc()) {
+        $manage_faqs[] = $row;
+    }
+}
+// --- Fim da Lógica para Gerenciar FAQs ---
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -175,18 +276,23 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema Intranet</title>
+    <!-- 1. Adicionar CSS do Shepherd.js e o nosso CSS customizado (agora como .php) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/css/shepherd.css"/>
+    <link rel="stylesheet" href="tour.css.php">
     <!-- Adicione o script do TinyMCE aqui. Substitua 'no-api-key' pela sua chave. -->
     <script src="https://cdn.tiny.cloud/1/5qvlwlt06xkybekjra4hcv0z7czafww8a0wcki2x19ftngew/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    
+    <!-- 3. Adicionar JS do Shepherd.js e o nosso script do tour (movido para o head com 'defer') -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8f9fb;
+            background-color: #F5F7FA; /* Light gray/off-white for a modern feel */
         }
         .sidebar {
-            background: #254c90 !important;
+            background: #2C3E50 !important; /* Softer dark blue for sidebar */
         }
         .document-card {
             transition: all 0.2s ease;
@@ -196,14 +302,14 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         .search-input:focus {
-            box-shadow: 0 0 0 3px rgba(37, 76, 144, 0.3);
+            box-shadow: 0 0 0 3px rgba(42, 78, 128, 0.3);
         }
         .hover\:bg-indigo-700:hover, .hover\:bg-indigo-600:hover, .hover\:bg-indigo-900:hover, .hover\:bg-gray-100:hover, .hover\:bg-gray-300:hover, .hover\:bg-gray-50:hover {
-            background-color: #1d3870 !important;
+            background-color: #34495E !important; /* New hover blue */
         }
         /* Sobrescreve o hover para os cards de documento/atalho para usar amarelo */
         .document-card:hover {
-            background-color: #f5c4c4ff !important;
+            background-color: #b1afbbff !important;
         }
         .rounded-full, .rounded-lg, .rounded-md {
             border-radius: 0.5rem !important;
@@ -212,17 +318,17 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             box-shadow: 0 8px 16px rgba(0,0,0,0.15) !important;
         }
         .border, .border-gray-300, .border-gray-200, .border-dashed {
-            border: 1px solid #1d3870 !important;
+            border: 1px solid #4A6572 !important; /* Lighter dark blue for borders */
         }
         .focus\:ring-indigo-500:focus {
-            box-shadow: 0 0 0 2px #254c90 !important;
+            box-shadow: 0 0 0 2px #4A90E2 !important; /* New primary blue */
         }
         #excel-table-container {
             max-width: 100%;
             max-height: 500px;
             overflow: auto;
             background: #fff;
-            color: #254c90;
+            color: #4A90E2; /* New primary blue */
             border-radius: 0.5rem;
             box-shadow: 0 8px 16px rgba(0,0,0,0.10);
             margin-bottom: 1.5rem;
@@ -233,14 +339,14 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             border-collapse: collapse;
         }
         #excel-table-container th, #excel-table-container td {
-            border: 1px solid #254c90;
+            border: 1px solid #4A90E2; /* New primary blue */
             padding: 6px 10px;
             font-size: 0.95rem;
-            color: #254c90;
+            color: #4A90E2; /* New primary blue */
             background: #f8fafc;
         }
         #excel-table-container th {
-            background: #254c90;
+            background: #4A90E2; /* New primary blue */
             color: #fff;
             position: sticky;
             top: 0;
@@ -249,8 +355,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
         table, th, td {
             font-family: 'Inter', Arial, sans-serif;
         }
-        .text-main { color: #254c90; }
-        .bg-main { background: #254c90; }
+        .text-main { color: #4A90E2; } /* New primary blue */
+        .bg-main { background: #4A90E2; } /* New primary blue */
 
         /* Ajuste de cor de hover para a Matriz de Comunicação */
         #matriz_comunicacao table tbody tr:hover {
@@ -344,6 +450,36 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             color: #ffffff;
             box-shadow: 0 4px 14px 0 rgba(37, 76, 144, 0.39);
         }
+                /* Estilos para Notificações */
+        .notification-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            border-radius: 9999px;
+            padding: 1px 5px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            border: 2px solid #2C3E50; /* Matches new header background */
+        }
+        .notification-item {
+            border-bottom: 1px solid #e5e7eb; /* gray-200 */
+        }
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        .notification-item.unread {
+            background-color: #f3f4f6; /* gray-100 */
+        }
+        .notification-item.unread:hover {
+            background-color: #e5e7eb; /* gray-200 */
+        }
+
+        /* Estilo para checkboxes de permissão */
+
+        /* Estilo para checkboxes de permissão */
+
         /* Estilo para checkboxes de permissão */
         .custom-checkbox {
             width: 20px !important;
@@ -353,11 +489,91 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             box-sizing: border-box !important;
             flex-shrink: 0; /* Evita que o item encolha */
         }
-    </style>
+
+        /* Estilos para as bolhas de chat da FAQ */
+        .chat-bubble {
+            max-width: 80%;
+            padding: 10px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+        }
+        .chat-bubble-question {
+            background-color: #3b82f6; /* Tailwind blue-500, mais vibrante */
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-bubble-answer {
+            background-color: #e5e7eb; /* Tailwind gray-200, padrão de chat */
+            color: #1f2937; /* Tailwind gray-800 */
+            border-bottom-left-radius: 5px;
+        }
+
+        .chat-avatar {
+            width: 70px; /* Reduzido para um visual mais compacto */
+            /*height: 120px;
+            border-radius: 9999px; /* full */
+            object-fit: cover;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 2px solid #fff;
+        }
+
+        /* Estilos para a nova janela de chat da FAQ */
+        .faq-chat-window {
+            border-radius: 0.75rem; /* 12px */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid #D1D5DB; /* Lighter gray for border */
+        }
+        .faq-chat-body { 
+            height: 60vh; max-height: 500px; 
+            background-color: #F0F2F5; /* Cor de fundo de chat mais padrão */
+            /* Padrão de doodles em SVG para o fundo */
+            background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='doodles' width='80' height='80' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'%3E%3Cpath d='M10 10 L30 30 M50 10 L70 30 M10 50 L30 70 M50 50 L70 70 M30 10 L10 30 M70 10 L50 30 M30 50 L10 70 M70 50 L50 70' stroke='%23d1d5db' stroke-width='1' fill='none'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='400' height='400' fill='url(%23doodles)'/%3E%3C/svg%3E");
+        }
+        .faq-suggestion-btn {
+            background-color: #E0F7FA; /* Light blue */
+            color: #00796B; /* Darker blue/teal */
+            border: 1px solid #B2EBF2; /* Lighter blue */
+            transition: all 0.2s ease-in-out;
+        }
+        .faq-suggestion-btn:hover {
+            background-color: #B2EBF2;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+        /* Estilos para o indicador de "digitando" */
+        .typing-indicator { display: flex; align-items: center; gap: 4px; padding: 8px 0; }
+        .typing-dot {
+            width: 8px; height: 8px;
+            background-color: #9ca3af; /* gray-400 */
+            border-radius: 50%;
+            animation: bounce-dot 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce-dot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Animation for SAM avatar */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .sam-animated-avatar {
+            animation: float 3s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
-    <div class="flex h-screen bg-[#254c90]">
+    <div class="flex h-screen bg-[#F5F7FA]">
         <!-- Sidebar -->
         <div id="sidebar" class="sidebar text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform md:relative md:translate-x-0 transition duration-200 ease-in-out z-20">
             <div class="flex items-center justify-between px-4">
@@ -371,78 +587,75 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             <nav class="mt-10">
                 <div class="px-4 py-2 uppercase text-xs font-semibold">Menu Principal</div>
                 <?php if (can_view_section('dashboard')): ?>
-                <a href="#" data-section="dashboard" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('dashboard', true); return false;">
+                <a href="#" data-section="dashboard" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('dashboard', true); return false;">
                     <i class="fas fa-home w-6"></i>
                     <span>Página Inicial</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('documents')): ?>
-                <a href="#" data-section="documents" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('documents', true); return false;">
+                <a href="#" data-section="documents" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('documents', true); return false;">
                     <i class="fas fa-book w-6"></i>
                     <span>Normas e Procedimentos</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('information')): ?>
-                <a href="#" data-section="information" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('information', true); return false;">
+                <a href="#" data-section="information" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('information', true); return false;">
                     <i class="fas fa-info-circle w-6"></i>
                     <span>Informações</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('matriz_comunicacao')): ?>
-                <a href="#" data-section="matriz_comunicacao" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('matriz_comunicacao', true); return false;">
+                <a href="#" data-section="matriz_comunicacao" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('matriz_comunicacao', true); return false;">
                     <i class="fas fa-sitemap w-6"></i>
                     <span>Matriz de Comunicação</span>
                 </a>
                 <?php endif; ?>
-                <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
+                <?php if (can_view_section('create_procedure')): ?>
+                <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
                     <i class="fas fa-file-signature w-6"></i>
                     <span>Criar Procedimento</span>
                 </a>
+                <?php endif; ?>
                 <?php if (can_view_section('sugestoes')): ?>
-                <a href="#" data-section="sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sugestoes', true); return false;">
+                <a href="#" data-section="sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('sugestoes', true); return false;">
                     <i class="fas fa-comment-dots w-6"></i>
                     <span>Sugestões e Reclamações</span>
                 </a>
                 <?php endif; ?>
                 <?php if (can_view_section('sistema')): ?>
-                <a href="#" data-section="sistema" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('sistema', true); return false;">
+                <a href="#" data-section="sistema" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('sistema', true); return false;">
                     <i class="fas fa-desktop w-6"></i>
                     <span>Sistemas</span>
                 </a>
                 <?php endif; ?>
 
-                <!-- ETAPA 3: Ocultar o título "Administração" se o usuário não tiver acesso a nenhuma de suas seções -->
-                <?php if (can_view_section('upload') || can_view_section('settings') || can_view_section('registros_sugestoes')): ?>
+                <!-- Bloco de Administração -->
+                <?php if (can_view_section('settings') || can_view_section('registros_sugestoes') || can_view_section('info-upload')): ?>
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
-                <?php if (can_view_section('upload')): ?>
-                    <a href="#" data-section="upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('upload', true); return false;">
-                        <i class="fas fa-upload w-6"></i>
-                        <span>Upload de Arquivos</span>
-                    </a>
-                <?php endif; ?>
+                
                 <?php if (can_view_section('settings')): ?>
-                    <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('settings', true); return false;">
-                        <i class="fas fa-cog w-6"></i>
-                        <span>Configurações</span>
-                    </a>
+                <a href="#" data-section="settings" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('settings', true); return false;">
+                    <i class="fas fa-cog w-6"></i>
+                    <span>Configurações</span>
+                </a>
                 <?php endif; ?>
                 <?php if (can_view_section('registros_sugestoes')): ?>
-                    <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes', true); return false;">
+                <a href="#" data-section="registros_sugestoes" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('registros_sugestoes', true); return false;">
                         <i class="fas fa-clipboard-list w-6"></i>
                         <span>Registros de Sugestões</span>
                     </a>
                 <?php endif; ?>
-                <?php endif; ?>
-
-                <!-- Links restantes -->
                 <?php if (can_view_section('info-upload')): ?>
-                <a href="#" data-section="info-upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('info-upload', true); return false;">
+                <a href="#" data-section="info-upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('info-upload', true); return false;">
                     <i class="fas fa-bullhorn w-6"></i>
                     <span>Cadastrar Informação</span>
                 </a>
                 <?php endif; ?>
+                <?php endif; ?>
+
+                <!-- Links restantes -->
                 <?php if (can_view_section('about')): ?>
-                <a href="#" data-section="about" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#1d3870] text-white flex items-center space-x-2" onclick="showSection('about', true); return false;">
+                <a href="#" data-section="about" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('about', true); return false;">
                     <i class="fas fa-users w-6"></i>
                     <span>Sobre Nós</span>
                 </a>
@@ -453,7 +666,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
         <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Header -->
-            <header class="bg-[#254c90] shadow-sm z-10">
+            <header class="bg-[#2C3E50] shadow-sm z-10">
                 <div class="flex items-center justify-between p-4">
                     <div class="flex items-center space-x-3">
                         <button id="openSidebar" class="md:hidden focus:outline-none">
@@ -463,15 +676,39 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     </div>
                     <div class="flex items-center space-x-4">
                         <div class="relative">
-                            <input type="text" placeholder="Buscar..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#1d3870] focus:outline-none focus:border-[#254c90] w-64 g-white text-[#254c90] placeholder-[#254c90]">
+                            <input type="text" placeholder="Buscar..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#4A6572] focus:outline-none focus:border-[#2C3E50] w-64 g-white text-[#4A90E2] placeholder-[#AAB7C4]">
                             <i class="fas fa-search text-white absolute left-3 top-3"></i>
                         </div>
                         <?php if (can_view_section('faq')): ?>
-                        <a href="#" data-section="faq" onclick="showSection('faq', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#1d3870]">
+                        <a href="#" data-section="faq" onclick="showSection('faq', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
                             <i class="fas fa-question-circle"></i>
                             <span>FAQ</span>
                         </a>
                         <?php endif; ?>
+
+                        <!-- 2. Adicionar o botão para iniciar o tour -->
+                        <button id="startTourButton" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
+                            <i class="fas fa-route"></i>
+                            <span>Fazer Tour</span>
+                        </button>
+
+                        <!-- Ícone de Notificações -->
+                        <div class="relative">
+                            <button id="notificationsBell" class="text-white hover:opacity-80 transition p-2 rounded-md hover:bg-[#34495E] relative">
+                                <i class="fas fa-bell"></i>
+                                <span id="notification-count-badge" class="notification-badge hidden"></span>
+                            </button>
+                            <div id="notificationsDropdown" class="absolute right-0 mt-4 w-80 md:w-96 bg-white rounded-lg shadow-lg z-50 hidden">
+                                <div class="flex justify-between items-center px-4 py-2 border-b">
+                                    <span class="font-semibold text-sm text-gray-700">Notificações</span>
+                                    <a href="#" id="mark-all-as-read" class="text-xs text-blue-600 hover:underline">Marcar todas como lidas</a>
+                                </div>
+                                <div id="notificationsList" class="max-h-80 overflow-y-auto">
+                                    <!-- As notificações serão inseridas aqui via JS -->
+                                    <div class="p-4 text-center text-sm text-gray-500">Carregando...</div>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Perfil do usuário logado -->
                         <div class="flex items-center space-x-3 relative">
@@ -479,7 +716,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 <?php if (!empty($_SESSION['profile_photo']) && file_exists($_SESSION['profile_photo'])): ?>
                                     <img src="<?= htmlspecialchars($_SESSION['profile_photo']) ?>" alt="Foto de Perfil" class="w-8 h-8 rounded-full object-cover">
                                 <?php else: ?>
-                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#254c90] font-semibold">
+                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#2C3E50] font-semibold">
                                         <?= strtoupper(substr($username, 0, 1)); ?>
                                     </div>
                                 <?php endif; ?>
@@ -487,15 +724,15 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 <i class="fas fa-chevron-down text-white text-xs"></i>
                             </button>
                             <div id="profileDropdown" class="absolute right-0 mt-12 w-40 bg-white rounded-lg shadow-lg py-2 z-50 hidden">
-                                <a href="#" data-section="profile" onclick="showSection('profile', true); return false;" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Meu Perfil</a>
-                                <a href="logout.php" class="block px-4 py-2 text-[#254c90] hover:bg-[#e5e7eb] text-sm">Sair</a>
+                                <a href="#" data-section="profile" onclick="showSection('profile', true); return false;" class="block px-4 py-2 text-[#4A90E2] hover:bg-[#e5e7eb] text-sm">Meu Perfil</a>
+                                <a href="logout.php" class="block px-4 py-2 text-[#4A90E2] hover:bg-[#e5e7eb] text-sm">Sair</a>
                             </div>
                         </div>
                     </div>
                 </div>
             </header>
             <!-- Main Content Area -->
-            <div class="p-4">
+            <div class="p-4 bg-gray-200">
                 <?php if (isset($_GET['status']) && isset($_GET['msg'])): ?>
                     <?php
                         $status_class = $_GET['status'] === 'success' 
@@ -512,13 +749,13 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <?php endif; ?>
             </div>
 
-            <main class="flex-1 overflow-y-auto bg-[#f8f9fb] p-4">
+            <main class="flex-1 overflow-y-auto bg-gray-200 p-4">
                 <!-- Dashboard Section -->
                 <section id="dashboard" class="space-y-6">
                     <!-- Bem-vindo -->
                     <div class="bg-white rounded-lg shadow p-6 mb-6">
-                        <h1 class="text-3xl font-bold text-[#254c90] mb-2">Bem-vindo à Intranet da Comercial Souza!</h1>
-                        <p class="text-[#254c90] text-lg">Aqui você encontra as informações e ferramentas que precisa para o seu dia a dia.</p>
+                        <h1 class="text-3xl font-bold text-[#4A90E2] mb-2">Bem-vindo à Intranet da Comercial Souza!</h1>
+                        <p class="text-[#4A90E2] text-lg">Aqui você encontra as informações e ferramentas que precisa para o seu dia a dia.</p>
                     </div>
 
                     <!-- Comunicados Importantes -->
@@ -565,7 +802,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                                 'orange' => 'border-orange-500'
                                             ][$cor] ?? 'border-blue-500';
                                         ?>">
-                                            <div class="font-semibold text-[#254c90]"><?php echo htmlspecialchars($row['titulo']); ?></div>
+                                            <div class="font-semibold text-[#4A90E2]"><?php echo htmlspecialchars($row['titulo']); ?></div>
                                             <div class="text-gray-700"><?php echo nl2br(htmlspecialchars($row['descricao'])); ?></div>
                                             <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: <?php echo date('d/m/Y', strtotime($row['data_publicacao'])); ?></div>
                                         </li>
@@ -627,7 +864,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     <!-- Substitua o bloco do rodapé por este, logo após o grid dos comunicados/carrossel, ainda dentro do <main> -->
                     <div class="w-full flex justify-center mt-12">
     <footer class="w-full max-w-5xl flex flex-col items-center justify-center">
-        <div class="text-[#254c90] text-sm font-medium mb-2 text-center">
+        <div class="text-[#4A90E2] text-sm font-medium mb-2 text-center">
             Todos os direitos reservados à Comercial Souza &copy; 2025
         </div>
         <div class="flex flex-wrap justify-center items-center gap-4 mb-2">
@@ -650,10 +887,10 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     <div class="flex justify-between items-center">
                         <div class="flex space-x-2">
                             <div class="relative">
-                                <input type="text" id="search-input-docs" placeholder="Filtrar normas e procedimentos..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#1d3870] focus:outline-none focus:border-[#254c90] w-64 bg-white text-[#254c90] placeholder-[#254c90]">
-                                <i class="fas fa-search text-[#254c90] absolute left-3 top-3"></i>
+                                <input type="text" id="search-input-docs" placeholder="Filtrar normas e procedimentos..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#1d3870] focus:outline-none focus:border-[#254c90] w-64 bg-white text-[#4A90E2] placeholder-[#254c90]">
+                                <i class="fas fa-search text-[#4A90E2] absolute left-3 top-3"></i>
                             </div>
-                            <select id="department-filter-docs" class="border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:border-[#254c90] bg-white text-[#254c90]">
+                            <select id="department-filter-docs" class="border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:border-[#254c90] bg-white text-[#4A90E2]">
                                 <option value="all">Todos os departamentos</option>
                                 <?php
                                 // Busca os departamentos distintos diretamente da tabela de arquivos para popular o filtro
@@ -757,7 +994,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         <!-- Conteúdo da Aba: Comunicados -->
                         <div id="info-tab-comunicados" class="info-tab-content space-y-6">
                             <div class="bg-white rounded-lg shadow mb-6">
-                                <div class="p-4 border-b font-semibold text-lg text-[#254c90]">Comunicados Importantes</div>
+                                <div class="p-4 border-b font-semibold text-lg text-[#4A90E2]">Comunicados Importantes</div>
                                 <div class="p-4 space-y-4">
                                     <?php
                                     $hoje = date('Y-m-d');
@@ -771,7 +1008,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                                 'orange' => 'border-orange-500'
                                             ][$cor] ?? 'border-blue-500';
                                             echo '<div class="border-l-4 '.$corBarra.' pl-4">
-                                                <div class="font-semibold text-[#254c90]">'.htmlspecialchars($row['titulo']).'</div>
+                                                <div class="font-semibold text-[#4A90E2]">'.htmlspecialchars($row['titulo']).'</div>
                                                 <div class="text-gray-700">'.nl2br(htmlspecialchars($row['descricao'])).'</div>
                                                 <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: '.date('d/m/Y', strtotime($row['data_publicacao'])).'</div>
                                             </div>';
@@ -783,14 +1020,14 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 </div>
                             </div>
                             <div class="bg-white rounded-lg shadow">
-                                <div class="p-4 border-b font-semibold text-lg text-[#254c90]">Informações Úteis</div>
+                                <div class="p-4 border-b font-semibold text-lg text-[#4A90E2]">Informações Úteis</div>
                                 <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <?php
                                     $result = $conn->query("SELECT * FROM informacoes WHERE categoria='Informações Úteis' ORDER BY data_publicacao DESC");
                                     if ($result && $result->num_rows > 0) {
                                         while ($row = $result->fetch_assoc()) {
                                             echo '<div class="border rounded-lg p-4 bg-gray-50">
-                                                <div class="font-semibold text-[#254c90]">'.htmlspecialchars($row['titulo']).'</div>
+                                                <div class="font-semibold text-[#4A90E2]">'.htmlspecialchars($row['titulo']).'</div>
                                                 <div class="text-gray-700">'.nl2br(htmlspecialchars($row['descricao'])).'</div>
                                                 <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: '.date('d/m/Y', strtotime($row['data_publicacao'])).'</div>
                                                 <a href="#" class="text-indigo-600 text-xs mt-2 inline-block">Ver detalhes &gt;</a>
@@ -806,150 +1043,55 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         </div>
                     </div>
                 </section>
-                <!-- Upload Section -->
-                <section id="upload" class="hidden space-y-6">
-                    <div class="flex justify-between items-center">
-                    </div>
-                    <div class="bg-white rounded-lg shadow overflow-hidden">
-                        <div class="p-6 border-b border-[#254c90]">
-                            <h3 class="text-lg font-semibold text-[#254c90]">Enviar Novo Arquivo</h3>
-                        </div>
-                        <div class="p-6">
-                            <form id="uploadForm" class="space-y-6" method="POST" enctype="multipart/form-data" action="upload.php">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Título do Arquivo</label>
-                                        <input type="text" name="titulo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90] placeholder-[#254c90]" placeholder="Ex: Relatório Financeiro Q2">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Tipo de Documento</label>
-                                        <select name="tipo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                            <option>PDF</option>
-                                            <option>Planilha Excel</option>
-                                            <option>Documento Word</option>
-                                            <option>Apresentação PowerPoint</option>
-                                            <option>Outro</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Departamento</label>
-                                        <select name="setor_id" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                            <option value="">Selecione um setor</option>
-                                            <?php foreach ($setores as $setor): ?>
-                                                <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Nível de Acesso</label>
-                                        <select name="nivel_acesso" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                            <option>Público (Todos os colaboradores)</option>                                            <option>Restrito (Apenas departamento)</option>                                            <option>Confidencial (Apenas gestores)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Descrição</label>
-                                    <textarea name="descricao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90] placeholder-[#254c90]" rows="3" placeholder="Breve descrição do conteúdo do arquivo..."></textarea>
-                                </div>
-                                <div class="border-2 border-dashed border-[#1d3870] rounded-lg p-6 text-center" id="dropzone">
-                                    <input type="file" name="arquivo" id="fileInput" class="hidden">
-                                    <div class="space-y-2">
-                                        <i class="fas fa-cloud-upload-alt text-4xl text-white"></i>
-                                        <p class="text-white">Arraste e solte arquivos aqui ou</p>
-                                        <button type="button" id="browseButton" class="px-4 py-2 bg-white text-[#254c90] rounded-md hover:bg-[#e5e7eb] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
-                                            Selecionar Arquivo
-                                        </button>
-                                        <p class="text-sm text-white">Tamanho máximo: 50MB</p>
-                                    </div>
-                                    <div id="filePreview" class="hidden mt-4">
-                                        <div class="flex items-center justify-between bg-[#254c90] p-3 rounded-md">
-                                            <div class="flex items-center">
-                                                <i class="fas fa-file text-white mr-3"></i>
-                                                <div>
-                                                    <p class="text-sm font-medium text-white" id="fileName">arquivo.pdf</p>
-                                                    <p class="text-xs text-white" id="fileSize">2.5 MB</p>
-                                                </div>
-                                            </div>
-                                            <button type="button" id="removeFile" class="text-white hover:text-[#e5e7eb]">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="flex justify-end">
-                                    <button type="button" class="px-4 py-2 bg-white text-[#254c90] rounded-md mr-2 hover:bg-[#e5e7eb] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
-                                        Cancelar
-                                    </button>
-                                    <button type="submit" id="submitUpload" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
-                                        Enviar Arquivo
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Formulário para cadastrar imagem do carrossel -->
-                    <div class="bg-white rounded-lg shadow p-6 mt-8">
-        <h3 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Imagem ao Carrossel</h3>
-        <form method="POST" enctype="multipart/form-data" action="cadastrar_carrossel.php">
-            <div>
-                <label class="block text-sm font-medium text-[#254c90] mb-1">Imagem</label>
-                <input type="file" name="imagem" accept="image/*" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#254c90]">
-                <span class="text-xs text-gray-500">Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.</span>
-            </div>
-            <div class="flex justify-end mt-4">
-                <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Adicionar ao Carrossel</button>
-            </div>
-        </form>
-    </div>
-                </section>
+                
                 <!-- Informações/Avisos Section -->
                 <section id="info-upload" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="p-6 border-b border-[#254c90]">
-            <h3 class="text-lg font-semibold text-[#254c90]">Cadastrar Aviso/Informação</h3>
+            <h3 class="text-lg font-semibold text-[#4A90E2]">Cadastrar Aviso/Informação</h3>
         </div>
         <div class="p-6">
             <form id="infoForm" class="space-y-6" method="POST" action="cadastrar_informacao.php">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-1">Título</label>
-                        <input type="text" name="titulo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Título</label>
+                        <input type="text" name="titulo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-1">Categoria</label>
-                        <select name="categoria" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Categoria</label>
+                        <select name="categoria" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" required>
                             <option value="Comunicados Importantes">Comunicados Importantes</option>
                             <option value="Informações Úteis">Informações Úteis</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-1">Exibir a partir de</label>
-                        <input type="date" name="data_inicial" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Exibir a partir de</label>
+                        <input type="date" name="data_inicial" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-1">Exibir até</label>
-                        <input type="date" name="data_final" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Exibir até</label>
+                        <input type="date" name="data_final" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-[#254c90] mb-1">Descrição</label>
-                    <textarea name="descricao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" rows="4" required></textarea>
+                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Descrição</label>
+                    <textarea name="descricao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" rows="4" required></textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-[#254c90] mb-1">Data de Publicação</label>
-                    <input type="date" name="data_publicacao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Data de Publicação</label>
+                    <input type="date" name="data_publicacao" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" required>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-[#254c90] mb-1">Cor da Barra (opcional)</label>
-                    <select name="cor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Cor da Barra (opcional)</label>
+                    <select name="cor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                         <option value="blue">Azul</option>
                         <option value="green">Verde</option>
                         <option value="orange">Laranja</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-[#254c90] mb-1">Imagem (opcional)</label>
-                    <input type="file" name="imagem" accept="image/*" class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#254c90]">
+                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Imagem (opcional)</label>
+                    <input type="file" name="imagem" accept="image/*" class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#4A90E2]">
                     <span class="text-xs text-gray-500">Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.</span>
                 </div>
                 <div class="flex justify-end">
@@ -960,17 +1102,31 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             </form>
         </div>
     </div>
+    <!-- Formulário para cadastrar imagem do carrossel -->
+    <div class="bg-white rounded-lg shadow p-6 mt-8">
+        <h3 class="text-lg font-semibold text-[#4A90E2] mb-4">Adicionar Imagem ao Carrossel</h3>
+        <form method="POST" enctype="multipart/form-data" action="cadastrar_carrossel.php">
+            <div>
+                <label class="block text-sm font-medium text-[#4A90E2] mb-1">Imagem</label>
+                <input type="file" name="imagem" accept="image/*" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 bg-white text-[#4A90E2]">
+                <span class="text-xs text-gray-500">Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.</span>
+            </div>
+            <div class="flex justify-end mt-4">
+                <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Adicionar ao Carrossel</button>
+            </div>
+        </form>
+    </div>
 </section>
                 <!-- Sugestões e Reclamações Section -->
                 <section id="sugestoes" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-[#254c90] mb-2">Sugestões e Reclamações</h2>
-                        <p class="text-[#254c90] mb-6">Sua opinião é muito importante para nós. Envie sua sugestão ou reclamação para ajudar a melhorar nosso ambiente de trabalho!</p>
+                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-2">Sugestões e Reclamações</h2>
+                        <p class="text-[#4A90E2] mb-6">Sua opinião é muito importante para nós. Envie sua sugestão ou reclamação para ajudar a melhorar nosso ambiente de trabalho!</p>
                         
                         <form id="sugestaoForm" class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-[#254c90] mb-1">Tipo de Mensagem</label>
-                                <select name="tipo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" required>
+                                <label class="block text-sm font-medium text-[#4A90E2] mb-1">Tipo de Mensagem</label>
+                                <select name="tipo" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" required>
                                     <option value="">Selecione...</option>
                                     <option value="sugestao">Sugestão</option>
                                     <option value="reclamacao">Reclamação</option>
@@ -978,17 +1134,17 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Seu E-mail (Opcional)</label>
-                                    <input type="email" name="email" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="seunome@comercialsouza.com.br">
+                                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Seu E-mail (Opcional)</label>
+                                    <input type="email" name="email" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" placeholder="seunome@comercialsouza.com.br">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Seu Telefone (Opcional)</label>
-                                    <input type="tel" name="telefone" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="(XX) XXXXX-XXXX">
+                                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Seu Telefone (Opcional)</label>
+                                    <input type="tel" name="telefone" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" placeholder="(XX) XXXXX-XXXX">
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-[#254c90] mb-1">Sua Mensagem</label>
-                                <textarea name="mensagem" rows="5" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]" placeholder="Digite sua mensagem aqui..." required></textarea>
+                                <label class="block text-sm font-medium text-[#4A90E2] mb-1">Sua Mensagem</label>
+                                <textarea name="mensagem" rows="5" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]" placeholder="Digite sua mensagem aqui..." required></textarea>
                             </div>
                             <div class="flex justify-end">
                                 <button type="submit" class="px-6 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
@@ -1002,55 +1158,41 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <!-- FAQ Section -->
                 <section id="faq" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-3xl font-bold text-[#254c90] mb-6 border-b pb-3">FAQ - Perguntas Frequentes</h2>
+        <div class="flex justify-between items-center mb-6 border-b pb-3">
+            <h2 class="text-3xl font-bold text-[#4A90E2]">FAQ - Perguntas Frequentes</h2>
+            <?php if (can_view_section('manage_faq_section')): ?>
+                <a href="#" data-section="manage_faq_section" onclick="showSection('manage_faq_section', true); return false;" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
+                    <i class="fas fa-plus-circle mr-2"></i>
+                    Gerenciar FAQs
+                </a>
+            <?php endif; ?>
+        </div>
         
-        <div class="space-y-8">
-            <!-- Categoria: Acesso e Navegação -->
-            <div>
-                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Acesso e Navegação</h3>
-                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">1. Como acesso a intranet?</div>
-                        <p class="text-gray-700 mt-1">Você pode acessar a intranet usando seu nome de usuário e senha, os mesmos utilizados para login nos computadores da empresa.</p>
-                    </div>
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">2. Esqueci minha senha. O que eu faço?</div>
-                        <p class="text-gray-700 mt-1">Caso tenha esquecido sua senha, por favor, entre em contato com o departamento de TI para solicitar a redefinição.</p>
-                    </div>
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">3. Como encontro o que preciso na intranet?</div>
-                        <p class="text-gray-700 mt-1">Utilize o menu lateral à esquerda para navegar entre as principais seções. Para uma busca mais específica, use a barra de "Buscar..." no topo da página.</p>
-                    </div>
+        <!-- Nova Estrutura de Chat Interativo com Layout de App -->
+        <div class="max-w-4xl mx-auto faq-chat-window">
+            <!-- Cabeçalho da Janela de Chat -->
+            <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
+                <img src="img/SAM.png" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 sam-animated-avatar">
+                <div>
+                    <h3 class="font-bold text-lg text-white">SAM - Assistente Virtual</h3>
+                    <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
                 </div>
             </div>
 
-            <!-- Categoria: Documentos e Arquivos -->
-            <div>
-                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Documentos e Arquivos</h3>
-                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">4. Onde encontro as Normas e Procedimentos da empresa?</div>
-                        <p class="text-gray-700 mt-1">No menu lateral, clique em "Normas e Procedimentos". Você pode clicar em "Ver Todos" ou selecionar um setor específico para filtrar os documentos.</p>
-                    </div>
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">5. Onde encontro formulários, relatórios e outros documentos?</div>
-                        <p class="text-gray-700 mt-1">Documentos em formato PDF estão na seção "Documentos PDF" e planilhas estão em "Planilhas". Use a busca dentro de cada seção para encontrar o que precisa.</p>
-                    </div>
-                </div>
+            <!-- Corpo do Chat -->
+            <div id="faq-chat-area" class="p-4 space-y-6 overflow-y-auto faq-chat-body">
+                <!-- O chat será preenchido pelo JavaScript -->
             </div>
 
-            <!-- Categoria: Comunicação e Contatos -->
-            <div>
-                <h3 class="text-xl font-semibold text-[#1d3870] mb-4">Comunicação e Contatos</h3>
-                <div class="space-y-4 pl-4 border-l-2 border-gray-200">
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">6. Como encontro o ramal ou e-mail de um colega?</div>
-                        <p class="text-gray-700 mt-1">Acesse a seção "Informações" no menu e clique na aba "Matriz de Comunicação". Lá você pode pesquisar por nome, setor, e-mail ou ramal.</p>
-                    </div>
-                    <div class="faq-item">
-                        <div class="font-semibold text-[#254c90]">7. Onde vejo os comunicados oficiais da empresa?</div>
-                        <p class="text-gray-700 mt-1">Os comunicados mais recentes e importantes estão na Página Inicial e também na seção "Informações", na aba "Comunicados".</p>
-                    </div>
+            <!-- Área de "Digitação" com Sugestões e Reset -->
+            <div class="bg-white p-4 border-t border-gray-200">
+                <div id="faq-suggestions-area" class="flex flex-wrap gap-3 justify-center mb-3">
+                    <!-- Botões de sugestão serão inseridos aqui -->
+                </div>
+                <div id="faq-reset-area" class="text-center hidden">
+                    <button id="faq-reset-btn" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
+                        <i class="fas fa-sync-alt mr-1"></i>Reiniciar conversa
+                    </button>
                 </div>
             </div>
         </div>
@@ -1060,25 +1202,25 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 <!-- Sobre Nós Section -->
 <section id="about" class="hidden space-y-6">
     <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Sobre Nós</h2>
-        <p class="text-[#254c90] mb-4">
+        <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Sobre Nós</h2>
+        <p class="text-[#4A90E2] mb-4">
             A Comercial Souza iniciou sua jornada somente com os dois irmãos que compravam, vendiam e entregavam, e desde então vem construindo uma história de sucesso. Ao longo dessa trajetória buscamos sempre o comprometimento com nossos clientes, colaboradores e fornecedores. Nossa equipe é composta por profissionais especializados e capacitados para oferecer o melhor serviço e atendimento, nosso relacionamento se dá de maneira consultiva, visitando o cliente e entendendo suas necessidades. Atualmente atendemos redes de supermercados e mercados de pequeno e médio porte com uma ampla linha de produtos, nos segmentos: Alimentar, bebidas, perfumaria, limpeza e bazar, com mais de 3.000 itens, 7 supervisores e mais de 150 representantes externos. Contamos com um amplo CD de armazenagem e tecnologia de ponta (ERP e Força de Vendas), a Comercial Souza vem se constituindo no mercado como uma empresa inovadora, temos agilidade em nossas entregas e com isso melhorando o abastecimento e rentabilidades em nossos clientes.
         </p>
         <div class="mb-4">
             <div class="font-bold text-white bg-blue-600 rounded-t px-4 py-2">Nossa Visão</div>
-            <div class="bg-white border border-blue-600 rounded-b px-4 py-2 text-[#254c90]">
+            <div class="bg-white border border-blue-600 rounded-b px-4 py-2 text-[#4A90E2]">
                 Ser referência em distribuição na área de atuação com produtos de qualidade, buscando sempre excelência em logística, inovações e tecnologias para atender melhor às necessidades dos nossos clientes.
             </div>
         </div>
         <div class="mb-4">
             <div class="font-bold text-white bg-green-600 rounded-t px-4 py-2">Nossa Missão</div>
-            <div class="bg-white border border-green-600 rounded-b px-4 py-2 text-[#254c90]">
+            <div class="bg-white border border-green-600 rounded-b px-4 py-2 text-[#4A90E2]">
                 Entregar eficiência, qualidade no atendimento e agilidade em todos os processos. Agregar valores para nossos clientes, colaboradores e fornecedores.
             </div>
         </div>
         <div>
             <div class="font-bold text-white bg-cyan-600 rounded-t px-4 py-2">Nossos Valores</div>
-            <div class="bg-white border border-cyan-600 rounded-b px-4 py-2 text-[#254c90]">
+            <div class="bg-white border border-cyan-600 rounded-b px-4 py-2 text-[#4A90E2]">
                 <ul class="list-disc pl-5">
                     <li>Confiança e respeito às pessoas;</li>
                     <li>Simplicidade, ética e Transparência;</li>
@@ -1092,12 +1234,12 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 
 <!-- Sistemas Section -->
 <section id="sistema" class="hidden space-y-6">
-    <h2 class="text-2xl font-bold text-[#254c90]">Acesso Rápido aos Sistemas</h2>
+    <h2 class="text-2xl font-bold text-[#4A90E2]">Acesso Rápido aos Sistemas</h2>
     <?php if (count($sistemas_externos) > 0): ?>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div id="systems-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <?php foreach ($sistemas_externos as $sistema): ?>
             <a href="<?= htmlspecialchars($sistema['link']) ?>" target="_blank" rel="noopener noreferrer" class="document-card bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-transform transform hover:-translate-y-1">
-                    <i class="<?= htmlspecialchars($sistema['icon_class']) ?> text-4xl text-[#254c90] mb-3"></i>
+                    <i class="<?= htmlspecialchars($sistema['icon_class']) ?> text-4xl text-[#4A90E2] mb-3"></i>
                     <h3 class="font-semibold text-lg text-[#1d3870]"><?= htmlspecialchars($sistema['nome']) ?></h3>
                 </a>
             <?php endforeach; ?>
@@ -1105,7 +1247,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
     <?php else: ?>
         <div class="bg-white rounded-lg shadow p-6 text-center">
             <i class="fas fa-info-circle text-3xl text-gray-400 mb-3"></i>
-            <p class="text-[#254c90]">
+            <p class="text-[#4A90E2]">
                 Nenhum atalho de sistema foi cadastrado ainda.
             </p>
             <p class="text-sm text-gray-500 mt-1">Peça a um administrador para adicionar os atalhos na tela de Configurações.</p>
@@ -1116,8 +1258,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <!-- Registros de Sugestões Section (Admin only) -->
                 <section id="registros_sugestoes" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Registros de Sugestões e Reclamações</h2>
-                        <p class="text-[#254c90] mb-6">Acompanhe e gerencie as mensagens enviadas pelos colaboradores.</p>
+                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Registros de Sugestões e Reclamações</h2>
+                        <p class="text-[#4A90E2] mb-6">Acompanhe e gerencie as mensagens enviadas pelos colaboradores.</p>
                         <div id="registros-container">
                             <!-- O conteúdo da tabela será carregado aqui via JavaScript -->
                         </div>
@@ -1143,7 +1285,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                         <!-- Conteúdo da Aba: Usuários/Permissões -->                        
                         <div id="settings-tab-users" class="settings-tab-content">
                             <div class="flex justify-between items-center mb-4 border-b pb-2">
-                                <h3 class="text-lg font-semibold text-[#254c90]">Gerenciar Usuários e Permissões</h3>
+                                <h3 class="text-lg font-semibold text-[#4A90E2]">Gerenciar Usuários e Permissões</h3>
                                 <button id="openCreateUserModalBtn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
                                     <i class="fas fa-plus mr-2"></i>Criar Novo Usuário
                                 </button>
@@ -1172,24 +1314,24 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 
                         <!-- Conteúdo da Aba: Acesso -->
                         <div id="settings-tab-acesso" class="settings-tab-content hidden">
-                            <h3 class="text-lg font-semibold text-[#254c90] mb-4 border-b pb-2">Gerenciar Acessos</h3>
+                            <h3 class="text-lg font-semibold text-[#4A90E2] mb-4 border-b pb-2">Gerenciar Acessos</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <!-- Card para Adicionar Atalho de Sistema -->
                                 <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
-                                    <h4 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Novo Atalho de Sistema</h4>
+                                    <h4 class="text-lg font-semibold text-[#4A90E2] mb-4">Adicionar Novo Atalho de Sistema</h4>
                                     <form action="gerenciar_sistemas.php" method="POST" class="space-y-4">
                                         <input type="hidden" name="action" value="add">
                                         <div>
-                                            <label for="nome_sistema" class="block text-sm font-medium text-[#254c90]">Nome do Sistema</label>
+                                            <label for="nome_sistema" class="block text-sm font-medium text-[#4A90E2]">Nome do Sistema</label>
                                             <input type="text" id="nome_sistema" name="nome" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                         </div>
                                         <div>
-                                            <label for="link_sistema" class="block text-sm font-medium text-[#254c90]">Link do Sistema</label>
+                                            <label for="link_sistema" class="block text-sm font-medium text-[#4A90E2]">Link do Sistema</label>
                                             <input type="url" id="link_sistema" name="link" required placeholder="https://..." class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                         </div>
                                         <div>
-                                            <label for="departamento_sistema" class="block text-sm font-medium text-[#254c90]">Departamento (Opcional)</label>
-                                            <select id="departamento_sistema" name="setor_id" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                                            <label for="departamento_sistema" class="block text-sm font-medium text-[#4A90E2]">Departamento (Opcional)</label>
+                                            <select id="departamento_sistema" name="setor_id" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                                                 <option value="">Visível para Todos</option>
                                                 <?php foreach ($setores as $setor): ?>
                                                     <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
@@ -1198,7 +1340,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                             <p class="text-xs text-gray-500 mt-1">Selecione um departamento ou deixe em "Todos".</p>
                                         </div>
                                         <div>
-                                            <label for="icon_sistema" class="block text-sm font-medium text-[#254c90]">Ícone (Font Awesome)</label>
+                                            <label for="icon_sistema" class="block text-sm font-medium text-[#4A90E2]">Ícone (Font Awesome)</label>
                                             <input type="text" id="icon_sistema" name="icon_class" placeholder="Ex: fas fa-cogs" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                             <p class="text-xs text-gray-500 mt-1">Opcional. Veja os ícones em <a href="https://fontawesome.com/v6/search" target="_blank" class="text-blue-500 underline">fontawesome.com</a>.</p>
                                         </div>
@@ -1209,12 +1351,12 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 </div>
                                 <!-- Card para Listar Atalhos -->
                                 <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
-                                    <h4 class="text-lg font-semibold text-[#254c90] mb-4">Atalhos Cadastrados</h4>
+                                    <h4 class="text-lg font-semibold text-[#4A90E2] mb-4">Atalhos Cadastrados</h4>
                                     <ul class="space-y-3 max-h-96 overflow-y-auto">
                                         <?php foreach ($sistemas_externos as $sistema): ?>
                                             <li class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                                                 <div>
-                                                    <span class="text-[#254c90] font-medium"><i class="<?= htmlspecialchars($sistema['icon_class']) ?> mr-2 text-gray-500"></i><?= htmlspecialchars($sistema['nome']) ?></span>
+                                                    <span class="text-[#4A90E2] font-medium"><i class="<?= htmlspecialchars($sistema['icon_class']) ?> mr-2 text-gray-500"></i><?= htmlspecialchars($sistema['nome']) ?></span>
                                                     <span class="block text-xs text-gray-500 ml-6"><?= htmlspecialchars($sistema['departamento'] ?? 'Visível para Todos') ?></span>
                                                 </div>
                                                 <form action="gerenciar_sistemas.php" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este atalho?');">
@@ -1235,11 +1377,135 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <?php endif; ?>
                 </section>
 
+                <!-- Manage FAQs Section (Admin only) -->
+                <section id="manage_faq_section" class="hidden space-y-6">
+                    <?php if (can_view_section('manage_faq_section')): ?>
+                        <div class="max-w-6xl mx-auto bg-white p-8 rounded-lg shadow-xl border border-gray-200">
+                            <h1 class="text-3xl font-extrabold text-[#4A90E2] mb-6 pb-3 border-b-4 border-[#254c90]/50">Gerenciar Perguntas Frequentes (FAQs)</h1>
+
+                            <?php
+                            // Ajusta as classes das mensagens de feedback para o padrão do projeto
+                            if (!empty($manage_faq_message)) {
+                                $status_class = strpos($manage_faq_message, 'alert-success') !== false
+                                    ? 'bg-green-100 border-green-500 text-green-700'
+                                    : 'bg-red-100 border-red-500 text-red-700';
+                                echo '<div class="' . $status_class . ' border-l-4 p-4 mb-4 rounded-lg shadow-sm" role="alert">' . str_replace(['<div class="alert alert-success">', '<div class="alert alert-danger">', '</div>'], '', $manage_faq_message) . '</div>';
+                            }
+                            ?>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <!-- Formulário de Adição/Edição de FAQ -->
+                                <div>
+                                    <div class="p-6 border border-gray-200 rounded-lg bg-gradient-to-r from-gray-50 to-white shadow-sm h-full">
+                                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-5"><?php echo $manage_faq_to_edit ? 'Editar FAQ' : 'Adicionar Nova FAQ'; ?></h2>
+                                        <form id="faqManageForm" action="index.php?section=manage_faq_section" method="POST" class="space-y-4">
+                                            <?php if ($manage_faq_to_edit): ?>
+                                                <input type="hidden" name="id" value="<?php echo htmlspecialchars($manage_faq_to_edit['id']); ?>">
+                                                <input type="hidden" name="faq_action" value="edit">
+                                            <?php else: ?>
+                                                <input type="hidden" name="faq_action" value="add">
+                                            <?php endif; ?>
+
+                                            <div>
+                                                <label for="question" class="block text-sm font-semibold text-[#4A90E2] mb-1">Pergunta:</label>
+                                                <input type="text" id="question" name="question" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" value="<?php echo htmlspecialchars($manage_faq_to_edit['question'] ?? ''); ?>" required>
+                                            </div>
+                                            <div>
+                                                <label for="answer" class="block text-sm font-semibold text-[#4A90E2] mb-1">Resposta:</label>
+                                                <textarea id="answer" name="answer" rows="5" class="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[#254c90] focus:border-transparent transition duration-200 ease-in-out text-gray-800 placeholder-gray-400" required><?php echo htmlspecialchars($manage_faq_to_edit['answer'] ?? ''); ?></textarea>
+                                            </div>
+
+                                            <!-- Nova Ferramenta de Links -->
+                                            <div class="p-4 border border-gray-200 rounded-md bg-gray-50 space-y-3">
+                                                <h3 class="text-md font-semibold text-[#4A90E2]">Ferramenta: Adicionar Link ao Texto da Resposta</h3>
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label for="link_text" class="block text-sm font-medium text-gray-700 mb-1">Texto do Link</label>
+                                                        <input type="text" id="link_text" placeholder="Ex: Clique aqui" class="w-full border-gray-300 rounded-md shadow-sm">
+                                                    </div>
+                                                    <div>
+                                                        <label for="link_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Destino</label>
+                                                        <select id="link_type" class="w-full border-gray-300 rounded-md shadow-sm">
+                                                            <option value="internal">Página Interna</option>
+                                                            <option value="external">URL Externa</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div id="link_destination_internal">
+                                                    <label for="link_internal_page" class="block text-sm font-medium text-gray-700 mb-1">Página da Intranet</label>
+                                                    <select id="link_internal_page" class="w-full border-gray-300 rounded-md shadow-sm">
+                                                        <?php foreach ($available_sections as $key => $label): ?>
+                                                            <option value="<?= $key ?>"><?= htmlspecialchars($label) ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div id="link_destination_external" class="hidden">
+                                                    <label for="link_external_url" class="block text-sm font-medium text-gray-700 mb-1">URL Completa</label>
+                                                    <input type="url" id="link_external_url" placeholder="https://www.exemplo.com" class="w-full border-gray-300 rounded-md shadow-sm">
+                                                </div>
+                                                <button type="button" id="insert_link_btn" class="mt-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">Inserir Link</button>
+                                            </div>
+
+                                            
+                                            <div class="flex items-center">
+                                                <input type="checkbox" id="is_active" name="is_active" class="h-4 w-4 text-[#4A90E2] focus:ring-[#254c90] border-gray-300 rounded cursor-pointer" <?php echo ($manage_faq_to_edit['is_active'] ?? 1) ? 'checked' : ''; ?>>
+                                                <label for="is_active" class="ml-2 block text-sm text-gray-700 cursor-pointer">Ativa</label>
+                                            </div>
+                                            <div class="flex items-center space-x-4">
+                                                <button type="submit" class="flex-1 px-6 py-2 bg-[#254c90] text-white font-semibold rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90] focus:ring-offset-2 transition duration-200 ease-in-out">Salvar FAQ</button>
+                                                <?php if ($manage_faq_to_edit): ?>
+                                                    <a href="index.php?section=manage_faq_section" class="flex-1 text-center px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition duration-200 ease-in-out">Cancelar Edição</a>
+                                                <?php endif; ?>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Lista de FAQs Existentes (Accordion) -->
+                                <div>
+                                    <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">FAQs Existentes</h2>
+                                    <?php if (empty($manage_faqs)): ?>
+                                        <p class="text-gray-600 p-4 bg-gray-50 rounded-md border border-gray-200">Nenhuma FAQ encontrada. Adicione uma nova FAQ acima.</p>
+                                    <?php else: ?>
+                                        <div class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                                            <?php foreach ($manage_faqs as $faq): ?>
+                                                <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                                                    <button class="faq-accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 focus:outline-none transition duration-200 ease-in-out">
+                                                        <span class="font-semibold text-[#4A90E2] text-left text-lg"><?php echo htmlspecialchars($faq['question']); ?></span>
+                                                        <i class="fas fa-chevron-down text-gray-600 transform transition-transform duration-300 text-xl"></i>
+                                                    </button>
+                                                    <div class="faq-accordion-content hidden p-4 bg-white border-t border-gray-200">
+                                                        <p class="text-gray-700 mb-4 leading-relaxed"><?php echo nl2br(htmlspecialchars($faq['answer'])); ?></p>
+                                                        <div class="flex space-x-3">
+                                                            <a href="index.php?section=manage_faq_section&faq_action=edit&id=<?php echo htmlspecialchars($faq['id']); ?>" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 ease-in-out">
+                                                                <i class="fas fa-edit mr-2"></i> Editar
+                                                            </a>
+                                                            <form action="index.php?section=manage_faq_section" method="POST" class="inline-block" onsubmit="return confirm('Tem certeza que deseja excluir esta FAQ?');">
+                                                                <input type="hidden" name="faq_action" value="delete">
+                                                                <input type="hidden" name="id" value="<?php echo htmlspecialchars($faq['id']); ?>">
+                                                                <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200 ease-in-out">
+                                                                    <i class="fas fa-trash-alt mr-2"></i> Excluir
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-red-500 text-center p-6 bg-red-50 rounded-lg border border-red-200 shadow-sm">Acesso negado. Você não tem permissão para gerenciar FAQs.</p>
+                    <?php endif; ?>
+                </section>
+
                 <!-- Create Procedure Section (Admin only) -->
                 <section id="create_procedure" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow overflow-hidden">
                         <div class="p-6 border-b border-[#254c90]">
-                            <h3 class="text-lg font-semibold text-[#254c90]">Criar Novo Procedimento</h3>
+                            <h3 class="text-lg font-semibold text-[#4A90E2]">Criar Novo Procedimento</h3>
                             <p class="text-sm text-gray-600 mt-1">Preencha os campos abaixo para gerar um novo documento de procedimento em PDF.</p>
                         </div>
                         <div class="p-6">
@@ -1247,48 +1513,47 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                 <!-- Cabeçalho do Documento -->
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                     <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Título do Procedimento</label>
+                                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Título do Procedimento</label>
                                         <input type="text" name="titulo" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Código</label>
+                                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Código</label>
                                         <input type="text" name="codigo" placeholder="Ex: CS-PRO-GA-01" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Versão</label>
+                                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Versão</label>
                                         <input type="text" name="versao" placeholder="Ex: v1.0" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-[#254c90] mb-1">Data de Emissão</label>
+                                        <label class="block text-sm font-medium text-[#4A90E2] mb-1">Data de Emissão</label>
                                         <input type="text" name="data_emissao" value="<?= date('d/m/Y') ?>" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Descrição da Alteração</label>
+                                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Descrição da Alteração</label>
                                     <input type="text" name="descricao_alteracao" value="Emissão inicial" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-[#254c90] mb-1">Departamento</label>
-                                    <select name="departamento" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
-                                        <?php
-                                        $result_deps = $conn->query("SELECT DISTINCT department FROM users WHERE department IS NOT NULL AND department != '' ORDER BY department ASC");
-                                        while ($dep = $result_deps->fetch_assoc()) echo '<option value="'.htmlspecialchars($dep['department']).'">'.htmlspecialchars($dep['department']).'</option>';
-                                        ?>
-                                        <option value="Geral">Geral</option>
+                                    <label class="block text-sm font-medium text-[#4A90E2] mb-1">Departamento</label>
+                                    <select name="setor_id" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
+                                        <option value="">Selecione um setor</option>
+                                        <?php foreach ($setores as $setor): ?>
+                                            <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <hr class="my-4">
                                 <!-- Corpo do Procedimento -->
                                 <div class="space-y-4">
                                     <h4 class="text-md font-semibold text-[#1d3870]">Conteúdo do Procedimento</h4>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">1. Objetivo</label><textarea name="objetivo" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">2. Campo de Aplicação</label><textarea name="aplicacao" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">3. Referências</label><textarea name="referencias" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">4. Definições</label><textarea name="definicoes" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">5. Responsabilidades</label><textarea name="responsabilidades" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">6. Descrição do Procedimento</label><textarea name="descricao_procedimento" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">7. Registros</label><textarea name="registros" class="procedure-editor"></textarea></div>
-                                    <div><label class="block text-sm font-medium text-[#254c90] mb-1">8. Anexos</label><textarea name="anexos" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">1. Objetivo</label><textarea name="objetivo" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">2. Campo de Aplicação</label><textarea name="aplicacao" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">3. Referências</label><textarea name="referencias" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">4. Definições</label><textarea name="definicoes" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">5. Responsabilidades</label><textarea name="responsabilidades" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">6. Descrição do Procedimento</label><textarea name="descricao_procedimento" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">7. Registros</label><textarea name="registros" class="procedure-editor"></textarea></div>
+                                    <div><label class="block text-sm font-medium text-[#4A90E2] mb-1">8. Anexos</label><textarea name="anexos" class="procedure-editor"></textarea></div>
                                 </div>
                                 <div class="flex justify-end pt-4 border-t">
                                     <button type="reset" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md mr-2 hover:bg-gray-300">Limpar</button>
@@ -1304,7 +1569,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <!-- Profile Section -->
                 <section id="profile" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-[#254c90] mb-6 border-b pb-3">Meu Perfil</h2>
+                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-6 border-b pb-3">Meu Perfil</h2>
                         
                         <form action="update_profile.php" method="POST" enctype="multipart/form-data" class="space-y-8">
 
@@ -1321,7 +1586,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                     <?php endif; ?>
                                     <div>
                                         <label for="profile_photo" class="block text-sm font-medium text-gray-700">Nova foto</label>
-                                        <input type="file" name="profile_photo" id="profile_photo" accept="image/png, image/jpeg, image/gif" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#e9eef5] file:text-[#254c90] hover:file:bg-[#dbeafe]">
+                                        <input type="file" name="profile_photo" id="profile_photo" accept="image/png, image/jpeg, image/gif" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#e9eef5] file:text-[#4A90E2] hover:file:bg-[#dbeafe]">
                                         <p class="text-xs text-gray-500 mt-1">PNG, JPG ou GIF (Máx. 2MB).</p>
                                     </div>
                                 </div>
@@ -1362,7 +1627,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <!-- Matriz de Comunicação Section -->
                 <section id="matriz_comunicacao" class="hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-[#254c90] mb-4">Matriz de Comunicação</h2>
+                        <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Matriz de Comunicação</h2>
                         
                         <!-- Formulário de Filtros -->
                         <form id="matriz-filter-form" action="index.php" method="GET" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
@@ -1412,7 +1677,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
 
                         <!-- Formulário para Adicionar Novo Funcionário (oculto por padrão) -->
                         <div id="form-adicionar-funcionario" class="hidden bg-gray-100 p-6 rounded-lg border border-gray-300 my-6">
-                            <h3 class="text-lg font-semibold text-[#254c90] mb-4">Adicionar Novo Funcionário</h3>
+                            <h3 class="text-lg font-semibold text-[#4A90E2] mb-4">Adicionar Novo Funcionário</h3>
                             <form action="adicionar_funcionario_matriz.php" method="POST" class="space-y-4">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -1502,7 +1767,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                                     for ($i = 1; $i <= $total_paginas_matriz; $i++):
                                         $query_params['pagina'] = $i;                                        
                                         $link = 'index.php?' . http_build_query($query_params);
-                                        $active_class = ($i == $pagina_atual_matriz) ? 'bg-[#254c90] text-white' : 'bg-white text-[#254c90] hover:bg-gray-100';
+                                        $active_class = ($i == $pagina_atual_matriz) ? 'bg-[#254c90] text-white' : 'bg-white text-[#4A90E2] hover:bg-gray-100';
                                 ?>
                                     <a href="<?= $link ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm <?= $active_class ?>"><?= $i ?></a>
                                 <?php endfor; endif; ?>
@@ -1517,7 +1782,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
     <div id="permissionsModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl transform transition-all scale-95 opacity-0">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-semibold text-[#254c90]">Gerenciar Permissões: <span id="modalUsername" class="font-bold"></span></h3>
+                <h3 class="text-xl font-semibold text-[#4A90E2]">Gerenciar Permissões: <span id="modalUsername" class="font-bold"></span></h3>
                 <button id="closePermissionsModal" class="text-gray-500 hover:text-gray-800">&times;</button>
             </div>
             <form id="permissionsForm" action="update_user_permissions.php" method="POST">
@@ -1525,8 +1790,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <div class="space-y-6">
                     <!-- Nível de Acesso (Role) -->
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-2">Nível de Acesso Principal</label>
-                        <select name="role" id="modalUserRole" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-2">Nível de Acesso Principal</label>
+                        <select name="role" id="modalUserRole" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="user">Usuário</option>
                             <option value="admin">Admin</option>
                             <option value="god">God</option>
@@ -1535,8 +1800,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     </div>
                     <!-- Setor do Usuário -->
                     <div>
-                        <label class="block text-sm font-medium text-[#254c90] mb-2">Setor</label>
-                        <select name="setor_id" id="modalUserSetor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-2">Setor</label>
+                        <select name="setor_id" id="modalUserSetor" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="">Nenhum</option>
                             <?php foreach ($setores as $setor): ?>
                                 <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
@@ -1545,12 +1810,12 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     </div>
                     <!-- Permissões de Tela (Sections) -->
                     <div id="sectionsPermissionsContainer">
-                        <label class="block text-sm font-medium text-[#254c90] mb-2">Acesso às Telas (para nível "Usuário")</label>
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-2">Acesso às Telas (para nível "Usuário")</label>
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 border p-4 rounded-md max-h-64 overflow-y-auto">
                             <?php foreach ($available_sections as $key => $label): ?>
                                 <div>
                                     <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="checkbox" name="sections[]" value="<?= $key ?>" class="form-checkbox h-5 w-5 text-[#254c90] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
+                                        <input type="checkbox" name="sections[]" value="<?= $key ?>" class="form-checkbox h-5 w-5 text-[#4A90E2] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
                                         <span class="text-gray-700"><?= htmlspecialchars($label) ?></span>
                                     </label>
                                 </div>
@@ -1569,29 +1834,29 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
     <div id="createUserModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform transition-all scale-95 opacity-0">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-semibold text-[#254c90]">Criar Novo Usuário</h3>
+                <h3 class="text-xl font-semibold text-[#4A90E2]">Criar Novo Usuário</h3>
                 <button id="closeCreateUserModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
             <form id="createUserForm" action="create_user_admin.php" method="POST">
                 <div class="space-y-4">
                     <div>
-                        <label for="new_username" class="block text-sm font-medium text-[#254c90]">Nome de Usuário</label>
+                        <label for="new_username" class="block text-sm font-medium text-[#4A90E2]">Nome de Usuário</label>
                         <input type="text" name="username" id="new_username" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                     </div>
                     <div>
-                        <label for="new_password" class="block text-sm font-medium text-[#254c90]">Senha</label>
-                        <input type="password" name="password" id="new_password" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                        <label for="new_password" class="block text-sm font-medium text-[#4A90E2]">Senha</label>
+                        <input type="password" name="password" id="create_user_password" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                     </div>
                     <div>
-                        <label for="new_user_role" class="block text-sm font-medium text-[#254c90]">Nível de Acesso</label>
-                        <select name="role" id="new_user_role" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label for="new_user_role" class="block text-sm font-medium text-[#4A90E2]">Nível de Acesso</label>
+                        <select name="role" id="new_user_role" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="user">Usuário</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
                     <div>
-                        <label for="new_user_setor" class="block text-sm font-medium text-[#254c90]">Setor</label>
-                        <select name="setor_id" id="new_user_setor" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#254c90]">
+                        <label for="new_user_setor" class="block text-sm font-medium text-[#4A90E2]">Setor</label>
+                        <select name="setor_id" id="new_user_setor" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="" disabled selected>Selecione um setor...</option>
                             <?php foreach ($setores as $setor): ?>
                                 <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
@@ -1613,8 +1878,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
                     <i class="fas fa-check text-green-600 text-xl"></i>
                 </div>
-                <h3 class="text-lg font-medium text-[#254c90] mb-2">Sucesso!</h3>
-                <p class="text-[#254c90] mb-6">Seu arquivo foi enviado com sucesso e está disponível no sistema.</p>
+                <h3 class="text-lg font-medium text-[#4A90E2] mb-2">Sucesso!</h3>
+                <p class="text-[#4A90E2] mb-6">Seu arquivo foi enviado com sucesso e está disponível no sistema.</p>
                 <button id="closeModal" class="w-full px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] focus:outline-none focus:ring-2 focus:ring-[#254c90]">
                     Fechar
                 </button>
@@ -1624,7 +1889,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
     <div id="excel-viewer" class="w-full h-[700px] mb-6 hidden">
         <iframe id="excel-iframe" class="w-full h-full rounded-lg border" frameborder="0"></iframe>
         <div class="flex justify-end mt-2">
-            <button id="close-excel-viewer" class="px-3 py-1 bg-white text-[#254c90] rounded hover:bg-[#e5e7eb]">Fechar</button>
+            <button id="close-excel-viewer" class="px-3 py-1 bg-white text-[#4A90E2] rounded hover:bg-[#e5e7eb]">Fechar</button>
         </div>
     </div>
     <div id="excel-table-container" class="w-full mb-6 hidden bg-[#1d3870] rounded-lg shadow p-4 overflow-auto text-white"></div>
@@ -1650,7 +1915,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 'matriz_comunicacao': 'Matriz de Comunicação',
                 'sugestoes': 'Sugestões e Reclamações',
                 'faq': 'FAQ',
-                'upload': 'Upload de Arquivos',
+                
                 'profile': 'Meu Perfil',
                 'create_procedure': 'Criar Procedimento',
                 'info-upload': 'Cadastrar Informação',                
@@ -1680,83 +1945,19 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             // Carrega dinamicamente a lista de sugestões para admins
             if (sectionId === 'registros_sugestoes') {
                 const container = document.getElementById('registros-container');
-                container.innerHTML = '<p class="text-center text-[#254c90]">Carregando registros...</p>';
+                container.innerHTML = '<p class="text-center text-[#4A90E2]">Carregando registros...</p>';
                 fetch('registros_sugestoes.php')
                     .then(response => response.text())
                     .then(html => container.innerHTML = html)
                     .catch(() => container.innerHTML = '<p class="text-center text-red-500">Erro ao carregar os registros.</p>');
             }
-        }
-        document.getElementById('browseButton').addEventListener('click', function() {
-            document.getElementById('fileInput').click();
-        });
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            if (e.target.files.length > 0) {
-                showFilePreview(e.target.files[0]);
-                const file = e.target.files[0];
-                if (file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, {type: 'array'});
-                        const sheetName = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[sheetName];
-                        const html = XLSX.utils.sheet_to_html(worksheet, {header: "<thead>", footer: "</tfoot>"});
-                        document.getElementById('excel-table-container').innerHTML = html;
-                        document.getElementById('excel-table-container').classList.remove('hidden');
-                        document.getElementById('excel-viewer').classList.add('hidden');
-                    };
-                    reader.readAsArrayBuffer(file);
-                }
-            }
-        });
-        document.getElementById('removeFile').addEventListener('click', function() {
-            document.getElementById('fileInput').value = '';
-            document.getElementById('filePreview').classList.add('hidden');
-        });
-        function showFilePreview(file) {
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = formatFileSize(file.size);
-            document.getElementById('filePreview').classList.remove('hidden');
-        }
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        const dropzone = document.getElementById('dropzone');
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, preventDefaults, false);
-        });
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropzone.addEventListener(eventName, highlight, false);
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, unhighlight, false);
-        });
-        function highlight() {
-            dropzone.classList.add('border-[#254c90]');
-            dropzone.classList.add('bg-[#1d3870]');
-        }
-        function unhighlight() {
-            dropzone.classList.remove('border-[#254c90]');
-            dropzone.classList.remove('bg-[#1d3870]');
-        }
-        dropzone.addEventListener('drop', handleDrop, false);
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files.length > 0) {
-                document.getElementById('fileInput').files = files;
-                showFilePreview(files[0]);
+
+            // Inicializa o chat da FAQ quando a seção é mostrada
+            if (sectionId === 'faq') {
+                setupFaqChat();
             }
         }
+        
         document.getElementById('closeModal').addEventListener('click', function() {
             document.getElementById('successModal').classList.add('hidden');
         });
@@ -1787,8 +1988,150 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             document.getElementById('excel-iframe').src = '';
             document.getElementById('excel-table-container').classList.remove('hidden');
         });
+        // --- Lógica de Notificações ---
+        const notificationsBell = document.getElementById('notificationsBell');
+        const notificationsDropdown = document.getElementById('notificationsDropdown');
+        const notificationsList = document.getElementById('notificationsList');
+        const notificationBadge = document.getElementById('notification-count-badge');
+        const markAllAsReadBtn = document.getElementById('mark-all-as-read');
+
+        // Função para buscar as notificações do servidor
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('get_notificacoes.php');
+                const data = await response.json();
+                if (data.success) {
+                    renderNotifications(data.notifications);
+                } else {
+                    console.error('Erro ao buscar notificações:', data.error);
+                    notificationsList.innerHTML = '<div class="p-4 text-center text-sm text-gray-500">Erro ao carregar.</div>';
+                }
+            } catch (error) {
+                console.error('Erro de rede ao buscar notificações:', error);
+                notificationsList.innerHTML = '<div class="p-4 text-center text-sm text-gray-500">Erro de conexão.</div>';
+            }
+        }
+
+        // Função para renderizar as notificações no dropdown
+        function renderNotifications(notifications) {
+            notificationsList.innerHTML = ''; // Limpa a lista atual
+            let unreadCount = 0;
+
+            if (notifications.length === 0) {
+                notificationsList.innerHTML = '<div class="p-4 text-center text-sm text-gray-500">Nenhuma notificação nova.</div>';
+                notificationBadge.classList.add('hidden');
+                notificationBadge.textContent = '';
+                return;
+            }
+
+            notifications.forEach(notif => {
+                if (notif.lida == 0) { // Compara com 0, pois vem como string/número do DB
+                    unreadCount++;
+                }
+
+                const item = document.createElement('a');
+                item.href = '#'; // O clique será tratado por JS
+                item.classList.add('notification-item', 'block', 'px-4', 'py-3', 'hover:bg-gray-100', 'transition', 'duration-150', 'ease-in-out');
+                item.dataset.id = notif.id;
+                item.dataset.link = notif.link || '#'; // Garante que o link exista
+
+                if (notif.lida == 0) {
+                    item.classList.add('unread');
+                }
+
+                // Formata a data para um formato mais amigável
+                const date = new Date(notif.data_criacao);
+                const formattedDate = `${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+                item.innerHTML = `
+                    <div class="flex items-start space-x-3 pointer-events-none">
+                        <div class="flex-shrink-0 pt-1">
+                            <div class="w-3 h-3 rounded-full ${notif.lida == 0 ? 'bg-blue-500' : 'bg-gray-300'}"></div>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-800">${notif.mensagem}</p>
+                            <p class="text-xs text-gray-500 mt-1">${formattedDate}</p>
+                        </div>
+                    </div>
+                `;
+                notificationsList.appendChild(item);
+            });
+
+            // Atualiza o contador no ícone do sino
+            if (unreadCount > 0) {
+                notificationBadge.textContent = unreadCount;
+                notificationBadge.classList.remove('hidden');
+            } else {
+                notificationBadge.classList.add('hidden');
+            }
+        }
+
+        // Função para marcar uma notificação como lida
+        async function markAsRead(notificationId) {
+            const formData = new FormData();
+            formData.append('id', notificationId);
+ 
+            try {
+                const response = await fetch('marcar_notificacao_lida.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    fetchNotifications(); // Recarrega as notificações para atualizar a UI
+                } else {
+                    console.error('Falha ao marcar como lida:', data.error);
+                }
+            } catch (error) {
+                console.error('Erro de rede ao marcar como lida:', error);
+            }
+        }
+
         // Garante que só o dashboard está selecionado ao carregar
         document.addEventListener('DOMContentLoaded', function() {
+            // --- Event Listeners para Notificações ---
+            if (notificationsBell) {
+                notificationsBell.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    notificationsDropdown.classList.toggle('hidden');
+                    // Busca notificações apenas quando o dropdown é aberto
+                    if (!notificationsDropdown.classList.contains('hidden')) {
+                        fetchNotifications();
+                    }
+                });
+            }
+
+            if (markAllAsReadBtn) {
+                markAllAsReadBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    markAsRead('all');
+                });
+            }
+
+            if (notificationsList) {
+                notificationsList.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetItem = e.target.closest('.notification-item');
+                    if (targetItem) {
+                        const notificationId = targetItem.dataset.id;
+                        const link = targetItem.dataset.link;
+                        
+                        // Marca como lida e depois redireciona
+                        markAsRead(notificationId).then(() => {
+                            if (link && link !== '#') {
+                                window.location.href = link;
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Busca inicial de notificações e depois a cada 1 minuto
+            fetchNotifications();
+            setInterval(fetchNotifications, 60000); // 60000 ms = 1 minuto
+
+            // --- Fim dos Event Listeners de Notificações ---
+
             document.querySelectorAll('.sidebar-link').forEach(link => {
                 link.classList.remove('bg-[#1d3870]');
             });
@@ -1799,6 +2142,8 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
             const urlParams = new URLSearchParams(window.location.search);
             const section = urlParams.get('section');
             const tab = urlParams.get('tab');
+            const highlightFaqId = urlParams.get('highlight_faq');
+
             if (section) {
                 showSection(section);
                 // If it's the settings section and a tab is specified, click the tab button
@@ -1813,6 +2158,43 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                     if (tabButton) tabButton.click();
                 }
             }
+
+            // If a specific FAQ should be highlighted (from a shortcut link)
+            if (highlightFaqId) {
+                // The setupFaqChat function is called by showSection. We need to wait for the buttons to be created.
+                // A small delay or a more robust MutationObserver could work. A simple timeout is easiest here.
+                setTimeout(() => {
+                    const faqButton = document.querySelector(`.faq-suggestion-btn[data-faq-id="${highlightFaqId}"]`);
+                    if (faqButton) {
+                        faqButton.click();
+                        // Scroll the main window to the FAQ section for visibility
+                        document.getElementById('faq').scrollIntoView({ behavior: 'smooth' });
+                    }
+                }, 100); // 100ms delay to allow the chat UI to build
+            }
+
+            // Fechar dropdowns ao clicar fora
+            document.addEventListener('click', (e) => {
+                if (notificationsDropdown && !notificationsBell.contains(e.target) && !notificationsDropdown.contains(e.target)) {
+                    notificationsDropdown.classList.add('hidden');
+                }
+            });
+
+            // Lógica do Acordeão para FAQs
+            document.querySelectorAll('.faq-accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling; // O conteúdo é o próximo irmão do cabeçalho
+                    const icon = header.querySelector('i.fa-chevron-down');
+
+                    if (content.classList.contains('hidden')) {
+                        content.classList.remove('hidden');
+                        icon.classList.add('rotate-180');
+                    } else {
+                        content.classList.add('hidden');
+                        icon.classList.remove('rotate-180');
+                    }
+                });
+            });
         });
         // Dropdown do perfil
         const profileDropdownBtn = document.getElementById('profileDropdownBtn');
@@ -1828,29 +2210,7 @@ $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
                 }
             });
         }
-document.getElementById('uploadForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var form = this;
-    var formData = new FormData(form);
-    fetch('upload.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('successModal').classList.remove('hidden');
-            form.reset();
-            document.getElementById('filePreview').classList.add('hidden');
-            // Aqui você pode atualizar a lista de uploads se quiser
-        } else {
-            alert(data.message || 'Erro ao enviar arquivo.');
-        }
-    })
-    .catch(() => {
-        alert('Erro ao enviar arquivo.');
-    });
-});
+
 
 document.getElementById('sugestaoForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -2410,6 +2770,54 @@ function visualizarArquivo(url, tipo) {
         });
     }
 
+    // Nova Ferramenta de Links para FAQ
+const linkTypeSelect = document.getElementById('link_type');
+const internalDestSelect = document.getElementById('link_destination_internal');
+const externalDestInput = document.getElementById('link_destination_external');
+
+if (linkTypeSelect) {
+    linkTypeSelect.addEventListener('change', () => {
+        if (linkTypeSelect.value === 'internal') {
+            internalDestSelect.classList.remove('hidden');
+            externalDestInput.classList.add('hidden');
+        } else {
+            internalDestSelect.classList.add('hidden');
+            externalDestInput.classList.remove('hidden');
+        }
+    });
+}
+
+document.addEventListener('click', function(event) {
+    if (event.target && event.target.id === 'insert_link_btn') {
+        const linkText = document.getElementById('link_text').value.trim();
+        if (!linkText) {
+            alert('Por favor, insira o texto que será exibido para o link.');
+            return;
+        }
+
+        let linkPlaceholder = '';
+        if (linkTypeSelect.value === 'internal') {
+            const section = document.getElementById('link_internal_page').value;
+            linkPlaceholder = `[[${linkText}|internal:${section}]]`;
+        } else {
+            const url = document.getElementById('link_external_url').value.trim();
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                alert('Por favor, insira uma URL externa válida, começando com http:// ou https://.');
+                return;
+            }
+            linkPlaceholder = `[[${linkText}|external:${url}]]`;
+        }
+
+        const answerTextarea = document.getElementById('answer');
+        if (answerTextarea) {
+            const cursorPos = answerTextarea.selectionStart;
+            const textBefore = answerTextarea.value.substring(0, cursorPos);
+            const textAfter = answerTextarea.value.substring(cursorPos);
+            answerTextarea.value = textBefore + linkPlaceholder + textAfter;
+        }
+    }
+});
+
     // Inicialização do TinyMCE para os editores de procedimento
     tinymce.init({
         selector: 'textarea.procedure-editor',
@@ -2441,7 +2849,307 @@ function visualizarArquivo(url, tipo) {
             xhr.send(formData);
         })
     });
-    </script>
+
+// Function to fetch and render the FAQ list
+async function fetchFaqList() {
+    const faqListContainer = document.querySelector('#manage_faq_section .space-y-3.max-h-[500px]'); // The div containing the FAQ items
+    if (!faqListContainer) return;
+
+    faqListContainer.innerHTML = '<p class=\'text-center text-gray-500\'>Carregando FAQs...</p>';
+
+    try {
+        const response = await fetch('index.php?section=manage_faq_section&fetch_faqs=true', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest' // Indicate AJAX request
+            }
+        });
+        const data = await response.json(); // Expecting JSON with 'faqs' array
+
+        if (data.success) {
+            if (data.faqs && data.faqs.length > 0) {
+                let faqHtml = '';
+                data.faqs.forEach(faq => {
+                    faqHtml += `
+                        <div class=\'border border-gray-200 rounded-lg shadow-sm overflow-hidden\'>
+                            <button class=\'faq-accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 focus:outline-none transition duration-200 ease-in-out\'>
+                                <span class=\'font-semibold text-[#4A90E2] text-left text-lg\'>${faq.question}</span>
+                                <i class=\'fas fa-chevron-down text-gray-600 transform transition-transform duration-300 text-xl\'></i>
+                            </button>
+                            <div class=\'faq-accordion-content hidden p-4 bg-white border-t border-gray-200\'>
+                                <p class=\'text-gray-700 mb-4 leading-relaxed\'>${faq.answer.replace(/\n/g, '<br>')}</p>
+                                <div class=\'flex space-x-3\'>
+                                    <a href=\'index.php?section=manage_faq_section&faq_action=edit&id=${faq.id}\' class=\'inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 ease-in-out\'>
+                                        <i class=\'fas fa-edit mr-2\'></i> Editar
+                                    </a>
+                                    <form action=\'index.php?section=manage_faq_section\' method=\'POST\' class=\'inline-block delete-faq-form\' onsubmit=\'return confirm(\'Tem certeza que deseja excluir esta FAQ?\');\'>
+                                        <input type=\'hidden\' name=\'faq_action\' value=\'delete\'>
+                                        <input type=\'hidden\' name=\'id\' value=\'${faq.id}\'/>
+                                        <button type=\'submit\' class=\'inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200 ease-in-out\'>
+                                            <i class=\'fas fa-trash-alt mr-2\'></i> Excluir
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                faqListContainer.innerHTML = faqHtml;
+                // Re-attach accordion listeners after content update
+                attachAccordionListeners();
+                attachDeleteFaqListeners(); // Attach listeners for delete forms
+            } else {
+                faqListContainer.innerHTML = '<p class=\'text-gray-600 p-4 bg-gray-50 rounded-md border border-gray-200\'>Nenhuma FAQ encontrada. Adicione uma nova FAQ acima.</p>';
+            }
+        } else {
+            faqListContainer.innerHTML = '<p class=\'text-red-500 p-4 bg-red-50 rounded-md border border-red-200\'>Erro ao carregar FAQs: ' + data.message + '</p>';
+        }
+    } catch (error) {
+        console.error('Erro ao buscar lista de FAQ:', error);
+        faqListContainer.innerHTML = '<p class=\'text-red-500 p-4 bg-red-50 rounded-md border border-red-200\'>Erro de conexão ao carregar FAQs.</p>';
+    }
+}
+
+// Function to attach accordion listeners (can be called after content updates)
+function attachAccordionListeners() {
+    document.querySelectorAll('.faq-accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling; // O conteúdo é o próximo irmão do cabeçalho
+                    const icon = header.querySelector('i.fa-chevron-down');
+
+                    if (content.classList.contains('hidden')) {
+                        content.classList.remove('hidden');
+                        icon.classList.add('rotate-180');
+                    } else {
+                        content.classList.add('hidden');
+                        icon.classList.remove('rotate-180');
+                    }
+                });
+            });
+}
+
+// Function to attach delete FAQ form listeners
+function attachDeleteFaqListeners() {
+    document.querySelectorAll('.delete-faq-form').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!confirm('Tem certeza que deseja excluir esta FAQ?')) {
+                return;
+            }
+
+            const formData = new FormData(this);
+            const manageFaqMessageDiv = document.querySelector('#manage_faq_section .alert');
+
+            if (manageFaqMessageDiv) {
+                manageFaqMessageDiv.innerHTML = '<div class=\'bg-blue-100 border-blue-500 text-blue-700 border-l-4 p-4 mb-4 rounded-lg shadow-sm\' role=\'alert\'>Excluindo...</div>';
+                manageFaqMessageDiv.classList.remove('hidden');
+            }
+
+            try {
+                const response = await fetch('index.php?section=manage_faq_section', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json();
+
+                if (manageFaqMessageDiv) {
+                    if (data.success) {
+                        manageFaqMessageDiv.innerHTML = `<div class=\'bg-green-100 border-green-500 text-green-700 border-l-4 p-4 mb-4 rounded-lg shadow-sm\' role=\'alert\'>${data.message}</div>`;
+                    } else {
+                        manageFaqMessageDiv.innerHTML = `<div class=\'bg-red-100 border-red-500 text-red-700 border-l-4 p-4 mb-4 rounded-lg shadow-sm\' role=\'alert\'>${data.message}</div>`;
+                    }
+                    setTimeout(() => {
+                        manageFaqMessageDiv.classList.add('hidden');
+                    }, 5000);
+                }
+                await fetchFaqList(); // Refresh the list after delete
+            } catch (error) {
+                console.error('Erro ao excluir FAQ:', error);
+                if (manageFaqMessageDiv) {
+                    manageFaqMessageDiv.innerHTML = '<div class=\'bg-red-100 border-red-500 text-red-700 border-l-4 p-4 mb-4 rounded-lg shadow-sm\' role=\'alert\'>Erro de conexão ao excluir FAQ.</div>';
+                    manageFaqMessageDiv.classList.remove('hidden');
+                    setTimeout(() => {
+                        manageFaqMessageDiv.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+        });
+    });
+}
+
+// --- Lógica para o Chat da FAQ Interativa ---
+const faqsData = <?php echo json_encode($faqs_public); ?>;
+const chatArea = document.getElementById('faq-chat-area');
+const suggestionsArea = document.getElementById('faq-suggestions-area');
+const resetArea = document.getElementById('faq-reset-area');
+const resetButton = document.getElementById('faq-reset-btn');
+
+<?php
+    $user_profile_photo_path = !empty($_SESSION['profile_photo']) && file_exists($_SESSION['profile_photo']) ? htmlspecialchars($_SESSION['profile_photo']) : '';
+    $user_initial = strtoupper(substr($_SESSION['username'], 0, 1));
+    $user_avatar_html = $user_profile_photo_path ? "'<img src=\"{$user_profile_photo_path}\" alt=\"Você\" class=\"chat-avatar\">'" : "'<div class=\"w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-lg border-2 border-white shadow-sm\">{$user_initial}</div>'";
+
+    $sam_avatar_path = 'img/SAM.png';
+    $sam_avatar_html = file_exists($sam_avatar_path) ? "'<img src=\"{$sam_avatar_path}\" alt=\"SAM\" class=\"chat-avatar\">'" : "'<div class=\"w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-lg border-2 border-white shadow-sm\"><i class=\"fas fa-robot\"></i></div>'";
+?>
+const userAvatarHtml = <?php echo $user_avatar_html; ?>;
+const samAvatarHtml = <?php echo $sam_avatar_html; ?>;
+
+function setupFaqChat() {
+    // Limpa as áreas para reiniciar o chat
+    chatArea.innerHTML = `
+        <div class="flex justify-start items-end gap-3 animate-fade-in-up">
+            ${samAvatarHtml}
+            <div class="chat-bubble chat-bubble-answer">
+                <p>Olá! Eu sou o SAM, seu assistente virtual da Comercial Souza. Como posso ajudar hoje?</p>
+            </div>
+        </div>`;
+    suggestionsArea.innerHTML = '';
+    resetArea.classList.add('hidden'); // Esconde o botão de reset
+
+    // Cria os botões de sugestão
+    faqsData.forEach(faq => {
+        const button = document.createElement('button');
+        button.className = 'faq-suggestion-btn px-4 py-2 rounded-lg text-sm font-medium';
+        button.textContent = faq.question;
+        button.dataset.faqId = faq.id;
+        button.addEventListener('click', handleFaqSuggestionClick);
+        suggestionsArea.appendChild(button);
+    });
+}
+
+function processAnswerText(text) {
+        // Nova regex para encontrar placeholders no formato [[Texto do Link|tipo:destino]]
+        const newLinkRegex = /\[\[(.*?)\|(.*?)\]\]/g;
+
+        return text.replace(newLinkRegex, (match, linkText, linkData) => {
+            const [linkType, linkDest] = linkData.split(/:(.*)/s);
+            let url = '#';
+            let targetAttr = '';
+            let iconHtml = ''; // Variável para o ícone
+
+            if (linkType === 'internal') {
+                url = `index.php?section=${linkDest}`;
+                // Ícone para link interno
+                iconHtml = '<i class="fas fa-arrow-circle-right mr-1"></i>';
+            } else if (linkType === 'external') {
+                url = linkDest;
+                targetAttr = ' target="_blank" rel="noopener noreferrer"';
+                // Ícone para link externo
+                iconHtml = '<i class="fas fa-external-link-alt mr-1"></i>';
+            }
+
+            // Adiciona o ícone antes do texto do link e classes para alinhamento
+            return `<a href="${url}" class="font-bold hover:underline inline-flex items-center" style="color: #254c90;"${targetAttr}>${iconHtml}${linkText}</a>`;
+        });
+    }
+
+function handleFaqSuggestionClick(event) {
+    const button = event.currentTarget;
+    const faqId = button.dataset.faqId;
+    const faq = faqsData.find(f => f.id == faqId);
+
+    if (!faq) return;
+
+    // Mostra a área do botão de reset na primeira interação
+    if (resetArea.classList.contains('hidden')) {
+        resetArea.classList.remove('hidden');
+    }
+
+    // 1. Adiciona a pergunta do usuário ao chat
+    const questionBubble = document.createElement('div');
+    questionBubble.className = 'flex justify-end items-end gap-3 animate-fade-in-up';
+    questionBubble.innerHTML = `
+        <div class="chat-bubble chat-bubble-question">
+            <p class="font-semibold">${faq.question}</p>
+        </div>
+        ${userAvatarHtml}`;
+    chatArea.appendChild(questionBubble);
+
+    // 2. Remove o botão clicado
+    button.style.display = 'none';
+
+    // 3. Rola para a nova mensagem
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    // 4. Adiciona o indicador de "digitando"
+    const typingBubble = document.createElement('div');
+    typingBubble.id = 'typing-indicator-bubble';
+    typingBubble.className = 'flex justify-start items-end gap-3 animate-fade-in-up';
+    typingBubble.innerHTML = `
+        ${samAvatarHtml}
+        <div class="chat-bubble chat-bubble-answer">
+            <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>`;
+    chatArea.appendChild(typingBubble);
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    // 5. Simula "digitando" e mostra a resposta
+    setTimeout(() => {
+        const typingIndicatorToRemove = document.getElementById('typing-indicator-bubble');
+        if (typingIndicatorToRemove) typingIndicatorToRemove.remove();
+
+        const answerBubble = document.createElement('div');
+        answerBubble.className = 'flex justify-start items-end gap-3 animate-fade-in-up';
+
+        // Processa a resposta para converter placeholders em links
+        const processedAnswer = processAnswerText(faq.answer.replace(/\n/g, '<br>'));
+
+        answerBubble.innerHTML = `
+            ${samAvatarHtml}
+            <div class="chat-bubble chat-bubble-answer">
+                <p>${processedAnswer}</p>
+            </div>`;
+        chatArea.appendChild(answerBubble);
+
+        // Rola para a resposta
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        // Se não houver mais sugestões, mostra uma mensagem de finalização
+        const remainingButtons = suggestionsArea.querySelectorAll('button[style*="display: none"]');
+        if (remainingButtons.length === faqsData.length) {
+            setTimeout(() => {
+                const endMessage = document.createElement('div');
+                endMessage.className = 'flex justify-start items-end gap-3 animate-fade-in-up';
+                endMessage.innerHTML = `
+                    ${samAvatarHtml}
+                    <div class="chat-bubble chat-bubble-answer">
+                        <p>Espero ter ajudado! Se tiver outra dúvida, clique em "Reiniciar Conversa". 😊</p>
+                    </div>`;
+                chatArea.appendChild(endMessage);
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }, 800);
+        }
+    }, 1200); // Atraso de 1.2s para a resposta
+}
+
+// Adiciona o listener para o botão de reset
+if (resetButton) {
+    resetButton.addEventListener('click', () => {
+        setupFaqChat();
+    });
+}
+
+// 4. Inicializar o tour quando o botão for clicado
+document.addEventListener('DOMContentLoaded', function() {
+    const startTourBtn = document.getElementById('start-tour-btn');
+    if (startTourBtn && window.intranetTour) {
+        startTourBtn.addEventListener('click', () => {
+            window.intranetTour.start();
+        });
+    }
+});
+</script>
+<!-- Scripts do Tour: Colocados no final do body para garantir a ordem de carregamento correta -->
+<script src="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/js/shepherd.min.js"></script>
+<script src="tour.js.php"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>

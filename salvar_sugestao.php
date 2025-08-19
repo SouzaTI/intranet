@@ -29,6 +29,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($stmt->execute()) {
         $new_suggestion_id = $stmt->insert_id;
         logActivity($usuario_id, 'Sugestão/Reclamação enviada', "Tipo: {$tipo} | Início: " . substr($mensagem, 0, 50) . "...");
+
+        // Lógica de Notificação para Admins
+        $username = $_SESSION['username'] ?? 'Um usuário';
+        $notification_message = "Nova {$tipo} de {$username}: " . substr($mensagem, 0, 80) . "...";
+        $notification_link = "index.php?section=registros_sugestoes";
+
+        // Busca todos os admins e gods
+        $result_admins = $conn->query("SELECT id FROM users WHERE role IN ('admin', 'god')");
+        if ($result_admins) {
+            $stmt_notif = $conn->prepare("INSERT INTO notificacoes (user_id, mensagem, link) VALUES (?, ?, ?)");
+            while ($admin = $result_admins->fetch_assoc()) {
+                $admin_id = $admin['id'];
+                $stmt_notif->bind_param("iss", $admin_id, $notification_message, $notification_link);
+                $stmt_notif->execute();
+            }
+            $stmt_notif->close();
+        }
+
         echo json_encode(['success' => true, 'message' => 'Sua mensagem foi enviada com sucesso!']);
     } else {
         logActivity($usuario_id, 'Erro ao enviar Sugestão/Reclamação', "Tipo: {$tipo}", 'error');

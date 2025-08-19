@@ -95,6 +95,9 @@ function get_log_visuals($action, $status) {
     } elseif (str_contains($action_lower, 'logout')) {
         $visuals['icon'] = '<i class="fas fa-sign-out-alt"></i>';
         $visuals['class'] = 'log-auth';
+    } elseif (str_contains($action_lower, 'senha')) {
+        $visuals['icon'] = '<i class="fas fa-key"></i>';
+        $visuals['class'] = 'log-auth'; // Reutilizando a classe de autenticação
     }
     return $visuals;
 }

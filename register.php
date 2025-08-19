@@ -66,29 +66,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8" />
     <title>Criar Nova Conta</title>
     <link rel="shortcut icon" type="image/x-icon" href="img/favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: url('img/fachada_souza.jpg') no-repeat center center fixed;
+            font-family: 'Inter', sans-serif;
+            background: url('img/background.png') no-repeat center center fixed;
             background-size: cover;
-            position: relative; /* Para o overlay */
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
         }
-        /* Overlay para escurecer a imagem de fundo */
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(37, 76, 144, 0.5); /* Azul escuro da intranet, semi-transparente */
-            backdrop-filter: blur(2px); /* Efeito de desfoque (opcional, visual moderno) */
-            z-index: 0;
-        }
         .register-container {
-            position: relative;
             width: 450px;
             max-width: 90%;
             background: rgba(255, 255, 255, 0.98); /* Fundo um pouco mais opaco */
@@ -96,7 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 40px;
             text-align: center;
             color: #254c90;
-            z-index: 1;
             border-radius: 12px;
         }
         .register-container img {
@@ -166,8 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         @media (max-width: 768px) {
             body {
-                background-image: none;
-                background: #254c90;
+                /* Mantém o fundo para consistência em telas menores */
             }
             .register-container {
                 width: 100%;

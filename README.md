@@ -1,4 +1,4 @@
-﻿# 🚀 Sistema de Intranet - Comercial Souza
+# 🚀 Sistema de Intranet - Comercial Souza
 
 ![Status: Em Desenvolvimento](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
 ![PHP: 8.x](https://img.shields.io/badge/php-8.x-blue)
@@ -9,26 +9,30 @@
 
 ## 📝 Descrição
 
-**Contexto:**  
-A Comercial Souza necessitava de um portal interno centralizado para otimizar a comunicação, organizar o compartilhamento de documentos e facilitar o acesso a ferramentas essenciais do dia a dia, visando aumentar a produtividade e o engajamento dos colaboradores.
+**Contexto:**
 
-**Ação:**  
-Foi desenvolvida uma Intranet moderna e responsiva, utilizando PHP, MySQL e TailwindCSS. O sistema oferece um dashboard dinâmico com comunicados e um carrossel de imagens, um repositório de arquivos (PDFs, planilhas), um sistema de sugestões e reclamações, e áreas de acesso restrito para administradores.
+Desenvolvimento de uma intranet para a Comercial Souza, visando centralizar a comunicação, otimizar o compartilhamento de documentos e facilitar o acesso a ferramentas essenciais para os colaboradores.
 
-**Resultado:**  
-A Intranet se tornou o ponto central de acesso à informação para todos os colaboradores. A plataforma agiliza a busca por documentos, centraliza comunicados importantes e fornece um canal direto para feedback, fortalecendo a cultura organizacional e a eficiência operacional da empresa.
+**Ação:**
+
+Criação de uma intranet moderna e responsiva utilizando PHP, MySQL e TailwindCSS. O sistema integra um dashboard dinâmico, repositório de documentos, sistema de sugestões e áreas administrativas.
+
+**Resultado:**
+
+A intranet se estabeleceu como o principal hub de informações, agilizando o acesso a documentos, centralizando comunicados e oferecendo um canal direto para feedback, aprimorando a eficiência e a cultura organizacional.
 
 ---
 
 ## 🔧 Funcionalidades Principais
 
-✅ **Autenticação Segura:** Sistema de login e registro com perfis de usuário (colaborador, administrador).  
-✅ **Dashboard Dinâmico:** Exibe comunicados importantes, um carrossel de imagens e atalhos rápidos para as principais seções.  
-✅ **Gestão de Documentos:** Seções dedicadas para PDFs, planilhas e outras informações, com upload e organização por departamento.  
-✅ **Normas e Procedimentos:** Área específica para consulta de documentos normativos, organizados por setor para fácil acesso.  
-✅ **Sistema de Feedback:** Formulário para envio de sugestões e reclamações, com painel de gerenciamento para administradores atualizarem o status.  
-✅ **Painel Administrativo:** Área restrita para upload de arquivos, gerenciamento de setores e visualização de todas as sugestões enviadas.  
-✅ **Design Responsivo:** Interface totalmente adaptada para desktops, tablets e celulares.
+- ✅ **Autenticação Segura:** Login e registro com perfis de usuário (colaborador, administrador).
+- ✅ **Dashboard Interativo:** Exibição de comunicados, carrossel de imagens e atalhos rápidos.
+- ✅ **Gestão de Documentos (Normas e Procedimentos):** Seções dedicadas para PDFs e outros arquivos, incluindo criação de procedimentos padronizados.
+- ✅ **Normas e Procedimentos:** Consulta organizada de documentos normativos por setor.
+- ✅ **Sistema de Feedback:** Formulário para sugestões/reclamações com painel de gerenciamento para administradores.
+- ✅ **Painel Administrativo:** Área restrita para cadastro de informações, gestão de usuários, setores e sistemas.
+- ✅ **Notificações em Tempo Real:** Alertas sobre novos procedimentos e atualizações.
+- ✅ **Design Responsivo:** Adaptação completa para desktops, tablets e smartphones.
 
 ---
 
@@ -38,18 +42,18 @@ A Intranet se tornou o ponto central de acesso à informação para todos os col
 intranet/
 ├── img/                      # Imagens e recursos visuais (logo, background)
 ├── uploads/                  # Pasta para arquivos enviados pelos usuários
-├── atualizar_status_sugestao.php # API para mudar status de sugestões
+├── vendor/                   # Dependências do Composer (DomPDF, etc)
+├── adicionar_funcionario_matriz.php # API para adicionar funcionários na Matriz de Comunicação
+├── atualizar_matriz.php      # API para editar a Matriz de Comunicação
 ├── cadastrar_carrossel.php   # API para adicionar imagens ao carrossel
 ├── cadastrar_informacao.php  # API para salvar comunicados
 ├── conexao.php               # Configuração da conexão com o banco de dados
-├── gerenciar_setores.php     # API para adicionar/remover setores
+├── get_notificacoes.php      # API para buscar notificações
 ├── index.php                 # Interface principal da intranet (SPA)
 ├── login.php                 # Tela de autenticação
 ├── logout.php                # Script para encerrar a sessão
-├── register.php              # Tela de registro de novos usuários
-├── registros_sugestoes.php   # Script que gera a lista de sugestões para o admin
+├── save_procedure.php        # API para salvar novos procedimentos em PDF
 ├── salvar_sugestao.php       # API para salvar novas sugestões
-├── upload.php                # API para upload de arquivos
 └── README.md                 # Esta documentação
 ```
 
@@ -57,57 +61,103 @@ intranet/
 
 ## 🛠️ Como Executar (Ambiente Local)
 
-1.  Instale o **XAMPP** (ou um ambiente similar com PHP e MySQL).
-2.  Copie a pasta `intranet/` para o diretório `C:/xampp/htdocs/`.
-3.  Inicie os módulos **Apache** e **MySQL** no painel de controle do XAMPP.
-4.  Crie o banco de dados `intranet` no **phpMyAdmin** (`http://localhost/phpmyadmin`).
-5.  Importe o arquivo `.sql` com a estrutura das tabelas para o banco de dados criado.
-6.  Acesse a intranet no seu navegador:
+1. Instale o **XAMPP** (ou um ambiente similar com PHP e MySQL).
+2. Copie a pasta `intranet/` para o diretório `C:/xampp/htdocs/`.
+3. Inicie os módulos **Apache** e **MySQL** no painel de controle do XAMPP.
+4. Crie o banco de dados `intranet` no **phpMyAdmin** (`http://localhost/phpmyadmin`).
+5. Importe o arquivo `.sql` com a estrutura das tabelas para o banco de dados criado.
+6. Acesse a intranet no seu navegador:
     ```
     http://localhost/intranet/
     ```
+
+*Estrutura do Banco de Dados:*  
+![Estrutura do Banco de Dados](readme/bancodados.png)
 
 ---
 
 ## 🔐 Usuários e Permissões
 
--   **Autenticação:** Os usuários são validados contra a tabela `users` no banco de dados `intranet`.
--   **Segurança:** As senhas são armazenadas de forma segura usando a função `password_hash` do PHP.
--   **Sessão:** Após o login, os dados do usuário (ID, nome, permissão) são armazenados na sessão PHP.
--   **Níveis de Acesso:** O sistema conta com os níveis `user`, `admin` e `god`. Administradores têm acesso a painéis de gerenciamento e upload.
+- **Autenticação:** Validação de usuários via tabela `users` no banco de dados `intranet`.
+- **Segurança:** Senhas armazenadas de forma segura com `password_hash` do PHP.
+- **Sessão:** Dados do usuário (ID, nome, permissão) armazenados na sessão PHP após o login.
+- **Níveis de Acesso:** `user`, `admin` e `god`. Administradores possuem acesso a painéis de gerenciamento.
 
 ---
 
 ## 📸 Capturas de Tela
 
-*Para exibir as imagens, crie uma pasta `screenshots` no projeto e adicione os caminhos aqui. Exemplo: `!Tela de Login`*
+### 1. ✨ Tela de Boas-Vindas
+*A primeira tela que o usuário vê, apresentando a identidade visual e o propósito da intranet.*  
+![Tela de Boas-Vindas](readme/boasvindas.png)
 
-### 1. 🔐 Tela de Login
-*Interface de entrada do sistema, com a identidade visual da empresa.*
-<!-- Inserir imagem da tela de login aqui -->
+### 2. 🔐 Acesso ao Sistema (Login)
+*Modal de login que aparece após clicar em "Acessar Intranet", com campos para usuário e senha.*  
+![Tela de Login](readme/login.png)
 
-### 2. 🖥️ Dashboard Principal
-*Visão geral com comunicados, carrossel de imagens e acesso rápido às funcionalidades.*
-<!-- Inserir imagem do dashboard aqui -->
+### 3. 🔑 Recuperação de Senha
+*Tela para usuários que esqueceram a senha, permitindo a solicitação de um link de redefinição.*  
+![Recuperação de Senha](readme/recuperarsenha.png)
 
-### 3. 📂 Gestão de Documentos
-*Seção para visualização e download de arquivos PDF e planilhas.*
-<!-- Inserir imagem da gestão de documentos aqui -->
+### 4. 🏠 Tela Inicial (Dashboard)
+*Visão geral do sistema após o login, com comunicados, carrossel de imagens e atalhos rápidos.*  
+![Tela Inicial](readme/INICIAL.png)
 
-### 4. 🗣️ Sugestões e Reclamações
-*Formulário para feedback dos colaboradores e tela de gerenciamento para administradores.*
-<!-- Inserir imagem da tela de sugestões aqui -->
+### 5. 📄 Cadastro de Informação
+*Formulário para inserção de comunicados e informações no sistema.*  
+![Cadastro de Informação](readme/CADASTRARINFO.png)
 
-### 5. ⚙️ Painel Administrativo
-*Área restrita para upload de arquivos e gerenciamento de configurações do sistema.*
-<!-- Inserir imagem do painel administrativo aqui -->
+### 6. 📂 Normas e Procedimentos
+*Seção para consulta e download de documentos importantes da empresa.*  
+![Normas e Procedimentos](readme/NORMASPROCEDIMENTOS.png)
+
+### 7. 📝 Criação de Procedimentos
+*Formulário avançado com editor de texto para a criação de novos documentos de procedimento em PDF.*  
+![Criar Procedimento](readme/CRIARPROCEDIMENTO.png)
+
+### 8. ❓ FAQ
+*Seção com perguntas frequentes e respostas para suporte aos usuários.*  
+![FAQ](readme/FAQ.png)
+
+### 9. 📊 Matriz
+*Visualização de dados em formato de matriz para análise de comunicação.*  
+![Matriz](readme/MATRIZ.png)
+
+### 10. 🗂️ Registro
+*Área para consulta de registros e histórico de atividades.*  
+![Registro](readme/REGISTRO.png)
+
+### 11. 💻 Sistemas
+*Seção com links e informações sobre sistemas utilizados pela empresa.*  
+![Sistemas](readme/SISTEMAS.png)
+
+### 12. 🗣️ Sugestão / Reclamação
+*Formulário para envio de sugestões ou reclamações pelos usuários.*  
+![Sugestão/Reclamação](readme/SUGESTAORECLAMACAO.png)
+
+### 13. 📜 Sobre
+*Informações sobre o sistema e a empresa.*  
+![Sobre](readme/SOBRE.png)
+
+### 14. 👤 Perfil do Usuário
+*Página onde o usuário pode alterar sua foto e senha.*  
+![Perfil](readme/PERFIL.png)
+
+### 15. ⚙️ Configurações e Permissões
+*Painel administrativo para gerenciamento de usuários, permissões de acesso e outras configurações do sistema.*  
+![Configuração](readme/CONFIGURACAO.png)
+
+### 16. ⚙️ Configurações (Parte 2)
+*Complemento do painel de configurações com opções adicionais.*  
+![Configuração 1](readme/CONFIGURACAO1.png)
 
 ---
 
 ## 👨‍💻 Autor
 
-**Saulo Sampaio** 
-**Matheus Cabral** 
+**Saulo Sampaio**  
+**Matheus Cabral**
+
 *Sistema desenvolvido para centralizar a comunicação e os recursos da Comercial Souza.*
 
 ---
@@ -116,3 +166,5 @@ intranet/
 
 Projeto de uso interno.  
 Livre para adaptar conforme a necessidade da empresa.
+
+---
