@@ -19,14 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const section = new URLSearchParams(url.split('?')[1]).get('section');
         localStorage.setItem('tourStep', tourStep.id);
         if (window.showSection && typeof window.showSection === 'function') {
-            const currentSection = document.querySelector('main > section:not(.hidden)');
-            if (!currentSection || currentSection.id !== section) {
-                window.showSection(section, true);
-            }
-        } else {
-            if (!window.location.href.includes(url)) {
-                window.location.href = url;
-            }
+            window.showSection(section, true);
         }
     };
 
@@ -72,7 +65,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -90,7 +84,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -108,7 +103,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -126,7 +122,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -144,7 +141,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -162,7 +160,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -180,7 +179,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -198,7 +198,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -216,7 +217,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -234,7 +236,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -252,7 +255,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -270,25 +274,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
-                    ]
-                });
-            }
-
-            if (isAdmin && allowedSections.includes('manage_faq_section')) {
-                tour.addStep({
-                    id: 'manage_faq_section',
-                    title: 'Gerenciar FAQ',
-                    text: samImageHtml + 'Adicione, edite ou remova perguntas frequentes.',
-                    attachTo: { element: 'a[data-section="manage_faq_section"]', on: 'right' },
-                    when: {
-                        show: function() {
-                            navigateTo(this, 'index.php?section=manage_faq_section');
-                        }
-                    },
-                    buttons: [
-                        { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -306,7 +293,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     buttons: [
                         { text: 'Voltar', action: tour.back },
-                        { text: 'Próximo', action: tour.next }
+                        { text: 'Próximo', action: tour.next },
+                        { text: 'Finalizar', action: tour.complete }
                     ]
                 });
             }
@@ -336,19 +324,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             window.intranetTour = tour;
 
-            const savedStepId = localStorage.getItem('tourStep');
-            if (savedStepId) {
-                setTimeout(() => {
-                    const stepExists = tour.steps.some(step => step.id === savedStepId);
-                    if (stepExists) {
-                        tour.start();
-                        tour.show(savedStepId);
-                    } else {
-                        localStorage.removeItem('tourStep');
-                    }
-                }, 500);
-            }
-
             const startTourButton = document.getElementById('startTourButton');
             if (startTourButton) {
                 startTourButton.addEventListener('click', function () {
@@ -357,11 +332,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         .then(() => tour.start())
                         .catch(() => tour.start());
                 });
-            }
-
-            const shouldShowTour = <?php echo (isset($_SESSION['show_tour']) && $_SESSION['show_tour']) ? 'true' : 'false'; ?>;
-            if (shouldShowTour && !savedStepId) {
-                tour.start();
             }
         })
         .catch(error => {
