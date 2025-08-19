@@ -1945,10 +1945,7 @@ if ($result_manage_faqs) {
             // Carrega dinamicamente a lista de sugestões para admins
             if (sectionId === 'registros_sugestoes') {
                 const container = document.getElementById('registros-container');
-                container.innerHTML = `<div class="text-center p-6">
-                                           <img src="img/SAM-CORRENDO.png" alt="Carregando..." class="mx-auto mb-4" style="width: 100px;">
-                                           <p class="text-center text-[#4A90E2] font-semibold">Carregando registros...</p>
-                                       </div>`;
+                container.innerHTML = '<p class="text-center text-[#4A90E2]">Carregando registros...</p>';
                 fetch('registros_sugestoes.php')
                     .then(response => response.text())
                     .then(html => container.innerHTML = html)
