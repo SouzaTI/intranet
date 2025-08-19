@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    const samImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM.png" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
+    const samImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM-ACENANDO.png" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
+    const samFinalImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM-FIM.png" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
 
     const navigateTo = (tourStep, url) => {
         const section = new URLSearchParams(url.split('?')[1]).get('section');
@@ -314,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
             tour.addStep({
                 id: 'finish',
                 title: 'Tour Concluído!',
-                text: samImageHtml + 'Você agora conhece as principais áreas da intranet. Explore à vontade e, se tiver dúvidas, pode refazer este tour a qualquer momento!',
+                text: samFinalImageHtml + 'Você agora conhece as principais áreas da intranet. Explore à vontade e, se tiver dúvidas, pode refazer este tour a qualquer momento!',
                 buttons: [
                     { text: 'Voltar', action: tour.back },
                     {

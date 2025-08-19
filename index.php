@@ -559,6 +559,17 @@ if ($result_manage_faqs) {
             animation: fadeInUp 0.5s ease-out forwards;
         }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Animation for SAM avatar */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .sam-animated-avatar {
+            animation: float 3s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
@@ -1161,7 +1172,7 @@ if ($result_manage_faqs) {
         <div class="max-w-4xl mx-auto faq-chat-window">
             <!-- Cabeçalho da Janela de Chat -->
             <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
-                <img src="img/SAM.png" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200">
+                <img src="img/SAM.png" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 sam-animated-avatar">
                 <div>
                     <h3 class="font-bold text-lg text-white">SAM - Assistente Virtual</h3>
                     <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
@@ -1934,7 +1945,10 @@ if ($result_manage_faqs) {
             // Carrega dinamicamente a lista de sugestões para admins
             if (sectionId === 'registros_sugestoes') {
                 const container = document.getElementById('registros-container');
-                container.innerHTML = '<p class="text-center text-[#4A90E2]">Carregando registros...</p>';
+                container.innerHTML = `<div class="text-center p-6">
+                                           <img src="img/SAM-CORRENDO.png" alt="Carregando..." class="mx-auto mb-4" style="width: 100px;">
+                                           <p class="text-center text-[#4A90E2] font-semibold">Carregando registros...</p>
+                                       </div>`;
                 fetch('registros_sugestoes.php')
                     .then(response => response.text())
                     .then(html => container.innerHTML = html)
