@@ -4,7 +4,10 @@
             background-color: #F5F7FA; /* Light gray/off-white for a modern feel */
         }
         .sidebar {
-            background: #2C3E50 !important; /* Softer dark blue for sidebar */
+            background: #2C3E50; /* Softer dark blue for sidebar */
+        }
+        .main-header {
+            background-color: #2C3E50;
         }
         .document-card {
             transition: all 0.2s ease;
@@ -282,3 +285,92 @@
         .sam-animated-avatar {
             animation: float 3s ease-in-out infinite;
         }
+
+/* ==========================================================================
+   TEMA MIXKAR - Preto + Amarelo (cores da logo)
+   ========================================================================== */
+
+body.theme-mixkar {
+    background-color: #F5F5F5; /* cinza claro neutro */
+}
+
+/* Sidebar */
+.theme-mixkar .sidebar {
+    background: #1E1E1E; /* Preto grafite */
+    color: #FFC107; /* Amarelo Mixkar */
+}
+
+.theme-mixkar .main-header {
+    background-color: #1E1E1E; /* Preto grafite */
+    color: #FFC107; /* Amarelo Mixkar */
+}
+
+.theme-mixkar .sidebar-link.active-sidebar-link {
+    background-color: #FFC107; /* Amarelo ativo */
+    color: #1E1E1E; /* Texto preto */
+    font-weight: bold;
+}
+
+/* Input focus */
+.theme-mixkar .search-input:focus {
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.6); /* Amarelo sombra */
+}
+
+/* Hover */
+.theme-mixkar .hover\:bg-indigo-700:hover, 
+.theme-mixkar .hover\\:bg-indigo-600:hover, 
+.theme-mixkar .hover\\:bg-indigo-900:hover, 
+.theme-mixkar .hover\\:bg-gray-100:hover, 
+.theme-mixkar .hover\\:bg-gray-300:hover, 
+.theme-mixkar .hover\\:bg-gray-50:hover {
+    background-color: #FFC107; /* Amarelo destaque */
+    color: #1E1E1E; /* Preto no hover */
+}
+
+/* Bordas */
+.theme-mixkar .border, 
+.theme-mixkar .border-gray-300, 
+.theme-mixkar .border-gray-200, 
+.theme-mixkar .border-dashed {
+    border: 1px solid #FFC107;
+}
+
+/* Foco */
+.theme-mixkar .focus\\:ring-indigo-500:focus {
+    box-shadow: 0 0 0 2px #FFC107; 
+}
+
+/* Tabelas */
+.theme-mixkar #excel-table-container {
+    color: #1E1E1E;
+}
+
+.theme-mixkar #excel-table-container th, 
+.theme-mixkar #excel-table-container td {
+    border: 1px solid #FFC107;
+    color: #1E1E1E;
+}
+
+.theme-mixkar #excel-table-container th {
+    background: #1E1E1E; /* Preto */
+    color: #FFC107; /* Amarelo */
+}
+
+/* Textos principais */
+.theme-mixkar .text-main { color: #FFC107; }
+.theme-mixkar .bg-main { background: #1E1E1E; }
+
+/* Botões / filtros ativos */
+.theme-mixkar .filter-pill-btn.active {
+    background-color: #FFC107;
+    color: #1E1E1E;
+    font-weight: bold;
+    box-shadow: 0 4px 14px 0 rgba(255, 193, 7, 0.39);
+}
+
+/* Notificações */
+.theme-mixkar .notification-badge {
+    border: 2px solid #FFC107;
+    background: #1E1E1E;
+    color: #FFC107;
+}

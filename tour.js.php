@@ -1,6 +1,13 @@
 <?php
 session_start();
 header('Content-Type: application/javascript');
+
+$samImagePath = 'img/SAM-ACENANDO.png';
+$samFinalImagePath = 'img/SAM-FIM.png';
+if (isset($_SESSION['empresa']) && strtolower($_SESSION['empresa']) === 'mixkar') {
+    $samImagePath = 'img/mixkar/KAI.png';
+    $samFinalImagePath = 'img/mixkar/KAI.png';
+}
 ?>
 document.addEventListener('DOMContentLoaded', function () {
     const tour = new Shepherd.Tour({
@@ -12,8 +19,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    const samImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM-ACENANDO.png" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
-    const samFinalImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="img/SAM-FIM.png" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
+    const samImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="<?php echo $samImagePath; ?>" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
+    const samFinalImageHtml = '<div style="text-align: center; margin-bottom: 10px;"><img src="<?php echo $samFinalImagePath; ?>" alt="SAM - Assistente Virtual" style="width: 80px; height: auto; border: none;"></div>';
 
     const navigateTo = (tourStep, url) => {
         const section = new URLSearchParams(url.split('?')[1]).get('section');

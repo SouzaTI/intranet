@@ -3,6 +3,21 @@ session_start();
 require_once 'conexao.php'; // ajuste o nome se for diferente
 require_once 'log_activity.php'; // Inclui a função de log
 
+// Define o tema com base na empresa do usuário
+$themeClass = '';
+$logoPath = 'img/logo.svg';
+$samImagePath = 'img/SAM.png'; // Default SAM image
+$virtualAssistantName = 'SAM';
+$companyDisplayName = 'Comercial Souza'; // Default company display name
+if (isset($_SESSION['empresa']) && strtolower($_SESSION['empresa']) === 'mixkar') {
+    $themeClass = 'theme-mixkar';
+    $logoPath = 'img/mixkar/logo-mixkar.png';
+    $samImagePath = 'img/mixkar/KAI.png';
+    $virtualAssistantName = 'KAI';
+    $companyDisplayName = 'Mixkar';
+}
+$sam_avatar_path = $samImagePath;
+
 // Obter todas as FAQs ativas para exibição na página principal
 $faqs_public = [];
 $result_faqs_public = $conn->query("SELECT id, question, answer FROM faqs WHERE is_active = 1 ORDER BY id ASC");
@@ -301,13 +316,13 @@ if ($result_manage_faqs) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="src/css/style.css">
 </head>
-<body>
-    <div class="flex h-screen bg-[#F5F7FA]">
+<body class="<?= $themeClass ?>">
+    <div class="flex h-screen">
         <!-- Sidebar -->
         <div id="sidebar" class="sidebar text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform md:relative md:translate-x-0 transition duration-200 ease-in-out z-20">
             <div class="flex items-center justify-between px-4">
                 <div class="flex items-center space-x-2">
-                    <img src="img/logo.svg" alt="Logo" class="w-32">
+                    <img src="<?= $logoPath ?>" alt="Logo" class="w-32">
                 </div>
                 <button id="closeSidebar" class="md:hidden text-white focus:outline-none">
                     <i class="fas fa-times"></i>
@@ -395,7 +410,7 @@ if ($result_manage_faqs) {
         <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Header -->
-            <header class="bg-[#2C3E50] shadow-sm z-10">
+            <header class="main-header shadow-sm z-10">
                 <div class="flex items-center justify-between p-4">
                     <div class="flex items-center space-x-3">
                         <button id="openSidebar" class="md:hidden focus:outline-none">
@@ -452,39 +467,33 @@ if ($result_manage_faqs) {
                                 <span class="text-sm font-medium text-white"><?php echo htmlspecialchars($username); ?></span>
                                 <i class="fas fa-chevron-down text-white text-xs"></i>
                             </button>
-                            <div id="profileDropdown" class="absolute right-0 mt-12 w-40 bg-white rounded-lg shadow-lg py-2 z-50 hidden">
-                                <a href="#" data-section="profile" onclick="showSection('profile', true); return false;" class="block px-4 py-2 text-[#4A90E2] hover:bg-[#e5e7eb] text-sm">Meu Perfil</a>
-                                <a href="logout.php" class="block px-4 py-2 text-[#4A90E2] hover:bg-[#e5e7eb] text-sm">Sair</a>
+                            <div id="profileDropdown" class="absolute right-0 mt-12 w-48 bg-white rounded-lg shadow-lg py-2 z-50 hidden">
+                                <a href="#" data-section="profile" onclick="showSection('profile', true); return false;" class="block px-4 py-2 text-[#4A90E2] hover:bg-[#e5e7eb] text-sm flex items-center"><i class="fas fa-user-circle w-6 text-center mr-1"></i>Meu Perfil</a>
+                                <div class="border-t border-gray-200 my-1"></div>
+                                <a href="logout.php" class="block px-4 py-2 text-[#4A90E2] hover:bg-[#e5e7eb] text-sm flex items-center"><i class="fas fa-sign-out-alt w-6 text-center mr-1"></i>Sair</a>
                             </div>
                         </div>
                     </div>
                 </div>
             </header>
-            <!-- Main Content Area -->
-            <div class="p-4 bg-gray-200">
-                <?php if (isset($_GET['status']) && isset($_GET['msg'])): ?>
-                    <?php
-                        $status_class = $_GET['status'] === 'success' 
-                            ? 'bg-green-100 border-green-500 text-green-700' 
-                            : 'bg-red-100 border-red-500 text-red-700';
-                        $icon_class = $_GET['status'] === 'success'
-                            ? 'fa-check-circle'
-                            : 'fa-exclamation-triangle';
-                    ?>
-                    <div id="status-message" class="<?= $status_class ?> border-l-4 p-4 mb-4 rounded-r-lg" role="alert">
-                        <p class="font-bold flex items-center"><i class="fas <?= $icon_class ?> mr-2"></i> <?= $_GET['status'] === 'success' ? 'Sucesso' : 'Erro' ?></p>
-                        <p><?= htmlspecialchars($_GET['msg']) ?></p>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <main class="flex-1 overflow-y-auto bg-gray-200 p-4">
-                <!-- Dashboard Section -->
-                <section id="dashboard" class="space-y-6">
-                    <!-- Bem-vindo -->
-                    <div class="bg-white rounded-lg shadow p-6 mb-6">
-                        <h1 class="text-3xl font-bold text-[#4A90E2] mb-2">Bem-vindo à Intranet da Comercial Souza!</h1>
-                        <p class="text-[#4A90E2] text-lg">Aqui você encontra as informações e ferramentas que precisa para o seu dia a dia.</p>
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-4">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-4">
+                <section id="dashboard">
+                    <div class="p-4 bg-gray-200">
+                        <?php if (isset($_GET['status']) && isset($_GET['msg'])): ?>
+                            <?php
+                                $status_class = $_GET['status'] === 'success' 
+                                    ? 'bg-green-100 border-green-500 text-green-700' 
+                                    : 'bg-red-100 border-red-500 text-red-700';
+                                $icon_class = $_GET['status'] === 'success'
+                                    ? 'fa-check-circle'
+                                    : 'fa-exclamation-triangle';
+                            ?>
+                            <div id="status-message" class="<?= $status_class ?> border-l-4 p-4 mb-4 rounded-r-lg" role="alert">
+                                <p class="font-bold flex items-center"><i class="fas <?= $icon_class ?> mr-2"></i> <?= $_GET['status'] === 'success' ? 'Sucesso' : 'Erro' ?></p>
+                                <p><?= htmlspecialchars($_GET['msg']) ?></p>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Comunicados Importantes -->
@@ -564,24 +573,23 @@ if ($result_manage_faqs) {
 
                     <!-- Substitua o bloco do rodapé por este, logo após o grid dos comunicados/carrossel, ainda dentro do <main> -->
                     <div class="w-full flex justify-center mt-12">
-    <footer class="w-full max-w-5xl flex flex-col items-center justify-center">
-        <div class="text-[#4A90E2] text-sm font-medium mb-2 text-center">
-            Todos os direitos reservados à Comercial Souza &copy; 2025
-        </div>
-        <div class="flex flex-wrap justify-center items-center gap-4 mb-2">
-            <a href="https://www.comercialsouzaatacado.com.br/" target="_blank" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] transition flex items-center gap-2">
-                <i class="fas fa-globe"></i> Site
-            </a>
-            <a href="https://instagram.com/comercialsouza" target="_blank" class="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition flex items-center gap-2">
-                <i class="fab fa-instagram"></i> Instagram
-            </a>
-            <a href="https://linkedin.com/company/comercialsouza" target="_blank" class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 transition flex items-center gap-2">
-                <i class="fab fa-linkedin"></i> LinkedIn
-            </a>
-        </div>
-    </footer>
-</div>
-
+                        <footer class="w-full max-w-5xl flex flex-col items-center justify-center">
+                            <div class="text-[#4A90E2] text-sm font-medium mb-2 text-center">
+                                Todos os direitos reservados à Comercial Souza &copy; 2025
+                            </div>
+                            <div class="flex flex-wrap justify-center items-center gap-4 mb-2">
+                                <a href="https://www.comercialsouzaatacado.com.br/" target="_blank" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870] transition flex items-center gap-2">
+                                    <i class="fas fa-globe"></i> Site
+                                </a>
+                                <a href="https://instagram.com/comercialsouza" target="_blank" class="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition flex items-center gap-2">
+                                    <i class="fab fa-instagram"></i> Instagram
+                                </a>
+                                <a href="https://linkedin.com/company/comercialsouza" target="_blank" class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800 transition flex items-center gap-2">
+                                    <i class="fab fa-linkedin"></i> LinkedIn
+                                </a>
+                            </div>
+                        </footer>
+                    </div>
                 </section>
                 <!-- Documents Section -->
                 <section id="documents" class="hidden space-y-6">
@@ -873,9 +881,9 @@ if ($result_manage_faqs) {
         <div class="max-w-4xl mx-auto faq-chat-window">
             <!-- Cabeçalho da Janela de Chat -->
             <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
-                <img src="img/SAM.png" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 sam-animated-avatar">
+                <img src="<?= $samImagePath ?>" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 sam-animated-avatar">
                 <div>
-                    <h3 class="font-bold text-lg text-white">SAM - Assistente Virtual</h3>
+                    <h3 class="font-bold text-lg text-white"><?= $virtualAssistantName ?> - Assistente Virtual</h3>
                     <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
                 </div>
             </div>
@@ -1594,11 +1602,13 @@ if ($result_manage_faqs) {
         $user_initial = strtoupper(substr($_SESSION['username'], 0, 1));
         $user_avatar_html = $user_profile_photo_path ? "'<img src=\"{$user_profile_photo_path}\" alt=\"Você\" class=\"chat-avatar\">'" : "'<div class=\"w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-lg border-2 border-white shadow-sm\">{$user_initial}</div>'";
 
-        $sam_avatar_path = 'img/SAM.png';
+        $sam_avatar_path = $samImagePath;
         $sam_avatar_html = file_exists($sam_avatar_path) ? "'<img src=\"{$sam_avatar_path}\" alt=\"SAM\" class=\"chat-avatar\">'" : "'<div class=\"w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-lg border-2 border-white shadow-sm\"><i class=\"fas fa-robot\"></i></div>'";
     ?>
     const userAvatarHtml = <?php echo $user_avatar_html; ?>;
     const samAvatarHtml = <?php echo $sam_avatar_html; ?>;
+    const virtualAssistantName = '<?php echo $virtualAssistantName; ?>';
+    const companyDisplayName = '<?php echo $companyDisplayName; ?>';
     </script>
     <script src="src/js/script.js"></script>
     <!-- Scripts do Tour: Colocados no final do body para garantir a ordem de carregamento correta -->

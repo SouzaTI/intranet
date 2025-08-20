@@ -39,12 +39,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Remove destaque de todos os links
         document.querySelectorAll('.sidebar-link').forEach(link => {
-            link.classList.remove('bg-[#1d3870]');
+            link.classList.remove('active-sidebar-link');
         });
         // Adiciona destaque ao link ativo
         const activeLink = document.querySelector(`.sidebar-link[data-section="${sectionId}"]`);
         if (activeLink) {
-            activeLink.classList.add('bg-[#1d3870]');
+            activeLink.classList.add('active-sidebar-link');
         }
 
         // Atualiza a URL para refletir a seção atual
@@ -1072,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="flex justify-start items-end gap-3 animate-fade-in-up">
                 ${samAvatarHtml}
                 <div class="chat-bubble chat-bubble-answer">
-                    <p>Olá! Eu sou o SAM, seu assistente virtual da Comercial Souza. Como posso ajudar hoje?</p>
+                    <p>Olá! Eu sou o ${virtualAssistantName}, seu assistente virtual da ${companyDisplayName}. Como posso ajudar hoje?</p>
                 </div>
             </div>`;
         suggestionsArea.innerHTML = '';
@@ -1091,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function processAnswerText(text) {
         // Match the custom link format [[link text|type:destination]]
-        const linkRegex = /\[\[(.*?)\|(.*?):(.*?)\]\]/g;
+        const linkRegex = /\\\[\\\[(.*?)\\|(.*?):(.*?)\\\]\\]/g;
 
         // First, replace the custom link format with proper HTML <a> tags
         let processedText = text.replace(linkRegex, (match, linkText, linkType, linkDest) => {
@@ -1214,4 +1214,6 @@ document.addEventListener('DOMContentLoaded', function() {
             window.intranetTour.start();
         });
     }
+
+    
 });
