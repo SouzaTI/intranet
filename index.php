@@ -476,8 +476,8 @@ if ($result_manage_faqs) {
                     </div>
                 </div>
             </header>
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-4">
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-4">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 px-2 pt-0 pb-2">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 px-2 pt-0 pb-2">
                 <section id="dashboard">
                     <div class="p-4 bg-gray-200">
                         <?php if (isset($_GET['status']) && isset($_GET['msg'])): ?>
@@ -520,19 +520,16 @@ if ($result_manage_faqs) {
                     }
                     ?>
 
-                    <!-- Espaço extra para descer os blocos -->
-                    <div class="mb-12"></div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        <!-- Bloco Comunicados Importantes em lista -->
-                        <div class="bg-white rounded-lg shadow p-6 flex flex-col">
-                            <div class="border-b pb-2 mb-4 font-semibold text-lg text-green-700 flex items-center gap-2">
-                                <i class="fas fa-bullhorn"></i> Últimos Comunicados
-                            </div>
-                            <?php if (count($comunicados) > 0): ?>
-                                <ul class="space-y-4">
-                                    <?php foreach ($comunicados as $row): ?>
-                                        <li class="border-l-4 pl-4 <?php
+                    <!-- Últimos Comunicados - Faixa Horizontal -->
+                    <div class="bg-white rounded-lg shadow p-6 mb-8">
+                        <div class="border-b pb-2 mb-4 font-semibold text-lg text-green-700 flex items-center gap-2">
+                            <i class="fas fa-bullhorn"></i> Últimos Comunicados
+                        </div>
+                        <?php if (count($comunicados) > 0): ?>
+                            <div class="flex flex-wrap -mx-2"> <!-- Use -mx-2 to counteract px-2 on children -->
+                                <?php foreach ($comunicados as $row): ?>
+                                    <div class="w-full md:w-1/2 lg:w-1/3 px-2 mb-4"> <!-- px-2 for spacing -->
+                                        <div class="border-l-4 pl-4 h-full <?php
                                             $cor = $row['cor'] ?? 'blue';
                                             echo [
                                                 'blue' => 'border-blue-500',
@@ -541,34 +538,61 @@ if ($result_manage_faqs) {
                                             ][$cor] ?? 'border-blue-500';
                                         ?>">
                                             <div class="font-semibold text-[#4A90E2]"><?php echo htmlspecialchars($row['titulo']); ?></div>
-                                            <div class="text-gray-700"><?php echo nl2br(htmlspecialchars($row['descricao'])); ?></div>
-                                            <div class="text-xs text-gray-500 mt-1"><i class="far fa-calendar-alt"></i> Publicado em: <?php echo date('d/m/Y', strtotime($row['data_publicacao'])); ?></div>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            <?php else: ?>
-                                <div class="text-gray-500">Nenhum comunicado importante cadastrado.</div>
-                            <?php endif; ?>
-                        </div>
+                                            <div class="text-gray-700 text-sm mt-1"><?php echo nl2br(htmlspecialchars($row['descricao'])); ?></div>
+                                            <div class="text-xs text-gray-500 mt-2"><i class="far fa-calendar-alt"></i> Publicado em: <?php echo date('d/m/Y', strtotime($row['data_publicacao'])); ?></div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="text-gray-500">Nenhum comunicado importante cadastrado.</div>
+                        <?php endif; ?>
+                    </div>
 
-                        <!-- Bloco Carrossel de Imagens -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                        <!-- Bloco Carrossel de Imagens (modified height) -->
                         <?php if (count($carrosselImgs) > 0): ?>
-                            <div class="bg-white rounded-lg shadow flex items-center justify-center p-0 relative overflow-hidden" style="min-height: 520px;">
-                                <div id="carrossel-imagens" class="relative w-full h-[520px] flex items-center justify-center">
+                            <div class="bg-white rounded-lg shadow flex items-center justify-center p-0 relative overflow-hidden" style="min-height: 300px;">
+                                <div id="carrossel-imagens" class="relative w-full h-[300px] flex items-center justify-center">
                                     <?php foreach ($carrosselImgs as $i => $img): ?>
                                         <div class="carousel-img-item absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out opacity-0 scale-95 <?php echo $i === 0 ? 'opacity-100 scale-100 z-10' : 'z-0'; ?>">
                                             <img src="uploads/<?php echo htmlspecialchars($img['imagem']); ?>"
                                                  alt="Carrossel"
-                                                 class="max-h-[480px] max-w-full rounded-lg shadow-lg object-contain"
+                                                 class="max-h-[280px] max-w-full rounded-lg shadow-lg object-contain"
                                                  style="margin:auto; transition: box-shadow 0.5s, transform 0.7s;">
                                         </div>
                                     <?php endforeach; ?>
                                     <button id="prevCarrosselImg" class="absolute left-4 top-1/2 -translate-y-1/2 bg-[#254c90] text-white rounded-full p-3 shadow hover:bg-[#1d3870] z-20 transition-all duration-300"><i class="fas fa-chevron-left"></i></button>
                                     <button id="nextCarrosselImg" class="absolute right-4 top-1/2 -translate-y-1/2 bg-[#254c90] text-white rounded-full p-3 shadow hover:bg-[#1d3870] z-20 transition-all duration-300"><i class="fas fa-chevron-right"></i></button>
                                 </div>
-                                
                             </div>
                         <?php endif; ?>
+
+                        <div> <!-- This div will contain the two new sections, stacked -->
+                            <!-- Atalhos Rápidos Section -->
+                            <div class="bg-white rounded-lg shadow p-6 mb-8">
+                                <div class="border-b pb-2 mb-4 font-semibold text-lg text-blue-700 flex items-center gap-2">
+                                    <i class="fas fa-link"></i> Atalhos Rápidos
+                                </div>
+                                <ul class="space-y-2">
+                                    <li><a href="#" class="text-blue-600 hover:underline">Link Rápido 1</a></li>
+                                    <li><a href="#" class="text-blue-600 hover:underline">Link Rápido 2</a></li>
+                                    <li><a href="#" class="text-blue-600 hover:underline">Link Rápido 3</a></li>
+                                </ul>
+                            </div>
+
+                            <!-- Aniversariantes do Mês Section -->
+                            <div class="bg-white rounded-lg shadow p-6">
+                                <div class="border-b pb-2 mb-4 font-semibold text-lg text-purple-700 flex items-center gap-2">
+                                    <i class="fas fa-birthday-cake"></i> Aniversariantes do Mês
+                                </div>
+                                <ul class="space-y-2">
+                                    <li>Nome do Aniversariante 1 (01/01)</li>
+                                    <li>Nome do Aniversariante 2 (15/01)</li>
+                                    <li>Nome do Aniversariante 3 (28/01)</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Substitua o bloco do rodapé por este, logo após o grid dos comunicados/carrossel, ainda dentro do <main> -->
