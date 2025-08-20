@@ -369,8 +369,29 @@ body.theme-mixkar {
 }
 
 /* Notificações */
-.theme-mixkar .notification-badge {
-    border: 2px solid #FFC107;
-    background: #1E1E1E;
-    color: #FFC107;
+.quick-action-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: #ffffff; /* White background for quick actions */
+    border-radius: 0.75rem; /* Slightly less rounded than main cards */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Subtle shadow */
+    transition: all 0.2s ease-in-out;
+    text-align: center;
+    color: #4A90E2; /* Primary blue for text/icons */
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.quick-action-block:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    background-color: #f0f8ff; /* Very light blue on hover */
+}
+
+.quick-action-block i {
+    font-size: 2rem; /* Larger icon size */
+    margin-bottom: 0.5rem;
 }

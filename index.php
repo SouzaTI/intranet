@@ -298,6 +298,60 @@ if ($result_manage_faqs) {
 }
 // --- Fim da Lógica para Gerenciar FAQs ---
 
+// Busca aniversariantes do mês
+$aniversariantes = [];
+$mes_atual = date('m');
+
+// Verifica se a coluna data_nascimento existe para evitar erros fatais.
+$db_name = $conn->query("SELECT DATABASE()")->fetch_row()[0];
+$check_column_sql = "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'data_nascimento'";
+$stmt_check = $conn->prepare($check_column_sql);
+$stmt_check->bind_param("s", $db_name);
+$stmt_check->execute();
+$column_exists_result = $stmt_check->get_result();
+
+if ($column_exists_result && $column_exists_result->num_rows > 0) {
+    // A coluna existe, então podemos buscar os aniversariantes
+    $sql_aniversariantes = "
+        SELECT u.username, u.profile_photo, s.nome as setor_nome, DAY(u.data_nascimento) as dia
+        FROM users u
+        LEFT JOIN setores s ON u.setor_id = s.id
+        WHERE MONTH(u.data_nascimento) = ?
+        ORDER BY DAY(u.data_nascimento) ASC
+    ";
+    $stmt_aniversariantes = $conn->prepare($sql_aniversariantes);
+    if ($stmt_aniversariantes) {
+        $stmt_aniversariantes->bind_param("s", $mes_atual);
+        $stmt_aniversariantes->execute();
+        $result_aniversariantes = $stmt_aniversariantes->get_result();
+        while ($aniversariante = $result_aniversariantes->fetch_assoc()) {
+            $aniversariantes[] = $aniversariante;
+        }
+        $stmt_aniversariantes->close();
+    } else {
+        error_log("Erro ao preparar a query de aniversariantes: " . $conn->error);
+    }
+} else {
+    // A coluna não existe, loga um aviso para o desenvolvedor
+    error_log("A coluna 'data_nascimento' não foi encontrada na tabela 'users'. A funcionalidade de aniversariantes está desativada.");
+}
+
+// Função para pegar as iniciais do nome
+function getInitials($name) {
+    $words = explode(' ', $name);
+    $initials = '';
+    if (count($words) >= 2) {
+        $initials = strtoupper(substr($words[0], 0, 1) . substr(end($words), 0, 1));
+    } elseif (count($words) == 1 && !empty($words[0])) {
+        $initials = strtoupper(substr($words[0], 0, 2));
+    }
+    return $initials;
+}
+
+// Mapeamento de nomes de meses
+$nomes_meses = ['01' => 'Janeiro', '02' => 'Fevereiro', '03' => 'Março', '04' => 'Abril', '05' => 'Maio', '06' => 'Junho', '07' => 'Julho', '08' => 'Agosto', '09' => 'Setembro', '10' => 'Outubro', '11' => 'Novembro', '12' => 'Dezembro'];
+$nome_mes_atual = $nomes_meses[date('m')];
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -520,77 +574,142 @@ if ($result_manage_faqs) {
                     }
                     ?>
 
-                    <!-- Últimos Comunicados - Faixa Horizontal -->
-                    <div class="bg-white rounded-lg shadow p-6 mb-8">
-                        <div class="border-b pb-2 mb-4 font-semibold text-lg text-green-700 flex items-center gap-2">
-                            <i class="fas fa-bullhorn"></i> Últimos Comunicados
-                        </div>
-                        <?php if (count($comunicados) > 0): ?>
-                            <div class="flex flex-wrap -mx-2"> <!-- Use -mx-2 to counteract px-2 on children -->
-                                <?php foreach ($comunicados as $row): ?>
-                                    <div class="w-full md:w-1/2 lg:w-1/3 px-2 mb-4"> <!-- px-2 for spacing -->
-                                        <div class="border-l-4 pl-4 h-full <?php
-                                            $cor = $row['cor'] ?? 'blue';
-                                            echo [
-                                                'blue' => 'border-blue-500',
-                                                'green' => 'border-green-500',
-                                                'orange' => 'border-orange-500'
-                                            ][$cor] ?? 'border-blue-500';
-                                        ?>">
-                                            <div class="font-semibold text-[#4A90E2]"><?php echo htmlspecialchars($row['titulo']); ?></div>
-                                            <div class="text-gray-700 text-sm mt-1"><?php echo nl2br(htmlspecialchars($row['descricao'])); ?></div>
-                                            <div class="text-xs text-gray-500 mt-2"><i class="far fa-calendar-alt"></i> Publicado em: <?php echo date('d/m/Y', strtotime($row['data_publicacao'])); ?></div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php else: ?>
-                            <div class="text-gray-500">Nenhum comunicado importante cadastrado.</div>
-                        <?php endif; ?>
-                    </div>
-
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        <!-- Bloco Carrossel de Imagens (modified height) -->
-                        <?php if (count($carrosselImgs) > 0): ?>
-                            <div class="bg-white rounded-lg shadow flex items-center justify-center p-0 relative overflow-hidden" style="min-height: 300px;">
-                                <div id="carrossel-imagens" class="relative w-full h-[300px] flex items-center justify-center">
-                                    <?php foreach ($carrosselImgs as $i => $img): ?>
-                                        <div class="carousel-img-item absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out opacity-0 scale-95 <?php echo $i === 0 ? 'opacity-100 scale-100 z-10' : 'z-0'; ?>">
-                                            <img src="uploads/<?php echo htmlspecialchars($img['imagem']); ?>"
-                                                 alt="Carrossel"
-                                                 class="max-h-[280px] max-w-full rounded-lg shadow-lg object-contain"
-                                                 style="margin:auto; transition: box-shadow 0.5s, transform 0.7s;">
+                        <!-- Últimos Comunicados - Estilo Lista (agora na coluna) -->
+                        <div class="bg-white rounded-xl shadow-lg p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-bold text-blue-900 flex items-center">
+                                    <i class="fas fa-bullhorn mr-3 text-green-600"></i> Últimos Comunicados
+                                </h3>
+                                <a href="#" onclick="showSection('information', true); return false;" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Ver todos</a>
+                            </div>
+                            <div class="space-y-4">
+                                <?php if (count($comunicados) > 0): ?>
+                                    <?php foreach ($comunicados as $row): ?>
+                                        <?php
+                                        $cor = $row['cor'] ?? 'blue';
+                                        $color_map = [
+                                            'blue'   => ['border' => 'border-blue-500',   'bg' => 'bg-blue-50',   'tag_bg' => 'bg-blue-100',   'tag_text' => 'text-blue-800',   'tag_content' => 'Informativo'],
+                                            'green'  => ['border' => 'border-green-500',  'bg' => 'bg-green-50',  'tag_bg' => 'bg-green-100',  'tag_text' => 'text-green-800',  'tag_content' => 'Aviso'],
+                                            'orange' => ['border' => 'border-orange-500', 'bg' => 'bg-orange-50', 'tag_bg' => 'bg-orange-100', 'tag_text' => 'text-orange-800', 'tag_content' => 'Alerta'],
+                                            'red'    => ['border' => 'border-red-500',    'bg' => 'bg-red-50',    'tag_bg' => 'bg-red-100',    'tag_text' => 'text-red-800',    'tag_content' => 'Urgente']
+                                        ];
+                                        $current_color = $color_map[$cor] ?? $color_map['blue'];
+                                        ?>
+                                        <div class="border-l-4 <?= $current_color['border'] ?> pl-4 py-3 <?= $current_color['bg'] ?> rounded-r-lg transition-shadow hover:shadow-md">
+                                            <div class="flex justify-between items-start">
+                                                <div>
+                                                    <h4 class="font-semibold text-gray-800"><?= htmlspecialchars($row['titulo']) ?></h4>
+                                                    <p class="text-gray-600 text-sm">Publicado em: <?= date('d/m/Y', strtotime($row['data_publicacao'])) ?></p>
+                                                    <p class="text-gray-700 mt-2 text-sm"><?= nl2br(htmlspecialchars($row['descricao'])) ?></p>
+                                                </div>
+                                                <span class="whitespace-nowrap ml-4 px-2 py-1 rounded text-xs font-medium <?= $current_color['tag_bg'] ?> <?= $current_color['tag_text'] ?>"><?= $current_color['tag_content'] ?></span>
+                                            </div>
                                         </div>
                                     <?php endforeach; ?>
-                                    <button id="prevCarrosselImg" class="absolute left-4 top-1/2 -translate-y-1/2 bg-[#254c90] text-white rounded-full p-3 shadow hover:bg-[#1d3870] z-20 transition-all duration-300"><i class="fas fa-chevron-left"></i></button>
-                                    <button id="nextCarrosselImg" class="absolute right-4 top-1/2 -translate-y-1/2 bg-[#254c90] text-white rounded-full p-3 shadow hover:bg-[#1d3870] z-20 transition-all duration-300"><i class="fas fa-chevron-right"></i></button>
-                                </div>
+                                <?php else: ?>
+                                    <div class="text-center text-gray-500 py-6">
+                                        <i class="fas fa-info-circle text-3xl mb-2"></i>
+                                        <p>Nenhum comunicado importante no momento.</p>
+                                    </div>
+                                <?php endif; ?>
                             </div>
-                        <?php endif; ?>
-
-                        <div> <!-- This div will contain the two new sections, stacked -->
+                        </div>
+                        <div> <!-- This div will contain the three sections, stacked -->
+                            <!-- Bloco Carrossel de Imagens (agora na coluna) -->
+                            <?php if (count($carrosselImgs) > 0): ?>
+                                <div class="bg-white rounded-lg shadow flex items-center justify-center p-0 relative overflow-hidden mb-8" style="min-height: 300px;">
+                                    <div id="carrossel-imagens" class="relative w-full h-[300px] flex items-center justify-center">
+                                        <?php foreach ($carrosselImgs as $i => $img): ?>
+                                            <div class="carousel-img-item absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out opacity-0 scale-95 <?php echo $i === 0 ? 'opacity-100 scale-100 z-10' : 'z-0'; ?>">
+                                                <img src="uploads/<?php echo htmlspecialchars($img['imagem']); ?>"
+                                                        alt="Carrossel"
+                                                        class="max-h-[280px] max-w-full rounded-lg shadow-lg object-contain"
+                                                        style="margin:auto; transition: box-shadow 0.5s, transform 0.7s;">
+                                            </div>
+                                        <?php endforeach; ?>
+                                        <button id="prevCarrosselImg" class="absolute left-4 top-1/2 -translate-y-1/2 bg-[#254c90] text-white rounded-full p-3 shadow hover:bg-[#1d3870] z-20 transition-all duration-300"><i class="fas fa-chevron-left"></i></button>
+                                        <button id="nextCarrosselImg" class="absolute right-4 top-1/2 -translate-y-1/2 bg-[#254c90] text-white rounded-full p-3 shadow hover:bg-[#1d3870] z-20 transition-all duration-300"><i class="fas fa-chevron-right"></i></button>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                             <!-- Atalhos Rápidos Section -->
                             <div class="bg-white rounded-lg shadow p-6 mb-8">
                                 <div class="border-b pb-2 mb-4 font-semibold text-lg text-blue-700 flex items-center gap-2">
-                                    <i class="fas fa-link"></i> Atalhos Rápidos
+                                    <i class="fas fa-bolt"></i> Atalhos Rápidos
                                 </div>
-                                <ul class="space-y-2">
-                                    <li><a href="#" class="text-blue-600 hover:underline">Link Rápido 1</a></li>
-                                    <li><a href="#" class="text-blue-600 hover:underline">Link Rápido 2</a></li>
-                                    <li><a href="#" class="text-blue-600 hover:underline">Link Rápido 3</a></li>
-                                </ul>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                    <?php
+                                    // 1. Manter o primeiro atalho externo (CSC) se existir
+                                    if (!empty($sistemas_externos)):
+                                        $primeiro_atalho = $sistemas_externos[0];
+                                    ?>
+                                        <a href="<?= htmlspecialchars($primeiro_atalho['link']) ?>" target="_blank" rel="noopener noreferrer" class="p-4 rounded-lg text-center transition-transform transform hover:scale-105 bg-blue-100 hover:bg-blue-200 text-blue-800">
+                                            <div class="text-3xl mb-2"><i class="<?= htmlspecialchars($primeiro_atalho['icon_class']) ?>"></i></div>
+                                            <span class="text-sm font-medium"><?= htmlspecialchars($primeiro_atalho['nome']) ?></span>
+                                        </a>
+                                    <?php endif; ?>
+
+                                    <!-- 2. Atalho para Matriz de Comunicação -->
+                                    <a href="#" onclick="showSection('matriz_comunicacao', true); return false;" class="p-4 rounded-lg text-center transition-transform transform hover:scale-105 bg-green-100 hover:bg-green-200 text-green-800">
+                                        <div class="text-3xl mb-2"><i class="fas fa-sitemap"></i></div>
+                                        <span class="text-sm font-medium">Matriz</span>
+                                    </a>
+                                    <!-- 3. Atalho para Sugestões e Reclamações -->
+                                    <a href="#" onclick="showSection('sugestoes', true); return false;" class="p-4 rounded-lg text-center transition-transform transform hover:scale-105 bg-purple-100 hover:bg-purple-200 text-purple-800">
+                                        <div class="text-3xl mb-2"><i class="fas fa-comment-dots"></i></div>
+                                        <span class="text-sm font-medium">Sugestões</span>
+                                    </a>
+                                    <!-- 4. Atalho para Normas e Procedimentos -->
+                                    <a href="#" onclick="showSection('documents', true); return false;" class="p-4 rounded-lg text-center transition-transform transform hover:scale-105 bg-orange-100 hover:bg-orange-200 text-orange-800">
+                                        <div class="text-3xl mb-2"><i class="fas fa-book"></i></div>
+                                        <span class="text-sm font-medium">Normas</span>
+                                    </a>
+                                </div>
                             </div>
 
                             <!-- Aniversariantes do Mês Section -->
-                            <div class="bg-white rounded-lg shadow p-6">
-                                <div class="border-b pb-2 mb-4 font-semibold text-lg text-purple-700 flex items-center gap-2">
-                                    <i class="fas fa-birthday-cake"></i> Aniversariantes do Mês
+                            <div class="bg-white rounded-xl shadow-lg p-6">
+                                <h3 class="text-xl font-bold text-blue-900 mb-4 flex items-center">
+                                    <i class="fas fa-birthday-cake mr-3 text-purple-600"></i> Aniversariantes de <?= $nome_mes_atual ?>
+                                </h3>
+                                <div class="space-y-4 max-h-80 overflow-y-auto pr-2">
+                                    <?php if (count($aniversariantes) > 0): ?>
+                                        <?php
+                                        $cores_avatar = ['from-yellow-400 to-yellow-600', 'from-blue-400 to-blue-600', 'from-green-400 to-green-600', 'from-purple-400 to-purple-600', 'from-pink-400 to-pink-600'];
+                                        $emojis = ['🎉', '🎈', '🎁', '🎂', '🥳'];
+                                        $i = 0;
+                                        ?>
+                                        <?php foreach ($aniversariantes as $aniversariante): ?>
+                                            <?php
+                                            $cor_atual = $cores_avatar[$i % count($cores_avatar)];
+                                            $emoji_atual = $emojis[$i % count($emojis)];
+                                            $cor_borda = 'border-' . explode('-', $cor_atual)[1] . '-400';
+                                            $bg_fundo = 'bg-' . explode('-', $cor_atual)[1] . '-50';
+                                            ?>
+                                            <div class="flex items-center space-x-3 p-3 <?= $bg_fundo ?> rounded-lg border-l-4 <?= $cor_borda ?> transition-transform transform hover:scale-105">
+                                                <?php if (!empty($aniversariante['profile_photo']) && file_exists($aniversariante['profile_photo'])): ?>
+                                                    <img src="<?= htmlspecialchars($aniversariante['profile_photo']) ?>" alt="Foto de <?= htmlspecialchars($aniversariante['username']) ?>" class="w-10 h-10 rounded-full object-cover">
+                                                <?php else: ?>
+                                                    <div class="w-10 h-10 bg-gradient-to-r <?= $cor_atual ?> rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                                        <?= getInitials($aniversariante['username']) ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <div class="flex-1">
+                                                    <h4 class="font-semibold text-gray-800"><?= htmlspecialchars($aniversariante['username']) ?></h4>
+                                                    <p class="text-sm text-gray-600"><?= htmlspecialchars($aniversariante['setor_nome'] ?? 'N/A') ?> • <?= str_pad($aniversariante['dia'], 2, '0', STR_PAD_LEFT) ?>/<?= $mes_atual ?></p>
+                                                </div>
+                                                <div class="text-2xl"><?= $emoji_atual ?></div>
+                                            </div>
+                                            <?php $i++; ?>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <div class="text-center text-gray-500 py-6">
+                                            <i class="fas fa-calendar-times text-3xl mb-2"></i>
+                                            <p>Nenhum aniversariante este mês.</p>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
-                                <ul class="space-y-2">
-                                    <li>Nome do Aniversariante 1 (01/01)</li>
-                                    <li>Nome do Aniversariante 2 (15/01)</li>
-                                    <li>Nome do Aniversariante 3 (28/01)</li>
-                                </ul>
                             </div>
                         </div>
                     </div>
