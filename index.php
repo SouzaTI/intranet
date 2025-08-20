@@ -531,8 +531,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 </div>
             </header>
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 px-2 pt-0 pb-2">
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 px-2 pt-0 pb-2">
-                <section id="dashboard">
+                <section id="dashboard" class="content-section">
                     <div class="p-4 bg-gray-200">
                         <?php if (isset($_GET['status']) && isset($_GET['msg'])): ?>
                             <?php
@@ -735,7 +734,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     </div>
                 </section>
                 <!-- Documents Section -->
-                <section id="documents" class="hidden space-y-6">
+                <section id="documents" class="content-section hidden space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex space-x-2">
                             <div class="relative">
@@ -832,7 +831,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     </div>
                 </section>
                 <!-- Information Section -->
-                <section id="information" class="hidden">
+                <section id="information" class="content-section hidden">
                     <div>
                         <!-- Abas de Navegação -->
                         <nav class="flex" aria-label="Tabs">
@@ -897,7 +896,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 </section>
                 
                 <!-- Informações/Avisos Section -->
-                <section id="info-upload" class="hidden space-y-6">
+                <section id="info-upload" class="content-section hidden space-y-6">
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="p-6 border-b border-[#254c90]">
             <h3 class="text-lg font-semibold text-[#4A90E2]">Cadastrar Aviso/Informação</h3>
@@ -970,7 +969,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
     </div>
 </section>
                 <!-- Sugestões e Reclamações Section -->
-                <section id="sugestoes" class="hidden space-y-6">
+                <section id="sugestoes" class="content-section hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-2xl font-bold text-[#4A90E2] mb-2">Sugestões e Reclamações</h2>
                         <p class="text-[#4A90E2] mb-6">Sua opinião é muito importante para nós. Envie sua sugestão ou reclamação para ajudar a melhorar nosso ambiente de trabalho!</p>
@@ -1008,51 +1007,71 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     </div>
                 </section>
                 <!-- FAQ Section -->
-                <section id="faq" class="hidden space-y-6">
-    <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-6 border-b pb-3">
-            <h2 class="text-3xl font-bold text-[#4A90E2]">FAQ - Perguntas Frequentes</h2>
-            <?php if (can_view_section('manage_faq_section')): ?>
-                <a href="#" data-section="manage_faq_section" onclick="showSection('manage_faq_section', true); return false;" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
-                    <i class="fas fa-plus-circle mr-2"></i>
-                    Gerenciar FAQs
-                </a>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Nova Estrutura de Chat Interativo com Layout de App -->
-        <div class="max-w-4xl mx-auto faq-chat-window">
-            <!-- Cabeçalho da Janela de Chat -->
-            <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
-                <img src="<?= $samImagePath ?>" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 sam-animated-avatar">
-                <div>
-                    <h3 class="font-bold text-lg text-white"><?= $virtualAssistantName ?> - Assistente Virtual</h3>
-                    <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
-                </div>
-            </div>
+                <section id="faq" class="content-section hidden space-y-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-6 border-b pb-3">
+                            <h2 class="text-3xl font-bold text-[#4A90E2]">FAQ - Perguntas Frequentes</h2>
+                            <?php if (can_view_section('manage_faq_section')): ?>
+                                <a href="#" data-section="manage_faq_section" onclick="showSection('manage_faq_section', true); return false;" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
+                                    <i class="fas fa-plus-circle mr-2"></i>
+                                    Gerenciar FAQs
+                                </a>
+                            <?php endif; ?>
+                        </div>
 
-            <!-- Corpo do Chat -->
-            <div id="faq-chat-area" class="p-4 space-y-6 overflow-y-auto faq-chat-body">
-                <!-- O chat será preenchido pelo JavaScript -->
-            </div>
+                        <!-- Layout em Grid: Lista de Perguntas (esquerda) e Chat (direita) -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-            <!-- Área de "Digitação" com Sugestões e Reset -->
-            <div class="bg-white p-4 border-t border-gray-200">
-                <div id="faq-suggestions-area" class="flex flex-wrap gap-3 justify-center mb-3">
-                    <!-- Botões de sugestão serão inseridos aqui -->
-                </div>
-                <div id="faq-reset-area" class="text-center hidden">
-                    <button id="faq-reset-btn" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
-                        <i class="fas fa-sync-alt mr-1"></i>Reiniciar conversa
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
+                            <!-- Coluna 1: Lista de Perguntas -->
+                            <div class="lg:col-span-1">
+                                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 h-full">
+                                    <h3 class="font-bold text-lg text-[#4A90E2] mb-4">Tópicos</h3>
+                                    <!-- Barra de busca para as perguntas -->
+                                    <div class="relative mb-4">
+                                        <input type="text" id="faq-search-input" placeholder="Buscar pergunta..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full text-sm focus:ring-2 focus:ring-blue-300">
+                                        <i class="fas fa-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+                                    </div>
+                                    <!-- Container para a lista de perguntas com rolagem -->
+                                    <div id="faq-questions-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+                                        <!-- As perguntas serão populadas aqui pelo JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Coluna 2: Janela de Chat -->
+                            <div class="lg:col-span-2">
+                                <div class="faq-chat-window h-full flex flex-col">
+                                    <!-- Cabeçalho da Janela de Chat -->
+                                    <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
+                                        <img src="<?= $samImagePath ?>" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 sam-animated-avatar">
+                                        <div>
+                                            <h3 class="font-bold text-lg text-white"><?= $virtualAssistantName ?> - Assistente Virtual</h3>
+                                            <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Corpo do Chat -->
+                                    <div id="faq-chat-area" class="p-4 space-y-6 overflow-y-auto faq-chat-body flex-grow">
+                                        <!-- O chat será preenchido pelo JavaScript -->
+</div>
+
+                                    <!-- Rodapé do Chat com botão de reset -->
+                                    <div class="bg-white p-4 border-t border-gray-200">
+                                        <div id="faq-suggestions-area" class="hidden"></div> <!-- Mantido oculto por segurança -->
+                                        <div id="faq-reset-area" class="text-center hidden">
+                                            <button id="faq-reset-btn" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
+                                                <i class="fas fa-sync-alt mr-1"></i>Reiniciar conversa
+                                            </button>  
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
 <!-- Sobre Nós Section -->
-<section id="about" class="hidden space-y-6">
+<section id="about" class="content-section hidden space-y-6">
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Sobre Nós</h2>
         <p class="text-[#4A90E2] mb-4">
@@ -1085,7 +1104,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
 </section>
 
 <!-- Sistemas Section -->
-<section id="sistema" class="hidden space-y-6">
+<section id="sistema" class="content-section hidden space-y-6">
     <h2 class="text-2xl font-bold text-[#4A90E2]">Acesso Rápido aos Sistemas</h2>
     <?php if (count($sistemas_externos) > 0): ?>
         <div id="systems-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -1108,7 +1127,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
 </section>
 
                 <!-- Registros de Sugestões Section (Admin only) -->
-                <section id="registros_sugestoes" class="hidden space-y-6">
+                <section id="registros_sugestoes" class="content-section hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Registros de Sugestões e Reclamações</h2>
                         <p class="text-[#4A90E2] mb-6">Acompanhe e gerencie as mensagens enviadas pelos colaboradores.</p>
@@ -1119,7 +1138,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 </section>
 
                 <!-- Settings Section (Admin only) -->
-                <section id="settings" class="hidden space-y-6">
+                <section id="settings" class="content-section hidden space-y-6">
                 <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])): ?>
                     <div>
                         <!-- Abas de Navegação -->
@@ -1230,7 +1249,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 </section>
 
                 <!-- Manage FAQs Section (Admin only) -->
-                <section id="manage_faq_section" class="hidden space-y-6">
+                <section id="manage_faq_section" class="content-section hidden space-y-6">
                     <?php if (can_view_section('manage_faq_section')): ?>
                         <div class="max-w-6xl mx-auto bg-white p-8 rounded-lg shadow-xl border border-gray-200">
                             <h1 class="text-3xl font-extrabold text-[#4A90E2] mb-6 pb-3 border-b-4 border-[#254c90]/50">Gerenciar Perguntas Frequentes (FAQs)</h1>
@@ -1354,7 +1373,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 </section>
 
                 <!-- Create Procedure Section (Admin only) -->
-                <section id="create_procedure" class="hidden space-y-6">
+                <section id="create_procedure" class="content-section hidden space-y-6">
                     <div class="bg-white rounded-lg shadow overflow-hidden">
                         <div class="p-6 border-b border-[#254c90]">
                             <h3 class="text-lg font-semibold text-[#4A90E2]">Criar Novo Procedimento</h3>
@@ -1419,7 +1438,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 </section>
 
                 <!-- Profile Section -->
-                <section id="profile" class="hidden space-y-6">
+                <section id="profile" class="content-section hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-2xl font-bold text-[#4A90E2] mb-6 border-b pb-3">Meu Perfil</h2>
                         
@@ -1491,7 +1510,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 </section>
 
                 <!-- Matriz de Comunicação Section -->
-                <section id="matriz_comunicacao" class="hidden space-y-6">
+                <section id="matriz_comunicacao" class="content-section hidden space-y-6">
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Matriz de Comunicação</h2>
                         

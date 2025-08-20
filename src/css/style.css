@@ -286,6 +286,32 @@
             animation: float 3s ease-in-out infinite;
         }
 
+        /* Estilos para a nova lista de perguntas da FAQ */
+        .faq-question-item {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            text-align: left;
+            background-color: #ffffff;
+            color: #374151; /* gray-700 */
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+        }
+        .faq-question-item:hover {
+            background-color: #f3f4f6; /* gray-100 */
+            border-color: #d1d5db; /* gray-300 */
+            transform: translateX(3px);
+        }
+        .faq-question-item.active {
+            background-color: #dbeafe; /* blue-200 */
+            color: #1d4ed8; /* blue-700 */
+            border-color: #93c5fd; /* blue-300 */
+            font-weight: 600;
+        }
+
 /* ==========================================================================
    TEMA MIXKAR - Preto + Amarelo (cores da logo)
    ========================================================================== */

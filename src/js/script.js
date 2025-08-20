@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showSection(sectionId, updateUrl = false) {
         // Esconde todas as seções
-        document.querySelectorAll('main > section').forEach(section => {
+        document.querySelectorAll('.content-section').forEach(section => {
             section.classList.add('hidden');
         });
 
@@ -1071,24 +1071,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setupFaqChat() {
         if(!chatArea) return;
+
+        // Novo: Pega o container da lista de perguntas
+        const questionsList = document.getElementById('faq-questions-list');
+
         chatArea.innerHTML = `
             <div class="flex justify-start items-end gap-3 animate-fade-in-up">
                 ${samAvatarHtml}
                 <div class="chat-bubble chat-bubble-answer">
-                    <p>Olá! Eu sou o ${virtualAssistantName}, seu assistente virtual da ${companyDisplayName}. Como posso ajudar hoje?</p>
+                    <p>Olá! Eu sou o ${virtualAssistantName}, seu assistente virtual da ${companyDisplayName}. Como posso ajudar hoje? Escolha uma pergunta da lista ao lado.</p>
                 </div>
             </div>`;
-        suggestionsArea.innerHTML = '';
+        
+        // Limpa o conteúdo anterior
+        if (questionsList) {
+            questionsList.innerHTML = '';
+        }
+        if (suggestionsArea) {
+            suggestionsArea.innerHTML = ''; // Mantido por segurança, embora esteja oculto
+        }
         resetArea.classList.add('hidden');
 
-        faqsData.forEach(faq => {
-            const button = document.createElement('button');
-            button.className = 'faq-suggestion-btn px-4 py-2 rounded-lg text-sm font-medium';
-            button.textContent = faq.question;
-            button.dataset.faqId = faq.id;
-            button.addEventListener('click', handleFaqSuggestionClick);
-            suggestionsArea.appendChild(button);
-        });
+        // Popula a nova lista de perguntas
+        if (questionsList) {
+            faqsData.forEach(faq => {
+                const button = document.createElement('button');
+                button.className = 'faq-question-item'; // Nova classe CSS
+                button.textContent = faq.question;
+                button.dataset.faqId = faq.id;
+                button.addEventListener('click', handleFaqSuggestionClick);
+                questionsList.appendChild(button);
+            });
+        }
     }
     window.setupFaqChat = setupFaqChat;
 
@@ -1129,12 +1143,31 @@ document.addEventListener('DOMContentLoaded', function() {
         return processedText.replace(/\n/g, '<br>');
     }
 
+    // Filtro de busca para a lista de perguntas da FAQ
+    const faqSearchInput = document.getElementById('faq-search-input');
+    if (faqSearchInput) {
+        faqSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const questions = document.querySelectorAll('#faq-questions-list .faq-question-item');
+            questions.forEach(q => {
+                q.style.display = q.textContent.toLowerCase().includes(searchTerm) ? 'block' : 'none';
+            });
+        });
+    }
+
     function handleFaqSuggestionClick(event) {
         const button = event.currentTarget;
         const faqId = button.dataset.faqId;
         const faq = faqsData.find(f => f.id == faqId);
 
         if (!faq) return;
+
+        // Novo: Destaca a pergunta ativa na lista
+        const questionsList = document.getElementById('faq-questions-list');
+        if (questionsList) {
+            questionsList.querySelectorAll('.faq-question-item').forEach(btn => btn.classList.remove('active'));
+        }
+        button.classList.add('active');
 
         if (resetArea.classList.contains('hidden')) {
             resetArea.classList.remove('hidden');
@@ -1148,8 +1181,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             ${userAvatarHtml}`;
         chatArea.appendChild(questionBubble);
-
-        button.style.display = 'none';
 
         chatArea.scrollTop = chatArea.scrollHeight;
 
@@ -1188,8 +1219,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             chatArea.scrollTop = chatArea.scrollHeight;
 
-            const remainingButtons = suggestionsArea.querySelectorAll('button[style*="display: none"]');
-            if (remainingButtons.length === faqsData.length) {
+            // Verifica se todas as perguntas foram clicadas (agora verificando a classe 'active')
+            const activeButtons = document.querySelectorAll('#faq-questions-list .faq-question-item.active');
+            const allButtons = document.querySelectorAll('#faq-questions-list .faq-question-item');
+
+            if (activeButtons.length === allButtons.length) {
                 setTimeout(() => {
                     const endMessage = document.createElement('div');
                     endMessage.className = 'flex justify-start items-end gap-3 animate-fade-in-up';
@@ -1207,6 +1241,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (resetButton) {
         resetButton.addEventListener('click', () => {
+            // Limpa o campo de busca ao reiniciar
+            if (faqSearchInput) {
+                faqSearchInput.value = '';
+            }
             setupFaqChat();
         });
     }
