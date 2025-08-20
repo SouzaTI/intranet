@@ -13,6 +13,31 @@ $user_id = $_SESSION['user_id'];
 $messages = [];
 $status = 'success'; // Começa como sucesso, muda para 'error' se algo falhar
 
+// --- Lógica para Alteração de Data de Nascimento ---
+if (isset($_POST['data_nascimento'])) {
+    $data_nascimento = $_POST['data_nascimento'];
+    // Validação: verifica se o formato da data é válido ou se o campo está vazio
+    if (!empty($data_nascimento) && !DateTime::createFromFormat('Y-m-d', $data_nascimento)) {
+        $messages[] = "Formato de data de nascimento inválido.";
+        $status = 'error';
+        logActivity($user_id, 'Tentativa de atualização de perfil falha', 'Formato de data de nascimento inválido', 'error');
+    } else {
+        $data_nascimento_db = !empty($data_nascimento) ? $data_nascimento : null;
+        $stmt_update_dob = $conn->prepare("UPDATE users SET data_nascimento = ? WHERE id = ?");
+        $stmt_update_dob->bind_param("si", $data_nascimento_db, $user_id);
+        if ($stmt_update_dob->execute()) {
+            $_SESSION['data_nascimento'] = $data_nascimento_db; // Atualiza a sessão
+            $messages[] = "Data de nascimento atualizada com sucesso.";
+            logActivity($user_id, 'Atualizou a data de nascimento');
+        } else {
+            $messages[] = "Erro ao atualizar a data de nascimento.";
+            $status = 'error';
+            logActivity($user_id, 'Erro ao atualizar data de nascimento', 'Falha no banco de dados', 'error');
+        }
+        $stmt_update_dob->close();
+    }
+}
+
 // --- Lógica para Alteração de Senha ---
 if (!empty($_POST['current_password']) || !empty($_POST['new_password']) || !empty($_POST['confirm_password'])) {
     $current_password = $_POST['current_password'];
@@ -115,7 +140,7 @@ if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPL
 }
 
 // --- Redirecionamento Final ---
-if (empty($messages) && (empty($_POST['current_password']) && empty($_FILES['profile_photo']['name']))) {
+if (empty($messages) && (empty($_POST['current_password']) && empty($_FILES['profile_photo']['name']) && !isset($_POST['data_nascimento']))) {
     // Se nada foi enviado, apenas redireciona de volta sem mensagem.
     header("Location: index.php?section=profile");
     exit();

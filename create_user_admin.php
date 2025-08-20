@@ -14,10 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $role = $_POST['role'] ?? 'user';
     $setor_id = filter_input(INPUT_POST, 'setor_id', FILTER_VALIDATE_INT);
+    $empresa = trim($_POST['empresa'] ?? '');
 
     // Validação
-    if (empty($username) || empty($password) || $setor_id === false || !in_array($role, ['user', 'admin'])) {
-        header("Location: index.php?section=settings&tab=users&status=error&msg=" . urlencode("Todos os campos são obrigatórios."));
+    if (empty($username) || empty($password) || $setor_id === false || !in_array($role, ['user', 'admin']) || empty($empresa)) {
+        header("Location: index.php?section=settings&tab=users&status=error&msg=" . urlencode("Todos os campos, incluindo a empresa, são obrigatórios."));
         exit();
     }
 
@@ -47,8 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Insere o novo usuário no banco de dados
-    $stmt_insert = $conn->prepare("INSERT INTO users (username, password, role, setor_id, department) VALUES (?, ?, ?, ?, ?)");
-    $stmt_insert->bind_param("sssis", $username, $hashed_password, $role, $setor_id, $department_name);
+    $stmt_insert = $conn->prepare("INSERT INTO users (username, password, role, setor_id, department, empresa) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt_insert->bind_param("sssiss", $username, $hashed_password, $role, $setor_id, $department_name, $empresa);
 
     if ($stmt_insert->execute()) {
         $new_user_id = $stmt_insert->insert_id;

@@ -30,8 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['profile_photo'] = $user['profile_photo'];
             $_SESSION['department'] = $user['department'];
             $_SESSION['setor_id'] = $user['setor_id']; // Adicionado do arquivo antigo
+            $_SESSION['empresa'] = $user['empresa']; // Adicionado para o perfil
+            $_SESSION['data_nascimento'] = $user['data_nascimento']; // Adicionado para o perfil
             $_SESSION['setor_nome'] = $user['setor_nome']; // Adicionado do arquivo antigo
-            $_SESSION['empresa'] = $user['empresa'] ?? 'souza'; // Adicionado para o tema
 
             // **NOVO**: Verifica se o tour deve ser exibido
             $_SESSION['show_tour'] = ($user['has_completed_tour'] == 0);

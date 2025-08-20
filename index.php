@@ -464,7 +464,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
         <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Header -->
-            <header class="main-header shadow-sm z-10">
+            <header class="main-header shadow-sm relative z-30">
                 <div class="flex items-center justify-between p-4">
                     <div class="flex items-center space-x-3">
                         <button id="openSidebar" class="md:hidden focus:outline-none">
@@ -673,7 +673,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                                 <h3 class="text-xl font-bold text-blue-900 mb-4 flex items-center">
                                     <i class="fas fa-birthday-cake mr-3 text-purple-600"></i> Aniversariantes de <?= $nome_mes_atual ?>
                                 </h3>
-                                <div class="space-y-4 max-h-80 overflow-y-auto pr-2">
+                                <div class="space-y-4 max-h-80 overflow-y-auto overflow-x-hidden pr-2">
                                     <?php if (count($aniversariantes) > 0): ?>
                                         <?php
                                         $cores_avatar = ['from-yellow-400 to-yellow-600', 'from-blue-400 to-blue-600', 'from-green-400 to-green-600', 'from-purple-400 to-purple-600', 'from-pink-400 to-pink-600'];
@@ -1423,7 +1423,21 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-2xl font-bold text-[#4A90E2] mb-6 border-b pb-3">Meu Perfil</h2>
                         
-                        <form action="update_profile.php" method="POST" enctype="multipart/form-data" class="space-y-8">
+                        <form action="update_profile.php" method="POST" enctype="multipart/form-data" class="space-y-6">
+
+                            <!-- Seção de Informações Pessoais -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Empresa</label>
+                                    <input type="text" value="<?= htmlspecialchars($_SESSION['empresa'] ?? 'N/A') ?>" class="mt-1 w-full border border-gray-300 rounded-md px-4 py-2 bg-gray-100 cursor-not-allowed" readonly>
+                                    <p class="text-xs text-gray-500 mt-1">A empresa é definida pelo administrador.</p>
+                                </div>
+                                <div>
+                                    <label for="data_nascimento" class="block text-sm font-medium text-gray-700">Data de Nascimento</label>
+                                    <input type="date" name="data_nascimento" id="data_nascimento" value="<?= htmlspecialchars($_SESSION['data_nascimento'] ?? '') ?>" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                                    <p class="text-xs text-gray-500 mt-1">Sua data de nascimento não é pública.</p>
+                                </div>
+                            </div>
 
                             <!-- Seção de Alterar Foto -->
                             <div>
@@ -1643,6 +1657,14 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         </select>
                         <p class="text-xs text-gray-500 mt-1">Admin e God têm acesso a todas as telas por padrão.</p>
                     </div>
+                    <!-- Empresa do Usuário -->
+                    <div>
+                        <label class="block text-sm font-medium text-[#4A90E2] mb-2">Empresa</label>
+                        <select name="empresa" id="modalUserEmpresa" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
+                            <option value="Comercial Souza">Comercial Souza</option>
+                            <option value="Mixkar">Mixkar</option>
+                        </select>
+                    </div>
                     <!-- Setor do Usuário -->
                     <div>
                         <label class="block text-sm font-medium text-[#4A90E2] mb-2">Setor</label>
@@ -1697,6 +1719,14 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         <select name="role" id="new_user_role" class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
                             <option value="user">Usuário</option>
                             <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="new_user_empresa" class="block text-sm font-medium text-[#4A90E2]">Empresa</label>
+                        <select name="empresa" id="new_user_empresa" required class="w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
+                            <option value="" disabled selected>Selecione uma empresa...</option>
+                            <option value="Comercial Souza">Comercial Souza</option>
+                            <option value="Mixkar">Mixkar</option>
                         </select>
                     </div>
                     <div>

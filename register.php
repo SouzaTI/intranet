@@ -23,9 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = remover_acentos(trim($_POST['username']));
     $password = $_POST['password'];
     $setor_id = filter_input(INPUT_POST, 'setor_id', FILTER_VALIDATE_INT);
+    $empresa = trim($_POST['empresa'] ?? '');
 
-    if (empty($username) || empty($password) || $setor_id === false) {
-        $error = "Por favor, preencha todos os campos obrigatórios.";
+    if (empty($username) || empty($password) || $setor_id === false || empty($empresa)) {
+        $error = "Por favor, preencha todos os campos obrigatórios, incluindo a empresa.";
     } else {
         // Usando prepared statements para segurança
         $stmt_check = $conn->prepare("SELECT id FROM users WHERE username = ?");
@@ -44,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt_setor->execute();
             $department_name = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
 
-            $stmt_insert = $conn->prepare("INSERT INTO users (username, password, department, setor_id, role) VALUES (?, ?, ?, ?, 'user')");
-            $stmt_insert->bind_param("sssi", $username, $hashed_password, $department_name, $setor_id);
+            $stmt_insert = $conn->prepare("INSERT INTO users (username, password, department, setor_id, empresa, role) VALUES (?, ?, ?, ?, ?, 'user')");
+            $stmt_insert->bind_param("sssiss", $username, $hashed_password, $department_name, $setor_id, $empresa);
 
             if ($stmt_insert->execute()) {
                 $new_user_id = $stmt_insert->insert_id;
@@ -175,6 +176,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="">
             <input type="text" name="username" placeholder="Nome de Usuário" required>
             <input type="password" name="password" placeholder="Senha" required>
+            <select name="empresa" required style="width: 100%; padding: 15px; margin: 12px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; background-color: white;">
+                <option value="" disabled selected>Selecione sua empresa...</option>
+                <option value="Comercial Souza">Comercial Souza</option>
+                <option value="Mixkar">Mixkar</option>
+            </select>
             <select name="setor_id" required style="width: 100%; padding: 15px; margin: 12px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; background-color: white;">
                 <option value="" disabled selected>Selecione seu setor...</option>
                 <?php foreach ($setores as $setor): ?>

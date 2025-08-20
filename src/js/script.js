@@ -461,6 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const modalUsername = document.getElementById('modalUsername');
         const modalUserRole = document.getElementById('modalUserRole');
         const modalUserSetor = document.getElementById('modalUserSetor');
+        const modalUserEmpresa = document.getElementById('modalUserEmpresa');
         const sectionsContainer = document.getElementById('sectionsPermissionsContainer');
         const sectionCheckboxes = permissionsModal.querySelectorAll('input[name="sections[]"]');
 
@@ -490,6 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 sectionCheckboxes.forEach(cb => cb.checked = false);
                 modalUserSetor.value = '';
+                modalUserEmpresa.value = 'Comercial Souza';
                 modalUserRole.value = 'user';
 
                 fetch(`get_user_permissions.php?user_id=${userId}`)
@@ -498,6 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.error) { alert(data.error); return; }
                         
                         modalUserRole.value = data.role;
+                        modalUserEmpresa.value = data.empresa || 'Comercial Souza';
                         modalUserSetor.value = data.setor_id || '';
                         data.sections.forEach(sectionName => {
                             const checkbox = permissionsModal.querySelector(`input[value="${sectionName}"]`);
