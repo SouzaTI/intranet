@@ -1230,7 +1230,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     endMessage.innerHTML = `
                         ${samAvatarHtml}
                         <div class="chat-bubble chat-bubble-answer">
-                            <p>Espero ter ajudado! Se tiver outra dúvida, clique em "Reiniciar Conversa". 😊</p>
+                            <p>Espero ter ajudado! Se tiver outra dúvida, clique em "Limpar Chat". 😊</p>
                         </div>`;
                     chatArea.appendChild(endMessage);
                     chatArea.scrollTop = chatArea.scrollHeight;
@@ -1242,6 +1242,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (resetButton) {
         resetButton.addEventListener('click', () => {
             // Limpa o campo de busca ao reiniciar
+            if (faqSearchInput) {
+                faqSearchInput.value = '';
+            }
+            setupFaqChat();
+        });
+    }
+
+    const faqResetIcon = document.getElementById('faq-reset-icon');
+    if (faqResetIcon) {
+        faqResetIcon.addEventListener('click', () => {
             if (faqSearchInput) {
                 faqSearchInput.value = '';
             }

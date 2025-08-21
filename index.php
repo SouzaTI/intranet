@@ -1042,12 +1042,15 @@ $nome_mes_atual = $nomes_meses[date('m')];
                             <div class="lg:col-span-2">
                                 <div class="faq-chat-window h-full flex flex-col">
                                     <!-- Cabeçalho da Janela de Chat -->
-                                    <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center space-x-4">
-                                        <img src="<?= $samImagePath ?>" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 sam-animated-avatar">
-                                        <div>
-                                            <h3 class="font-bold text-lg text-white"><?= $virtualAssistantName ?> - Assistente Virtual</h3>
-                                            <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
+                                    <div class="bg-[#2a5298] p-4 border-b border-gray-200 flex items-center justify-between">
+                                        <div class="flex items-center space-x-4">
+                                            <img src="<?= $samImagePath ?>" alt="SAM Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 sam-animated-avatar">
+                                            <div>
+                                                <h3 class="font-bold text-lg text-white"><?= $virtualAssistantName ?> - Assistente Virtual</h3>
+                                                <p class="text-sm text-green-300 flex items-center"><i class="fas fa-circle text-xs mr-2"></i>Online</p>
+                                            </div>
                                         </div>
+                                        <i id="faq-reset-icon" class="fas fa-redo-alt text-xl cursor-pointer text-white hover:text-gray-300 transition-colors duration-200" title="Limpar Chat"></i>
                                     </div>
 
                                     <!-- Corpo do Chat -->
@@ -1056,12 +1059,9 @@ $nome_mes_atual = $nomes_meses[date('m')];
 </div>
 
                                     <!-- Rodapé do Chat com botão de reset -->
-                                    <div class="bg-white p-4 border-t border-gray-200">
+                                    <div>
                                         <div id="faq-suggestions-area" class="hidden"></div> <!-- Mantido oculto por segurança -->
-                                        <div id="faq-reset-area" class="text-center hidden">
-                                            <button id="faq-reset-btn" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
-                                                <i class="fas fa-sync-alt mr-1"></i>Reiniciar conversa
-                                            </button>  
+                                        <div id="faq-reset-area" class="hidden flex justify-center">
                                         </div>
                                     </div>
                                 </div>
