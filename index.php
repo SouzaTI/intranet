@@ -96,6 +96,7 @@ $available_sections = [
     'profile' => 'Meu Perfil',
     'about' => 'Sobre Nós',
     'sistema' => 'Sistema',
+    'calendario' => 'Calendário de Eventos',
     // Seções de Admin
     
     'info-upload' => 'Cadastrar Informação (Admin)',
@@ -313,7 +314,7 @@ $column_exists_result = $stmt_check->get_result();
 if ($column_exists_result && $column_exists_result->num_rows > 0) {
     // A coluna existe, então podemos buscar os aniversariantes
     $sql_aniversariantes = "
-        SELECT u.username, u.profile_photo, s.nome as setor_nome, DAY(u.data_nascimento) as dia
+        SELECT u.id, u.username, u.profile_photo, s.nome as setor_nome, DAY(u.data_nascimento) as dia
         FROM users u
         LEFT JOIN setores s ON u.setor_id = s.id
         WHERE MONTH(u.data_nascimento) = ?
@@ -334,6 +335,27 @@ if ($column_exists_result && $column_exists_result->num_rows > 0) {
 } else {
     // A coluna não existe, loga um aviso para o desenvolvedor
     error_log("A coluna 'data_nascimento' não foi encontrada na tabela 'users'. A funcionalidade de aniversariantes está desativada.");
+}
+
+// Busca IDs de usuários já parabenizados pelo usuário logado
+$felicitados_ids = [];
+if (isset($_SESSION['user_id'])) {
+    $meu_id = $_SESSION['user_id'];
+    
+    // Busca notificações de aniversário enviadas por este usuário neste ano.
+    // Esta consulta é mais robusta que a anterior que dependia do texto da mensagem.
+    $sql_felicitados = "SELECT user_id FROM notificacoes WHERE sender_id = ? AND type = 'birthday' AND YEAR(data_criacao) = YEAR(CURDATE())";
+    $stmt_felicitados = $conn->prepare($sql_felicitados);
+    
+    if ($stmt_felicitados) {
+        $stmt_felicitados->bind_param("i", $meu_id);
+        $stmt_felicitados->execute();
+        $result_felicitados = $stmt_felicitados->get_result();
+        while ($row = $result_felicitados->fetch_assoc()) {
+            $felicitados_ids[] = $row['user_id'];
+        }
+        $stmt_felicitados->close();
+    }
 }
 
 // Função para pegar as iniciais do nome
@@ -361,6 +383,9 @@ $nome_mes_atual = $nomes_meses[date('m')];
     <title>Sistema Intranet</title>
     <!-- 1. Adicionar CSS do Shepherd.js e o nosso CSS customizado (agora como .php) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/css/shepherd.css"/>
+    <!-- Adiciona o CSS do FullCalendar -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+
     <link rel="stylesheet" href="tour.css.php">
     <!-- Adicione o script do TinyMCE aqui. Substitua 'no-api-key' pela sua chave. -->
     <script src="https://cdn.tiny.cloud/1/5qvlwlt06xkybekjra4hcv0z7czafww8a0wcki2x19ftngew/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
@@ -426,6 +451,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <span>Sistemas</span>
                 </a>
                 <?php endif; ?>
+                
 
                 <!-- Bloco de Administração -->
                 <?php if (can_view_section('settings') || can_view_section('registros_sugestoes') || can_view_section('info-upload')): ?>
@@ -477,6 +503,12 @@ $nome_mes_atual = $nomes_meses[date('m')];
                             <input type="text" placeholder="Buscar..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#4A6572] focus:outline-none focus:border-[#2C3E50] w-64 g-white text-[#4A90E2] placeholder-[#AAB7C4]">
                             <i class="fas fa-search text-white absolute left-3 top-3"></i>
                         </div>
+                        <?php if (can_view_section('calendario')): ?>
+                        <a href="#" data-section="calendario" onclick="showSection('calendario', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Calendário</span>
+                        </a>
+                        <?php endif; ?>
                         <?php if (can_view_section('faq')): ?>
                         <a href="#" data-section="faq" onclick="showSection('faq', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
                             <i class="fas fa-question-circle"></i>
@@ -695,10 +727,29 @@ $nome_mes_atual = $nomes_meses[date('m')];
                                                     </div>
                                                 <?php endif; ?>
                                                 <div class="flex-1">
-                                                    <h4 class="font-semibold text-gray-800"><?= htmlspecialchars($aniversariante['username']) ?></h4>
+                                                    <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+                                                        <span><?= htmlspecialchars($aniversariante['username']) ?></span>
+                                                        <span class="text-xl"><?= $emoji_atual ?></span>
+                                                    </h4>
                                                     <p class="text-sm text-gray-600"><?= htmlspecialchars($aniversariante['setor_nome'] ?? 'N/A') ?> • <?= str_pad($aniversariante['dia'], 2, '0', STR_PAD_LEFT) ?>/<?= $mes_atual ?></p>
                                                 </div>
-                                                <div class="text-2xl"><?= $emoji_atual ?></div>
+                                                <?php
+                                                $aniversariante_id = $aniversariante['id'];
+                                                $meu_id = $_SESSION['user_id'];
+                                                $ja_felicitado = in_array($aniversariante_id, $felicitados_ids);
+
+                                                if ($aniversariante_id != $meu_id): // Não mostrar botão para si mesmo
+                                                    if ($ja_felicitado):
+                                                ?>
+                                                        <button disabled class="felicitacao-btn disabled text-xs px-3 py-1 rounded-full bg-green-500 text-white cursor-not-allowed flex items-center gap-1">
+                                                            <i class="fas fa-check"></i> Enviado
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button class="felicitacao-btn text-xs px-3 py-1 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1" data-user-id="<?= $aniversariante_id ?>">
+                                                            <i class="fas fa-birthday-cake"></i> Parabenizar
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php endif; // Fim do if ($aniversariante_id != $meu_id) ?>
                                             </div>
                                             <?php $i++; ?>
                                         <?php endforeach; ?>
@@ -1652,6 +1703,11 @@ $nome_mes_atual = $nomes_meses[date('m')];
                             </nav>
                         </div>
                     </div>
+                </section>
+
+                <!-- Seção do Calendário -->
+                <section id="calendario" class="content-section hidden">
+                    <!-- O conteúdo de calendario.php será carregado aqui via AJAX -->
                 </section>
             </main>
         </div>

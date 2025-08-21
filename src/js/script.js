@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'about': 'Sobre Nós',
             'registros_sugestoes': 'Registros de Sugestões',
             'settings': 'Configurações',
+            'calendario': 'Calendário de Eventos',
         };
         document.getElementById('pageTitle').textContent = titles[sectionId] || 'Página Inicial';
 
@@ -69,6 +70,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (sectionId === 'faq') {
             if(typeof setupFaqChat === 'function'){
                 setupFaqChat();
+            }
+        }
+
+        // Carrega dinamicamente o calendário
+        if (sectionId === 'calendario') {
+            const container = document.getElementById('calendario');
+            if(container && !container.dataset.loaded){ // Evita recarregar
+                container.innerHTML = '<p class="text-center text-[#4A90E2]">Carregando calendário...</p>';
+                fetch('calendario.php')
+                    .then(response => response.text())
+                    .then(html => { container.innerHTML = html; initializeCalendar(); container.dataset.loaded = 'true'; })
+                    .catch(() => container.innerHTML = '<p class="text-center text-red-500">Erro ao carregar o calendário.</p>');
             }
         }
     }
@@ -1266,5 +1279,209 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Lógica para enviar felicitação de aniversário
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('felicitacao-btn') && !e.target.disabled) {
+            const button = e.target.closest('.felicitacao-btn'); // Garante que pegamos o botão, mesmo que o clique seja no ícone
+            if (!button) return;
+
+            const userId = button.dataset.userId;
+            
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+            const formData = new FormData();
+            formData.append('user_id', userId);
+
+            fetch('enviar_felicitacao.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    button.innerHTML = '<i class="fas fa-check"></i> Enviado';
+                    // A classe 'disabled' pode ser usada para estilização extra, se necessário
+                    button.classList.add('disabled'); 
+                } else {
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-birthday-cake"></i> Parabenizar';
+                    alert(data.message || 'Ocorreu um erro ao enviar a felicitação.');
+                }
+            })
+            .catch(() => {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-birthday-cake"></i> Parabenizar';
+                alert('Erro de conexão. Não foi possível enviar a felicitação.');
+            });
+        }
+    });
+
+    // --- Lógica do Calendário de Eventos ---
+    let calendarInstance = null;
+    let currentEditingEventId = null;
+
+    function initializeCalendar() {
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
+
+        calendarInstance = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'pt-br',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+            },
+            buttonText: {
+                today: 'Hoje',
+                month: 'Mês',
+                week: 'Semana',
+                day: 'Dia',
+                list: 'Lista'
+            },
+            events: 'get_eventos.php',
+            editable: false, // A edição será via modal
+            selectable: true,
+            eventClick: function(info) {
+                openEventModal(info.event);
+            },
+            dateClick: function(info) {
+                // Para admins, clicar em um dia preenche o formulário
+                const isAdmin = document.getElementById('form-add-evento');
+                if (isAdmin) {
+                    resetEventForm();
+                    const startDate = new Date(info.dateStr + 'T09:00:00');
+                    document.getElementById('evento_data_inicio').value = startDate.toISOString().slice(0, 16);
+                    document.getElementById('form-add-evento').classList.remove('hidden');
+                    document.getElementById('form-evento-title').textContent = 'Novo Evento';
+                }
+            }
+        });
+
+        calendarInstance.render();
+        setupCalendarEventListeners();
+    }
+
+    function openEventModal(event) {
+        const modal = document.getElementById('event-details-modal');
+        const modalContent = modal.querySelector('.transform');
+
+        document.getElementById('modal-event-title').textContent = event.title;
+        
+        const descriptionContainer = document.getElementById('modal-event-description-container');
+        const descriptionEl = document.getElementById('modal-event-description');
+        if (event.extendedProps.description) {
+            descriptionEl.innerHTML = event.extendedProps.description.replace(/\n/g, '<br>');
+            descriptionContainer.classList.remove('hidden');
+        } else {
+            descriptionContainer.classList.add('hidden');
+        }
+
+        const options = { dateStyle: 'long', timeStyle: 'short', hour12: false };
+        document.getElementById('modal-event-start').textContent = event.start.toLocaleString('pt-BR', options);
+
+        const endDateContainer = document.getElementById('modal-event-end-container');
+        if (event.end) {
+            document.getElementById('modal-event-end').textContent = event.end.toLocaleString('pt-BR', options);
+            endDateContainer.classList.remove('hidden');
+        } else {
+            endDateContainer.classList.add('hidden');
+        }
+
+        // Armazena o ID do evento para os botões de ação
+        currentEditingEventId = event.extendedProps.id;
+
+        modal.classList.remove('hidden');
+        setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+    }
+
+    function closeEventModal() {
+        const modal = document.getElementById('event-details-modal');
+        const modalContent = modal.querySelector('.transform');
+        modalContent.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 200);
+        currentEditingEventId = null;
+    }
+
+    function resetEventForm() {
+        document.getElementById('form-evento').reset();
+        document.getElementById('evento_id').value = '';
+        document.getElementById('form-evento-title').textContent = 'Novo Evento';
+    }
+
+    function setupCalendarEventListeners() {
+        // Botão para mostrar/esconder formulário de evento
+        document.getElementById('btn-toggle-evento-form')?.addEventListener('click', () => {
+            resetEventForm();
+            document.getElementById('form-add-evento').classList.toggle('hidden');
+        });
+
+        // Botão para cancelar no formulário
+        document.getElementById('btn-cancelar-evento')?.addEventListener('click', () => {
+            document.getElementById('form-add-evento').classList.add('hidden');
+            resetEventForm();
+        });
+
+        // Submissão do formulário de evento
+        document.getElementById('form-evento')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('salvar_evento.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    calendarInstance.refetchEvents();
+                    document.getElementById('form-add-evento').classList.add('hidden');
+                    resetEventForm();
+                } else {
+                    alert('Erro: ' + data.message);
+                }
+            });
+        });
+
+        // Botões do modal de detalhes
+        document.getElementById('close-event-modal')?.addEventListener('click', closeEventModal);
+        document.getElementById('btn-close-modal-details')?.addEventListener('click', closeEventModal);
+
+        document.getElementById('btn-edit-evento')?.addEventListener('click', () => {
+            const event = calendarInstance.getEventById(currentEditingEventId);
+            if (!event) return;
+
+            document.getElementById('form-evento-title').textContent = 'Editar Evento';
+            document.getElementById('evento_id').value = event.extendedProps.id;
+            document.getElementById('evento_titulo').value = event.title;
+            document.getElementById('evento_descricao').value = event.extendedProps.description || '';
+            document.getElementById('evento_cor').value = event.backgroundColor || '#3788d8';
+            
+            // Formata datas para o input datetime-local
+            const toLocalISOString = date => new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+            if(event.start) document.getElementById('evento_data_inicio').value = toLocalISOString(event.start);
+            if(event.end) document.getElementById('evento_data_fim').value = toLocalISOString(event.end);
+
+            closeEventModal();
+            document.getElementById('form-add-evento').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-delete-evento')?.addEventListener('click', () => {
+            if (!confirm('Tem certeza que deseja excluir este evento?')) return;
+            
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            formData.append('id', currentEditingEventId);
+
+            fetch('salvar_evento.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                if (data.success) {
+                    calendarInstance.refetchEvents();
+                    closeEventModal();
+                }
+            });
+        });
+    }
     
 });
