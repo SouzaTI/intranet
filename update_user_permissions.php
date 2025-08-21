@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT);
     $role = $_POST['role'] ?? 'user';
     $setor_id = filter_input(INPUT_POST, 'setor_id', FILTER_VALIDATE_INT);
+    $empresa = trim($_POST['empresa'] ?? 'Comercial Souza');
     $sections = $_POST['sections'] ?? [];
 
     if ($user_id === false || empty($role)) {
@@ -36,8 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 1. Atualizar a 'role', 'setor_id' e 'department' na tabela 'users'
-    $stmt_update_user = $conn->prepare("UPDATE users SET role = ?, setor_id = ?, department = ? WHERE id = ?");
-    $stmt_update_user->bind_param("sisi", $role, $setor_id, $department_name, $user_id);
+    $stmt_update_user = $conn->prepare("UPDATE users SET role = ?, setor_id = ?, department = ?, empresa = ? WHERE id = ?");
+    $stmt_update_user->bind_param("sissi", $role, $setor_id, $department_name, $empresa, $user_id);
     $stmt_update_user->execute();
     $stmt_update_user->close();
 

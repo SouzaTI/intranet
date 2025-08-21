@@ -1,0 +1,423 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F5F7FA; /* Light gray/off-white for a modern feel */
+        }
+        .sidebar {
+            background: #2C3E50; /* Softer dark blue for sidebar */
+        }
+        .main-header {
+            background-color: #2C3E50;
+        }
+        .document-card {
+            transition: all 0.2s ease;
+        }
+        .document-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .search-input:focus {
+            box-shadow: 0 0 0 3px rgba(42, 78, 128, 0.3);
+        }
+        .hover\:bg-indigo-700:hover, .hover\:bg-indigo-600:hover, .hover\:bg-indigo-900:hover, .hover\:bg-gray-100:hover, .hover\:bg-gray-300:hover, .hover\:bg-gray-50:hover {
+            background-color: #34495E !important; /* New hover blue */
+        }
+        /* Sobrescreve o hover para os cards de documento/atalho para usar amarelo */
+        .document-card:hover {
+            background-color: #b1afbbff !important;
+        }
+        .rounded-full, .rounded-lg, .rounded-md {
+            border-radius: 0.5rem !important;
+        }
+        .shadow, .shadow-lg, .shadow-xl {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15) !important;
+        }
+        .border, .border-gray-300, .border-gray-200, .border-dashed {
+            border: 1px solid #4A6572 !important; /* Lighter dark blue for borders */
+        }
+        .focus\:ring-indigo-500:focus {
+            box-shadow: 0 0 0 2px #4A90E2 !important; /* New primary blue */
+        }
+        #excel-table-container {
+            max-width: 100%;
+            max-height: 500px;
+            overflow: auto;
+            background: #fff;
+            color: #4A90E2; /* New primary blue */
+            border-radius: 0.5rem;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.10);
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+        }
+        #excel-table-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #excel-table-container th, #excel-table-container td {
+            border: 1px solid #4A90E2; /* New primary blue */
+            padding: 6px 10px;
+            font-size: 0.95rem;
+            color: #4A90E2; /* New primary blue */
+            background: #f8fafc;
+        }
+        #excel-table-container th {
+            background: #4A90E2; /* New primary blue */
+            color: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        table, th, td {
+            font-family: 'Inter', Arial, sans-serif;
+        }
+        .text-main { color: #4A90E2; } /* New primary blue */
+        .bg-main { background: #4A90E2; } /* New primary blue */
+
+        /* Ajuste de cor de hover para a Matriz de Comunicação */
+        #matriz_comunicacao table tbody tr:hover {
+            background-color: #ced9e4ff !important; /* Cor cinza-azulado bem clara */
+        }
+        /* Ajuste de cor de hover para a tabela da Matriz na aba Informações */
+        #info-tab-matriz table tbody tr:hover {
+            background-color: #a9e0ceff !important; 
+        }
+
+        .cell-content-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        .edit-trigger {
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            cursor: pointer;
+            color: #97abccff; /* Azul */
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+        tr:hover .edit-trigger { opacity: 1; }
+        .cell-content[contenteditable="true"] {
+            background-color: #8a99ccff !important;
+            outline: 2px solid #b8b7f5ff; /* Indigo */
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+        td.cell-saving { background-color: #fefce8 !important; } /* Amarelo */
+        td.cell-success { background-color: #dcfce7 !important; transition: background-color 0.5s; } /* Verde */
+        td.cell-error { background-color: #fee2e2 !important; transition: background-color 0.5s; } /* Vermelho */
+
+        /* Estilo de Abas de Pasta */
+        .folder-tab {
+            background-color: #e9eef5; /* Cor de pasta inativa (cinza-azulado claro) */
+            color: #4b5563;
+            padding: 10px 20px;
+            border: 1px solid #d1d5db;
+            border-bottom: none;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            margin-right: 2px;
+            position: relative;
+            top: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+        }
+        .folder-tab:hover {
+            background-color: #f4f6f9;
+        }
+        .folder-tab.active {
+            background-color: #ffffff;
+            color: #254c90;
+            font-weight: 600;
+            z-index: 2;
+        }
+        .folder-tab-content-container {
+            border: 1px solid #d1d5db;
+            border-radius: 0 8px 8px 8px;
+            padding: 1.5rem;
+            margin-top: -1px;
+            background-color: #ffffff;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Estilo de Botões de Filtro (Pílula) */
+        .filter-pill-btn {
+            padding: 6px 16px;
+            border-radius: 9999px; /* pill shape */
+            font-size: 0.875rem; /* 14px */
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .filter-pill-btn.inactive {
+            background-color: #e9eef5; /* cinza-azulado claro */
+            color: #374151; /* gray-700 */
+        }
+        .filter-pill-btn.inactive:hover {
+            background-color: #dbeafe; /* blue-200 */
+            color: #1d4ed8; /* blue-700 */
+            transform: translateY(-1px);
+        }
+        .filter-pill-btn.active {
+            background-color: #254c90; /* Cor principal */
+            color: #ffffff;
+            box-shadow: 0 4px 14px 0 rgba(37, 76, 144, 0.39);
+        }
+                /* Estilos para Notificações */
+        .notification-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            border-radius: 9999px;
+            padding: 1px 5px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            border: 2px solid #2C3E50; /* Matches new header background */
+        }
+        .notification-item {
+            border-bottom: 1px solid #e5e7eb; /* gray-200 */
+        }
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        .notification-item.unread {
+            background-color: #f3f4f6; /* gray-100 */
+        }
+        .notification-item.unread:hover {
+            background-color: #e5e7eb; /* gray-200 */
+        }
+
+        /* Estilo para checkboxes de permissão */
+
+        /* Estilo para checkboxes de permissão */
+
+        /* Estilo para checkboxes de permissão */
+        .custom-checkbox {
+            width: 20px !important;
+            height: 20px !important;
+            min-width: 20px !important; /* Garante largura mínima */
+            min-height: 20px !important; /* Garante altura mínima */
+            box-sizing: border-box !important;
+            flex-shrink: 0; /* Evita que o item encolha */
+        }
+
+        /* Estilos para as bolhas de chat da FAQ */
+        .chat-bubble {
+            max-width: 80%;
+            padding: 10px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+        }
+        .chat-bubble-question {
+            background-color: #3b82f6; /* Tailwind blue-500, mais vibrante */
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-bubble-answer {
+            background-color: #e5e7eb; /* Tailwind gray-200, padrão de chat */
+            color: #1f2937; /* Tailwind gray-800 */
+            border-bottom-left-radius: 5px;
+        }
+
+        .chat-avatar {
+            width: 70px; /* Reduzido para um visual mais compacto */
+            /*height: 120px;
+            border-radius: 9999px; /* full */
+            object-fit: cover;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 2px solid #fff;
+        }
+
+        /* Estilos para a nova janela de chat da FAQ */
+        .faq-chat-window {
+            border-radius: 0.75rem; /* 12px */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid #D1D5DB; /* Lighter gray for border */
+        }
+        .faq-chat-body { 
+            height: 60vh; max-height: 500px; 
+            background-color: #F0F2F5; /* Cor de fundo de chat mais padrão */
+            /* Padrão de doodles em SVG para o fundo */
+            background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='doodles' width='80' height='80' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'%3E%3Cpath d='M10 10 L30 30 M50 10 L70 30 M10 50 L30 70 M50 50 L70 70 M30 10 L10 30 M70 10 L50 30 M30 50 L10 70 M70 50 L50 70' stroke='%23d1d5db' stroke-width='1' fill='none'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='400' height='400' fill='url(%23doodles)'/%3E%3C/svg%3E");
+        }
+        .faq-suggestion-btn {
+            background-color: #E0F7FA; /* Light blue */
+            color: #00796B; /* Darker blue/teal */
+            border: 1px solid #B2EBF2; /* Lighter blue */
+            transition: all 0.2s ease-in-out;
+        }
+        .faq-suggestion-btn:hover {
+            background-color: #B2EBF2;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+        /* Estilos para o indicador de "digitando" */
+        .typing-indicator { display: flex; align-items: center; gap: 4px; padding: 8px 0; }
+        .typing-dot {
+            width: 8px; height: 8px;
+            background-color: #9ca3af; /* gray-400 */
+            border-radius: 50%;
+            animation: bounce-dot 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce-dot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Animation for SAM avatar */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .sam-animated-avatar {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Estilos para a nova lista de perguntas da FAQ */
+        .faq-question-item {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            text-align: left;
+            background-color: #ffffff;
+            color: #374151; /* gray-700 */
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+        }
+        .faq-question-item:hover {
+            background-color: #f3f4f6; /* gray-100 */
+            border-color: #d1d5db; /* gray-300 */
+            transform: translateX(3px);
+        }
+        .faq-question-item.active {
+            background-color: #dbeafe; /* blue-200 */
+            color: #1d4ed8; /* blue-700 */
+            border-color: #93c5fd; /* blue-300 */
+            font-weight: 600;
+        }
+
+/* ==========================================================================
+   TEMA MIXKAR - Preto + Amarelo (cores da logo)
+   ========================================================================== */
+
+body.theme-mixkar {
+    background-color: #F5F5F5; /* cinza claro neutro */
+}
+
+/* Sidebar */
+.theme-mixkar .sidebar {
+    background: #1E1E1E; /* Preto grafite */
+    color: #FFC107; /* Amarelo Mixkar */
+}
+
+.theme-mixkar .main-header {
+    background-color: #1E1E1E; /* Preto grafite */
+    color: #FFC107; /* Amarelo Mixkar */
+}
+
+.theme-mixkar .sidebar-link.active-sidebar-link {
+    background-color: #FFC107; /* Amarelo ativo */
+    color: #1E1E1E; /* Texto preto */
+    font-weight: bold;
+}
+
+/* Input focus */
+.theme-mixkar .search-input:focus {
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.6); /* Amarelo sombra */
+}
+
+/* Hover */
+.theme-mixkar .hover\:bg-indigo-700:hover, 
+.theme-mixkar .hover\\:bg-indigo-600:hover, 
+.theme-mixkar .hover\\:bg-indigo-900:hover, 
+.theme-mixkar .hover\\:bg-gray-100:hover, 
+.theme-mixkar .hover\\:bg-gray-300:hover, 
+.theme-mixkar .hover\\:bg-gray-50:hover {
+    background-color: #FFC107; /* Amarelo destaque */
+    color: #1E1E1E; /* Preto no hover */
+}
+
+/* Bordas */
+.theme-mixkar .border, 
+.theme-mixkar .border-gray-300, 
+.theme-mixkar .border-gray-200, 
+.theme-mixkar .border-dashed {
+    border: 1px solid #FFC107;
+}
+
+/* Foco */
+.theme-mixkar .focus\\:ring-indigo-500:focus {
+    box-shadow: 0 0 0 2px #FFC107; 
+}
+
+/* Tabelas */
+.theme-mixkar #excel-table-container {
+    color: #1E1E1E;
+}
+
+.theme-mixkar #excel-table-container th, 
+.theme-mixkar #excel-table-container td {
+    border: 1px solid #FFC107;
+    color: #1E1E1E;
+}
+
+.theme-mixkar #excel-table-container th {
+    background: #1E1E1E; /* Preto */
+    color: #FFC107; /* Amarelo */
+}
+
+/* Textos principais */
+.theme-mixkar .text-main { color: #FFC107; }
+.theme-mixkar .bg-main { background: #1E1E1E; }
+
+/* Botões / filtros ativos */
+.theme-mixkar .filter-pill-btn.active {
+    background-color: #FFC107;
+    color: #1E1E1E;
+    font-weight: bold;
+    box-shadow: 0 4px 14px 0 rgba(255, 193, 7, 0.39);
+}
+
+/* Notificações */
+.quick-action-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: #ffffff; /* White background for quick actions */
+    border-radius: 0.75rem; /* Slightly less rounded than main cards */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Subtle shadow */
+    transition: all 0.2s ease-in-out;
+    text-align: center;
+    color: #4A90E2; /* Primary blue for text/icons */
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.quick-action-block:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    background-color: #f0f8ff; /* Very light blue on hover */
+}
+
+.quick-action-block i {
+    font-size: 2rem; /* Larger icon size */
+    margin-bottom: 0.5rem;
+}

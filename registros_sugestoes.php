@@ -38,7 +38,7 @@ $status_classes = [
         <tbody class="divide-y divide-gray-200">
             <?php if ($result && $result->num_rows > 0): ?>
                 <?php while($row = $result->fetch_assoc()): ?>
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-blue-50 transition-colors duration-150">
                         <td class="py-3 px-4 text-sm text-gray-600"><?= date('d/m/Y H:i', strtotime($row['data_envio'])) ?></td>
                         <td class="py-3 px-4 text-sm text-gray-800 font-medium"><?= htmlspecialchars($row['username']) ?></td>
                         <td class="py-3 px-4 text-sm"><span class="px-2 py-1 text-xs font-semibold rounded-full <?= $row['tipo'] == 'sugestao' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800' ?>"><?= ucfirst($row['tipo']) ?></span></td>
