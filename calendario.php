@@ -1,4 +1,5 @@
 <?php
+session_start();
 // As variáveis de sessão já são iniciadas no index.php
 $is_admin = isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god']);
 ?>
