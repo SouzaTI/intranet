@@ -90,18 +90,21 @@ $available_sections = [
     'documents' => 'Normas e Procedimentos',
     'information' => 'Informações (Visualização)',
     'matriz_comunicacao' => 'Matriz de Comunicação',
+    'vagas' => 'Mural de Vagas',
     'sugestoes' => 'Sugestões e Reclamações (Envio)',
     'create_procedure' => 'Criar Procedimento',
     'faq' => 'FAQ',    
     'profile' => 'Meu Perfil',
     'about' => 'Sobre Nós',
     'sistema' => 'Sistema',
+    'calendario' => 'Calendário de Eventos',
     // Seções de Admin
     
     'info-upload' => 'Cadastrar Informação (Admin)',
     'registros_sugestoes' => 'Registros de Sugestões (Admin)',
     'settings' => 'Configurações (Admin)',
     'manage_faq_section' => 'Gerenciar FAQs',
+    'admin_vagas' => 'Gerenciar Vagas (Admin)',
 ];
 
 // Busca todos os usuários para a aba de permissões (apenas para admins)
@@ -313,7 +316,7 @@ $column_exists_result = $stmt_check->get_result();
 if ($column_exists_result && $column_exists_result->num_rows > 0) {
     // A coluna existe, então podemos buscar os aniversariantes
     $sql_aniversariantes = "
-        SELECT u.username, u.profile_photo, s.nome as setor_nome, DAY(u.data_nascimento) as dia
+        SELECT u.id, u.username, u.profile_photo, s.nome as setor_nome, DAY(u.data_nascimento) as dia
         FROM users u
         LEFT JOIN setores s ON u.setor_id = s.id
         WHERE MONTH(u.data_nascimento) = ?
@@ -335,6 +338,39 @@ if ($column_exists_result && $column_exists_result->num_rows > 0) {
     // A coluna não existe, loga um aviso para o desenvolvedor
     error_log("A coluna 'data_nascimento' não foi encontrada na tabela 'users'. A funcionalidade de aniversariantes está desativada.");
 }
+
+// Busca IDs de usuários já parabenizados pelo usuário logado
+$felicitados_ids = [];
+if (isset($_SESSION['user_id'])) {
+    $meu_id = $_SESSION['user_id'];
+    
+    // Busca notificações de aniversário enviadas por este usuário neste ano.
+    // Esta consulta é mais robusta que a anterior que dependia do texto da mensagem.
+    $sql_felicitados = "SELECT user_id FROM notificacoes WHERE sender_id = ? AND type = 'birthday' AND YEAR(data_criacao) = YEAR(CURDATE())";
+    $stmt_felicitados = $conn->prepare($sql_felicitados);
+    
+    if ($stmt_felicitados) {
+        $stmt_felicitados->bind_param("i", $meu_id);
+        $stmt_felicitados->execute();
+        $result_felicitados = $stmt_felicitados->get_result();
+        while ($row = $result_felicitados->fetch_assoc()) {
+            $felicitados_ids[] = $row['user_id'];
+        }
+        $stmt_felicitados->close();
+    }
+}
+
+// --- Início da Lógica para Vagas Internas ---
+$vagas_internas = [];
+// Apenas vagas com status 'aberta' e data de publicação no passado ou hoje são selecionadas.
+$sql_vagas = "SELECT id, titulo, descricao, requisitos, setor, data_publicacao, status FROM vagas_internas WHERE status = 'aberta' AND data_publicacao <= CURDATE() ORDER BY data_publicacao DESC";
+$result_vagas = $conn->query($sql_vagas);
+if ($result_vagas) {
+    while ($vaga = $result_vagas->fetch_assoc()) {
+        $vagas_internas[] = $vaga;
+    }
+}
+// --- Fim da Lógica para Vagas Internas ---
 
 // Função para pegar as iniciais do nome
 function getInitials($name) {
@@ -361,9 +397,12 @@ $nome_mes_atual = $nomes_meses[date('m')];
     <title>Sistema Intranet</title>
     <!-- 1. Adicionar CSS do Shepherd.js e o nosso CSS customizado (agora como .php) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/css/shepherd.css"/>
+    <!-- Adiciona o CSS do FullCalendar -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+
     <link rel="stylesheet" href="tour.css.php">
     <!-- Adicione o script do TinyMCE aqui. Substitua 'no-api-key' pela sua chave. -->
-    <script src="https://cdn.tiny.cloud/1/5qvlwlt06xkybekjra4hcv0z7czafww8a0wcki2x19ftngew/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="lib/tinymce/tinymce/js/tinymce/tinymce.min.js"></script>
     
     <!-- 3. Adicionar JS do Shepherd.js e o nosso script do tour (movido para o head com 'defer') -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -408,6 +447,12 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <span>Matriz de Comunicação</span>
                 </a>
                 <?php endif; ?>
+                <?php if (can_view_section('vagas')): ?>
+                <a href="#" data-section="vagas" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('vagas', true); return false;">
+                    <i class="fas fa-briefcase w-6"></i>
+                    <span>Mural de Vagas</span>
+                </a>
+                <?php endif; ?>
                 <?php if (can_view_section('create_procedure')): ?>
                 <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
                     <i class="fas fa-file-signature w-6"></i>
@@ -426,9 +471,10 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <span>Sistemas</span>
                 </a>
                 <?php endif; ?>
+                
 
                 <!-- Bloco de Administração -->
-                <?php if (can_view_section('settings') || can_view_section('registros_sugestoes') || can_view_section('info-upload')): ?>
+                <?php if (can_view_section('settings') || can_view_section('registros_sugestoes') || can_view_section('info-upload') || can_view_section('admin_vagas')): ?>
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
                 
                 <?php if (can_view_section('settings')): ?>
@@ -447,6 +493,12 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 <a href="#" data-section="info-upload" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('info-upload', true); return false;">
                     <i class="fas fa-bullhorn w-6"></i>
                     <span>Cadastrar Informação</span>
+                </a>
+                <?php endif; ?>
+                <?php if (can_view_section('admin_vagas')): ?>
+                <a href="#" data-section="admin_vagas" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('admin_vagas', true); return false;">
+                    <i class="fas fa-tasks w-6"></i>
+                    <span>Gerenciar Vagas</span>
                 </a>
                 <?php endif; ?>
                 <?php endif; ?>
@@ -477,6 +529,12 @@ $nome_mes_atual = $nomes_meses[date('m')];
                             <input type="text" placeholder="Buscar..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#4A6572] focus:outline-none focus:border-[#2C3E50] w-64 g-white text-[#4A90E2] placeholder-[#AAB7C4]">
                             <i class="fas fa-search text-white absolute left-3 top-3"></i>
                         </div>
+                        <?php if (can_view_section('calendario')): ?>
+                        <a href="#" data-section="calendario" onclick="showSection('calendario', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Calendário</span>
+                        </a>
+                        <?php endif; ?>
                         <?php if (can_view_section('faq')): ?>
                         <a href="#" data-section="faq" onclick="showSection('faq', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
                             <i class="fas fa-question-circle"></i>
@@ -695,10 +753,29 @@ $nome_mes_atual = $nomes_meses[date('m')];
                                                     </div>
                                                 <?php endif; ?>
                                                 <div class="flex-1">
-                                                    <h4 class="font-semibold text-gray-800"><?= htmlspecialchars($aniversariante['username']) ?></h4>
+                                                    <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+                                                        <span><?= htmlspecialchars($aniversariante['username']) ?></span>
+                                                        <span class="text-xl"><?= $emoji_atual ?></span>
+                                                    </h4>
                                                     <p class="text-sm text-gray-600"><?= htmlspecialchars($aniversariante['setor_nome'] ?? 'N/A') ?> • <?= str_pad($aniversariante['dia'], 2, '0', STR_PAD_LEFT) ?>/<?= $mes_atual ?></p>
                                                 </div>
-                                                <div class="text-2xl"><?= $emoji_atual ?></div>
+                                                <?php
+                                                $aniversariante_id = $aniversariante['id'];
+                                                $meu_id = $_SESSION['user_id'];
+                                                $ja_felicitado = in_array($aniversariante_id, $felicitados_ids);
+
+                                                if ($aniversariante_id != $meu_id): // Não mostrar botão para si mesmo
+                                                    if ($ja_felicitado):
+                                                ?>
+                                                        <button disabled class="felicitacao-btn disabled text-xs px-3 py-1 rounded-full bg-green-500 text-white cursor-not-allowed flex items-center gap-1">
+                                                            <i class="fas fa-check"></i> Enviado
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button class="felicitacao-btn text-xs px-3 py-1 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1" data-user-id="<?= $aniversariante_id ?>">
+                                                            <i class="fas fa-birthday-cake"></i> Parabenizar
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php endif; // Fim do if ($aniversariante_id != $meu_id) ?>
                                             </div>
                                             <?php $i++; ?>
                                         <?php endforeach; ?>
@@ -1653,6 +1730,61 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         </div>
                     </div>
                 </section>
+
+                <!-- Seção do Calendário -->
+                <section id="calendario" class="content-section hidden">
+                    <!-- O conteúdo de calendario.php será carregado aqui via AJAX -->
+                </section>
+
+                <!-- Vagas Internas Section -->
+                <section id="vagas" class="content-section hidden space-y-6">
+                    <div class="bg-white rounded-lg shadow p-8">
+                        <div class="flex justify-between items-center mb-6 border-b pb-4">
+                            <h2 class="text-3xl font-bold text-[#4A90E2]">Mural de Vagas Internas</h2>
+                            <!-- Botão para administradores adicionarem vagas -->
+                            <?php if (in_array($_SESSION['role'], ['admin', 'god'])):
+ ?>
+                                <button onclick="showSection('admin_vagas', true); return false;" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium flex items-center">
+                                    <i class="fas fa-plus-circle mr-2"></i>
+                                    Gerenciar Vagas
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                        <p class="text-gray-600 mb-8 text-lg">Confira as oportunidades de carreira e crescimento disponíveis na empresa.</p>
+                        
+                        <div id="vagas-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            <?php if (count($vagas_internas) > 0):
+ ?>
+                                <?php foreach ($vagas_internas as $vaga):
+ ?>
+                                    <div class="vaga-card bg-gray-50 rounded-xl shadow-md border border-gray-200 p-6 flex flex-col hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                                        <h3 class="text-xl font-bold text-[#1d3870] mb-3"><?= htmlspecialchars($vaga['titulo']) ?></h3>
+                                        <div class="text-gray-700 space-y-3 mb-5">
+                                            <p class="flex items-center"><i class="fas fa-building w-5 mr-2 text-gray-500"></i><strong>Setor:</strong>&nbsp;<?= htmlspecialchars($vaga['setor']) ?></p>
+                                            <p class="flex items-center"><i class="fas fa-calendar-alt w-5 mr-2 text-gray-500"></i><strong>Publicada em:</strong>&nbsp;<?= date('d/m/Y', strtotime($vaga['data_publicacao'])) ?></p>
+                                        </div>
+                                        <div class="mt-auto text-right">
+                                            <a href="#" onclick="showVagaDetails(<?= $vaga['id'] ?>); return false;" class="text-white bg-[#254c90] hover:bg-[#1d3870] rounded-md px-5 py-2 text-sm font-semibold transition-colors">
+                                                Ver Detalhes
+                                            </a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else:
+ ?>
+                                <div class="col-span-full text-center text-gray-500 py-16 bg-gray-50 rounded-lg">
+                                    <i class="fas fa-info-circle text-5xl mb-4 text-gray-400"></i>
+                                    <p class="text-xl">Nenhuma vaga interna aberta no momento.</p>
+                                    <p class="mt-2">Volte mais tarde para conferir novas oportunidades!</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="admin_vagas" class="content-section hidden space-y-6">
+                    <!-- O conteúdo de admin_vagas.php será carregado aqui via AJAX -->
+                </section>
             </main>
         </div>
     </div>
@@ -1787,6 +1919,37 @@ $nome_mes_atual = $nomes_meses[date('m')];
         </div>
     </div>
     <div id="excel-table-container" class="w-full mb-6 hidden bg-[#1d3870] rounded-lg shadow p-4 overflow-auto text-white"></div>
+    <!-- Vaga Details Modal -->
+    <div id="vagaDetailsModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-2xl transform transition-all scale-95 opacity-0">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 id="modalVagaTitle" class="text-2xl font-bold text-[#4A90E2]"></h3>
+                <button id="closeVagaModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+                <div>
+                    <h4 class="font-semibold text-lg text-gray-800">Setor</h4>
+                    <p id="modalVagaSetor" class="text-gray-700"></p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-lg text-gray-800">Descrição</h4>
+                    <p id="modalVagaDescricao" class="text-gray-700 whitespace-pre-wrap"></p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-lg text-gray-800">Requisitos</h4>
+                    <p id="modalVagaRequisitos" class="text-gray-700 whitespace-pre-wrap"></p>
+                </div>
+                 <div>
+                    <h4 class="font-semibold text-lg text-gray-800">Data de Publicação</h4>
+                    <p id="modalVagaData" class="text-gray-600 text-sm"></p>
+                </div>
+            </div>
+            <div class="flex justify-end mt-6 pt-4 border-t">
+                <button id="closeVagaModalBtn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     const faqsData = <?php echo json_encode($faqs_public); ?>;
     <?php
