@@ -90,7 +90,7 @@ $available_sections = [
     'documents' => 'Normas e Procedimentos',
     'information' => 'Informações (Visualização)',
     'matriz_comunicacao' => 'Matriz de Comunicação',
-    'vagas' => 'Mural de Vagas',
+    
     'sugestoes' => 'Sugestões e Reclamações (Envio)',
     'create_procedure' => 'Criar Procedimento',
     'faq' => 'FAQ',    
@@ -98,13 +98,14 @@ $available_sections = [
     'about' => 'Sobre Nós',
     'sistema' => 'Sistema',
     'calendario' => 'Calendário de Eventos',
+    'mural_vagas' => 'Mural de Vagas',
     // Seções de Admin
     
     'info-upload' => 'Cadastrar Informação (Admin)',
     'registros_sugestoes' => 'Registros de Sugestões (Admin)',
     'settings' => 'Configurações (Admin)',
     'manage_faq_section' => 'Gerenciar FAQs',
-    'admin_vagas' => 'Gerenciar Vagas (Admin)',
+    
 ];
 
 // Busca todos os usuários para a aba de permissões (apenas para admins)
@@ -360,17 +361,7 @@ if (isset($_SESSION['user_id'])) {
     }
 }
 
-// --- Início da Lógica para Vagas Internas ---
-$vagas_internas = [];
-// Apenas vagas com status 'aberta' e data de publicação no passado ou hoje são selecionadas.
-$sql_vagas = "SELECT id, titulo, descricao, requisitos, setor, data_publicacao, status FROM vagas_internas WHERE status = 'aberta' AND data_publicacao <= CURDATE() ORDER BY data_publicacao DESC";
-$result_vagas = $conn->query($sql_vagas);
-if ($result_vagas) {
-    while ($vaga = $result_vagas->fetch_assoc()) {
-        $vagas_internas[] = $vaga;
-    }
-}
-// --- Fim da Lógica para Vagas Internas ---
+
 
 // Função para pegar as iniciais do nome
 function getInitials($name) {
@@ -447,12 +438,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <span>Matriz de Comunicação</span>
                 </a>
                 <?php endif; ?>
-                <?php if (can_view_section('vagas')): ?>
-                <a href="#" data-section="vagas" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('vagas', true); return false;">
-                    <i class="fas fa-briefcase w-6"></i>
-                    <span>Mural de Vagas</span>
-                </a>
-                <?php endif; ?>
+                
                 <?php if (can_view_section('create_procedure')): ?>
                 <a href="#" data-section="create_procedure" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('create_procedure', true); return false;">
                     <i class="fas fa-file-signature w-6"></i>
@@ -471,10 +457,16 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <span>Sistemas</span>
                 </a>
                 <?php endif; ?>
+                <?php if (can_view_section('mural_vagas')): ?>
+                <a href="mural_vagas.php" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2">
+                    <i class="fas fa-briefcase w-6"></i>
+                    <span>Mural de Vagas</span>
+                </a>
+                <?php endif; ?>
                 
 
                 <!-- Bloco de Administração -->
-                <?php if (can_view_section('settings') || can_view_section('registros_sugestoes') || can_view_section('info-upload') || can_view_section('admin_vagas')): ?>
+                <?php if (can_view_section('settings') || can_view_section('registros_sugestoes') || can_view_section('info-upload')): ?>
                 <div class="px-4 py-2 mt-8 uppercase text-xs font-semibold">Administração</div>
                 
                 <?php if (can_view_section('settings')): ?>
@@ -495,12 +487,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <span>Cadastrar Informação</span>
                 </a>
                 <?php endif; ?>
-                <?php if (can_view_section('admin_vagas')): ?>
-                <a href="#" data-section="admin_vagas" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2" onclick="showSection('admin_vagas', true); return false;">
-                    <i class="fas fa-tasks w-6"></i>
-                    <span>Gerenciar Vagas</span>
-                </a>
-                <?php endif; ?>
+                
                 <?php endif; ?>
 
                 <!-- Links restantes -->
@@ -1742,14 +1729,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         <div class="flex justify-between items-center mb-6 border-b pb-4">
                             <h2 class="text-3xl font-bold text-[#4A90E2]">Mural de Vagas Internas</h2>
                             <!-- Botão para administradores adicionarem vagas -->
-                            <?php if (in_array($_SESSION['role'], ['admin', 'god'])):
- ?>
-                                <button onclick="showSection('admin_vagas', true); return false;" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium flex items-center">
-                                    <i class="fas fa-plus-circle mr-2"></i>
-                                    Gerenciar Vagas
-                                </button>
-                            <?php endif; ?>
-                        </div>
+                            
                         <p class="text-gray-600 mb-8 text-lg">Confira as oportunidades de carreira e crescimento disponíveis na empresa.</p>
                         
                         <div id="vagas-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -1782,9 +1762,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     </div>
                 </section>
 
-                <section id="admin_vagas" class="content-section hidden space-y-6">
-                    <!-- O conteúdo de admin_vagas.php será carregado aqui via AJAX -->
-                </section>
+                
             </main>
         </div>
     </div>

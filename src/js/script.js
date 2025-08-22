@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'registros_sugestoes': 'Registros de Sugestões',
             'settings': 'Configurações',
             'calendario': 'Calendário de Eventos',
-            'admin_vagas': 'Gerenciar Vagas',
+            
         };
         document.getElementById('pageTitle').textContent = titles[sectionId] || 'Página Inicial';
 
@@ -67,33 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Carrega dinamicamente o gerenciador de vagas
-        if (sectionId === 'admin_vagas') {
-            const container = document.getElementById('admin_vagas');
-            if(container){
-                container.innerHTML = '<p class="text-center text-[#4A90E2]">Carregando gerenciador de vagas...</p>';
-                fetch('admin_vagas.php')
-                    .then(response => response.text())
-                    .then(html => {
-                        container.innerHTML = html;
-                        
-                        // Scripts injetados via innerHTML podem não executar de forma confiável.
-                        // Esta abordagem encontra o script, cria um novo elemento de script e o anexa,
-                        // forçando a execução no escopo global.
-                        const scripts = Array.from(container.getElementsByTagName('script'));
-                        scripts.forEach(oldScript => {
-                            const newScript = document.createElement('script');
-                            // Copia atributos se necessário (ex: type, src)
-                            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                            // Copia o conteúdo do script
-                            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-                            // Anexa o novo script ao head ou body para executá-lo
-                            oldScript.parentNode.replaceChild(newScript, oldScript);
-                        });
-                    })
-                    .catch(() => container.innerHTML = '<p class="text-center text-red-500">Erro ao carregar o gerenciador de vagas.</p>');
-            }
-        }
+        
 
         // Inicializa o chat da FAQ quando a seção é mostrada
         if (sectionId === 'faq') {
