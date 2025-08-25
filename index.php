@@ -1768,13 +1768,28 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <!-- Permissões de Tela (Sections) -->
                     <div id="sectionsPermissionsContainer">
                         <label class="block text-sm font-medium text-[#4A90E2] mb-2">Acesso às Telas (para nível "Usuário")</label>
-                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 border p-4 rounded-md max-h-64 overflow-y-auto">
+                        <div class="grid grid-cols-1 gap-4 border p-4 rounded-md max-h-64 overflow-y-auto">
                             <?php foreach ($available_sections as $key => $label): ?>
-                                <div>
-                                    <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="checkbox" name="sections[]" value="<?= $key ?>" class="form-checkbox h-5 w-5 text-[#4A90E2] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
-                                        <span class="text-gray-700"><?= htmlspecialchars($label) ?></span>
-                                    </label>
+                                <div class="border-b pb-2 mb-2 last:border-b-0 last:pb-0 last:mb-0">
+                                    <h4 class="font-semibold text-gray-800 mb-2"><?= htmlspecialchars($label) ?></h4>
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                                        <label class="flex items-center space-x-2 cursor-pointer">
+                                            <input type="checkbox" name="sections[<?= $key ?>][can_view]" value="1" class="form-checkbox h-4 w-4 text-[#4A90E2] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
+                                            <span class="text-gray-700">Ver</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 cursor-pointer">
+                                            <input type="checkbox" name="sections[<?= $key ?>][can_edit]" value="1" class="form-checkbox h-4 w-4 text-[#4A90E2] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
+                                            <span class="text-gray-700">Editar</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 cursor-pointer">
+                                            <input type="checkbox" name="sections[<?= $key ?>][can_create]" value="1" class="form-checkbox h-4 w-4 text-[#4A90E2] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
+                                            <span class="text-gray-700">Criar</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 cursor-pointer">
+                                            <input type="checkbox" name="sections[<?= $key ?>][can_delete]" value="1" class="form-checkbox h-4 w-4 text-[#4A90E2] rounded border-gray-300 focus:ring-[#1d3870] custom-checkbox">
+                                            <span class="text-gray-700">Excluir</span>
+                                        </label>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>

@@ -518,13 +518,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(data => {
                         if (data.error) { alert(data.error); return; }
                         
-                        modalUserRole.value = data.role;
                         modalUserEmpresa.value = data.empresa || 'Comercial Souza';
                         modalUserSetor.value = data.setor_id || '';
-                        data.sections.forEach(sectionName => {
-                            const checkbox = permissionsModal.querySelector(`input[value="${sectionName}"]`);
-                            if (checkbox) checkbox.checked = true;
-                        });
+                        
+                        // Limpa todas as checkboxes de permissão granular antes de preencher
+                        permissionsModal.querySelectorAll('#sectionsPermissionsContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+                        // Preenche as checkboxes com as permissões recebidas
+                        if (data.sections) {
+                            for (const sectionName in data.sections) {
+                                if (data.sections.hasOwnProperty(sectionName)) {
+                                    const perms = data.sections[sectionName];
+                                    for (const permType in perms) {
+                                        if (perms.hasOwnProperty(permType) && perms[permType]) {
+                                            const checkbox = permissionsModal.querySelector(`input[name="sections[${sectionName}][${permType}]"]`);
+                                            if (checkbox) {
+                                                checkbox.checked = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         sectionsContainer.style.display = (data.role === 'user') ? 'block' : 'none';
                         openPermissionsModal();
                     });

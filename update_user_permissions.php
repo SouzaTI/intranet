@@ -50,9 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 3. Inserir novas permissões de seção (apenas se o role for 'user')
     if ($role === 'user' && !empty($sections)) {
-        $stmt_insert = $conn->prepare("INSERT INTO user_sections (user_id, section_name) VALUES (?, ?)");
-        foreach ($sections as $section_name) {
-            $stmt_insert->bind_param("is", $user_id, $section_name);
+        $stmt_insert = $conn->prepare("INSERT INTO user_sections (user_id, section_name, can_view, can_edit, can_create, can_delete) VALUES (?, ?, ?, ?, ?, ?)");
+        foreach ($sections as $section_name => $perms) {
+            $can_view = isset($perms['can_view']) ? (int)$perms['can_view'] : 0;
+            $can_edit = isset($perms['can_edit']) ? (int)$perms['can_edit'] : 0;
+            $can_create = isset($perms['can_create']) ? (int)$perms['can_create'] : 0;
+            $can_delete = isset($perms['can_delete']) ? (int)$perms['can_delete'] : 0;
+            $stmt_insert->bind_param("isiiii", $user_id, $section_name, $can_view, $can_edit, $can_create, $can_delete);
             $stmt_insert->execute();
         }
         $stmt_insert->close();

@@ -15,7 +15,20 @@ $purifier = new HTMLPurifier($config);
 // Qualquer usuário logado pode criar procedimentos.
 // A verificação de 'user_id' garante que apenas usuários autenticados possam acessar.
 if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php?status=error&msg=" . urlencode("Acesso negado."));
+    header("Location: index.php?status=error&msg=" . urlencode("Acesso negado. Você precisa estar logado."));
+    exit();
+}
+
+// Verifica permissão granular para criar procedimento
+$has_permission = false;
+if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
+    $has_permission = true; // Admins e God têm acesso total
+} elseif (isset($_SESSION['allowed_sections']['create_procedure']['can_create']) && $_SESSION['allowed_sections']['create_procedure']['can_create'] === true) {
+    $has_permission = true; // Usuário normal com permissão específica
+}
+
+if (!$has_permission) {
+    header("Location: index.php?status=error&msg=" . urlencode("Acesso negado. Você não tem permissão para criar procedimentos."));
     exit();
 }
 

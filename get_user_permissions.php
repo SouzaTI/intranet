@@ -28,20 +28,25 @@ if (!$user) {
     exit();
 }
 
-// Busca seções permitidas
+// Busca seções permitidas com permissões granulares
 $allowed_sections = [];
-$stmt_sections = $conn->prepare("SELECT section_name FROM user_sections WHERE user_id = ?");
+$stmt_sections = $conn->prepare("SELECT section_name, can_view, can_edit, can_create, can_delete FROM user_sections WHERE user_id = ?");
 $stmt_sections->bind_param("i", $user_id);
 $stmt_sections->execute();
 $result_sections = $stmt_sections->get_result();
 while ($row = $result_sections->fetch_assoc()) {
-    $allowed_sections[] = $row['section_name'];
+    $allowed_sections[$row['section_name']] = [
+        'can_view' => (bool)$row['can_view'],
+        'can_edit' => (bool)$row['can_edit'],
+        'can_create' => (bool)$row['can_create'],
+        'can_delete' => (bool)$row['can_delete']
+    ];
 }
 
 echo json_encode([
     'role' => $user['role'],
     'setor_id' => $user['setor_id'],
     'empresa' => $user['empresa'],
-    'sections' => $allowed_sections
+    'sections' => (object)$allowed_sections
 ]);
 ?>

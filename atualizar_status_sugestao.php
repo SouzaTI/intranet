@@ -5,9 +5,16 @@ require_once 'log_activity.php'; // Inclui o arquivo de log
 
 header('Content-Type: application/json');
 
-// Apenas admins ou 'god' podem atualizar o status
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'god'])) {
-    echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
+// Verifica permissão granular para atualizar status de sugestão
+$has_permission = false;
+if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god'])) {
+    $has_permission = true; // Admins e God têm acesso total
+} elseif (isset($_SESSION['allowed_sections']['registros_sugestoes']['can_edit']) && $_SESSION['allowed_sections']['registros_sugestoes']['can_edit'] === true) {
+    $has_permission = true; // Usuário normal com permissão específica
+}
+
+if (!isset($_SESSION['user_id']) || !$has_permission) {
+    echo json_encode(['success' => false, 'message' => 'Acesso negado. Você não tem permissão para atualizar o status de sugestões.']);
     exit();
 }
 
