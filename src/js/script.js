@@ -87,8 +87,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     .catch(() => container.innerHTML = '<p class="text-center text-red-500">Erro ao carregar o calendário.</p>');
             }
         }
+        
     }
     window.showSection = showSection; // Attach to window object
+
+    
 
     // Exibe a seção correta ao carregar a página
     const urlParams = new URLSearchParams(window.location.search);
@@ -592,6 +595,8 @@ document.addEventListener('DOMContentLoaded', function() {
             formAdicionarTab.classList.add('hidden');
         });
     }
+
+    
 
     const matrizSection = document.getElementById('matriz_comunicacao');
 

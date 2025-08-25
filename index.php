@@ -98,7 +98,7 @@ $available_sections = [
     'about' => 'Sobre Nós',
     'sistema' => 'Sistema',
     'calendario' => 'Calendário de Eventos',
-    'mural_vagas' => 'Mural de Vagas',
+    
     // Seções de Admin
     
     'info-upload' => 'Cadastrar Informação (Admin)',
@@ -457,12 +457,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <span>Sistemas</span>
                 </a>
                 <?php endif; ?>
-                <?php if (can_view_section('mural_vagas')): ?>
-                <a href="mural_vagas.php" class="sidebar-link block py-2.5 px-4 rounded transition duration-200 hover:bg-[#34495E] text-white flex items-center space-x-2">
-                    <i class="fas fa-briefcase w-6"></i>
-                    <span>Mural de Vagas</span>
-                </a>
-                <?php endif; ?>
+                
                 
 
                 <!-- Bloco de Administração -->
@@ -522,6 +517,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                             <span>Calendário</span>
                         </a>
                         <?php endif; ?>
+                        
                         <?php if (can_view_section('faq')): ?>
                         <a href="#" data-section="faq" onclick="showSection('faq', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
                             <i class="fas fa-question-circle"></i>
@@ -1723,44 +1719,9 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <!-- O conteúdo de calendario.php será carregado aqui via AJAX -->
                 </section>
 
-                <!-- Vagas Internas Section -->
-                <section id="vagas" class="content-section hidden space-y-6">
-                    <div class="bg-white rounded-lg shadow p-8">
-                        <div class="flex justify-between items-center mb-6 border-b pb-4">
-                            <h2 class="text-3xl font-bold text-[#4A90E2]">Mural de Vagas Internas</h2>
-                            <!-- Botão para administradores adicionarem vagas -->
-                            
-                        <p class="text-gray-600 mb-8 text-lg">Confira as oportunidades de carreira e crescimento disponíveis na empresa.</p>
-                        
-                        <div id="vagas-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            <?php if (count($vagas_internas) > 0):
- ?>
-                                <?php foreach ($vagas_internas as $vaga):
- ?>
-                                    <div class="vaga-card bg-gray-50 rounded-xl shadow-md border border-gray-200 p-6 flex flex-col hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                                        <h3 class="text-xl font-bold text-[#1d3870] mb-3"><?= htmlspecialchars($vaga['titulo']) ?></h3>
-                                        <div class="text-gray-700 space-y-3 mb-5">
-                                            <p class="flex items-center"><i class="fas fa-building w-5 mr-2 text-gray-500"></i><strong>Setor:</strong>&nbsp;<?= htmlspecialchars($vaga['setor']) ?></p>
-                                            <p class="flex items-center"><i class="fas fa-calendar-alt w-5 mr-2 text-gray-500"></i><strong>Publicada em:</strong>&nbsp;<?= date('d/m/Y', strtotime($vaga['data_publicacao'])) ?></p>
-                                        </div>
-                                        <div class="mt-auto text-right">
-                                            <a href="#" onclick="showVagaDetails(<?= $vaga['id'] ?>); return false;" class="text-white bg-[#254c90] hover:bg-[#1d3870] rounded-md px-5 py-2 text-sm font-semibold transition-colors">
-                                                Ver Detalhes
-                                            </a>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php else:
- ?>
-                                <div class="col-span-full text-center text-gray-500 py-16 bg-gray-50 rounded-lg">
-                                    <i class="fas fa-info-circle text-5xl mb-4 text-gray-400"></i>
-                                    <p class="text-xl">Nenhuma vaga interna aberta no momento.</p>
-                                    <p class="mt-2">Volte mais tarde para conferir novas oportunidades!</p>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </section>
+                
+
+                
 
                 
             </main>
@@ -1897,36 +1858,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
         </div>
     </div>
     <div id="excel-table-container" class="w-full mb-6 hidden bg-[#1d3870] rounded-lg shadow p-4 overflow-auto text-white"></div>
-    <!-- Vaga Details Modal -->
-    <div id="vagaDetailsModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-2xl transform transition-all scale-95 opacity-0">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 id="modalVagaTitle" class="text-2xl font-bold text-[#4A90E2]"></h3>
-                <button id="closeVagaModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
-            </div>
-            <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
-                <div>
-                    <h4 class="font-semibold text-lg text-gray-800">Setor</h4>
-                    <p id="modalVagaSetor" class="text-gray-700"></p>
-                </div>
-                <div>
-                    <h4 class="font-semibold text-lg text-gray-800">Descrição</h4>
-                    <p id="modalVagaDescricao" class="text-gray-700 whitespace-pre-wrap"></p>
-                </div>
-                <div>
-                    <h4 class="font-semibold text-lg text-gray-800">Requisitos</h4>
-                    <p id="modalVagaRequisitos" class="text-gray-700 whitespace-pre-wrap"></p>
-                </div>
-                 <div>
-                    <h4 class="font-semibold text-lg text-gray-800">Data de Publicação</h4>
-                    <p id="modalVagaData" class="text-gray-600 text-sm"></p>
-                </div>
-            </div>
-            <div class="flex justify-end mt-6 pt-4 border-t">
-                <button id="closeVagaModalBtn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Fechar</button>
-            </div>
-        </div>
-    </div>
+    
 
     <script>
     const faqsData = <?php echo json_encode($faqs_public); ?>;
