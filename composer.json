@@ -5,7 +5,8 @@
     "require": {
         "php": ">=7.4",
         "dompdf/dompdf": "^3.0",
-        "ezyang/htmlpurifier": "^4.17"
+        "ezyang/htmlpurifier": "^4.17",
+        "phpoffice/phpspreadsheet": "^5.0"
     },
     "license": "proprietary"
 }

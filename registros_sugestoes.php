@@ -23,6 +23,15 @@ $status_classes = [
 ];
 ?>
 
+<div class="my-4 flex justify-end space-x-2">
+    <a href="baixar_sugestoes_excel.php" target="_blank" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded inline-flex items-center transition-colors duration-150">
+        <i class="fas fa-file-excel mr-2"></i> Baixar Excel
+    </a>
+    <a href="baixar_sugestoes_pdf.php" target="_blank" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded inline-flex items-center transition-colors duration-150">
+        <i class="fas fa-file-pdf mr-2"></i> Baixar PDF
+    </a>
+</div>
+
 <div class="overflow-x-auto">
     <table class="min-w-full bg-white rounded-lg shadow">
         <thead class="bg-[#254c90] text-white">

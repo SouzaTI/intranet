@@ -2,8 +2,8 @@
 session_start();
 header('Content-Type: application/javascript');
 
-$samImagePath = 'img/SAM-ACENANDO.png';
-$samFinalImagePath = 'img/SAM-FIM.png';
+$samImagePath = 'img/SAM.png';
+$samFinalImagePath = 'img/SAM.png';
 if (isset($_SESSION['empresa']) && strtolower($_SESSION['empresa']) === 'mixkar') {
     $samImagePath = 'img/mixkar/KAI.png';
     $samFinalImagePath = 'img/mixkar/KAI.png';
