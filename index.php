@@ -1646,8 +1646,16 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         <div id="matriz-cards-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             <?php if (count($funcionarios_matriz) > 0): ?>
                                 <?php foreach ($funcionarios_matriz as $funcionario): ?>
-                                    <?php $is_admin = in_array($user_role, ['admin', 'god']); ?>
-                                    <div class="matriz-card bg-white rounded-lg shadow p-4 flex flex-col relative" data-id="<?= $funcionario['id'] ?>">
+                                    <?php 
+                                    $is_admin = in_array($user_role, ['admin', 'god']); 
+                                    // Adicionando classes para o clique e cursor, e atributos de dados para o modal
+                                    ?>
+                                    <div class="matriz-card contact-card-clickable bg-white rounded-lg shadow p-4 flex flex-col relative cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-200" 
+                                         data-id="<?= $funcionario['id'] ?>"
+                                         data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
+                                         data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
+                                         data-email="<?= htmlspecialchars($funcionario['email']) ?>"
+                                         data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>">
                                         <?php if ($is_admin): ?>
                                             <a href="#" class="edit-trigger-card absolute top-2 right-2 p-2 block rounded-full hover:bg-gray-200 transition-colors duration-200" title="Editar Card"><i class="fa-solid fa-pen-to-square text-gray-400 hover:text-blue-600"></i></a>
                                         <?php endif; ?>
@@ -1835,6 +1843,21 @@ $nome_mes_atual = $nomes_meses[date('m')];
             </form>
         </div>
     </div>
+    <!-- Modal Detalhes do Contato -->
+    <div id="contactDetailModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform transition-all scale-95 opacity-0">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-semibold text-[#4A90E2]">Detalhes do Contato</h3>
+                <button id="closeContactDetailModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div id="contactDetailContent" class="space-y-4">
+                <!-- O conteúdo será populado pelo JavaScript -->
+            </div>
+            <div class="flex justify-end mt-6 pt-4 border-t">
+                <button type="button" id="cancelContactDetail" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Fechar</button>
+            </div>
+        </div>
+    </div>
     <!-- Success Modal -->
     <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
@@ -1873,6 +1896,93 @@ $nome_mes_atual = $nomes_meses[date('m')];
     const samAvatarHtml = <?php echo $sam_avatar_html; ?>;
     const virtualAssistantName = '<?php echo $virtualAssistantName; ?>';
     const companyDisplayName = '<?php echo $companyDisplayName; ?>';
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Lógica para o Modal de Detalhes do Contato ---
+        const contactDetailModal = document.getElementById('contactDetailModal');
+        const closeContactDetailModalBtn = document.getElementById('closeContactDetailModal');
+        const cancelContactDetailBtn = document.getElementById('cancelContactDetail');
+        const contactDetailContent = document.getElementById('contactDetailContent');
+
+        function getInitials(name) {
+            if (!name) return '';
+            const words = name.split(' ');
+            let initials = '';
+            if (words.length >= 2) {
+                initials = (words[0][0] + words[words.length - 1][0]).toUpperCase();
+            } else if (words.length === 1 && words[0].length > 0) {
+                initials = words[0].substring(0, 2).toUpperCase();
+            }
+            return initials;
+        }
+
+        function openContactDetailModal(card) {
+            if (!card || !contactDetailModal) return;
+
+            // Extrai dados dos atributos data-* do card
+            const name = card.dataset.nome || 'N/A';
+            const setor = card.dataset.setor || 'N/A';
+            const email = card.dataset.email || '';
+            const ramal = card.dataset.ramal || 'N/A';
+            const initials = getInitials(name);
+
+            // Popula o conteúdo do modal
+            contactDetailContent.innerHTML = `
+                <div class="text-center">
+                    <div class="w-24 h-24 bg-blue-100 text-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl font-semibold">
+                        ${initials}
+                    </div>
+                    <h4 class="text-2xl font-bold text-gray-800">${name}</h4>
+                    <p class="text-gray-600">${setor}</p>
+                </div>
+                <div class="border-t pt-4 mt-4 space-y-2">
+                    <p class="text-gray-700 flex items-center"><i class="fas fa-envelope w-6 text-gray-500"></i> <strong class="font-medium mr-2">Email:</strong> <a href="mailto:${email}" class="text-blue-600 hover:underline">${email || 'N/A'}</a></p>
+                    <p class="text-gray-700 flex items-center"><i class="fas fa-phone-alt w-6 text-gray-500"></i> <strong class="font-medium mr-2">Ramal:</strong> ${ramal}</p>
+                </div>
+            `;
+            
+            // Exibe o modal com animação
+            contactDetailModal.classList.remove('hidden');
+            setTimeout(() => {
+                contactDetailModal.querySelector('.transform').classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function closeContactDetailModal() {
+            if (!contactDetailModal) return;
+            contactDetailModal.querySelector('.transform').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                contactDetailModal.classList.add('hidden');
+            }, 200); // Duração da transição
+        }
+
+        // Event listener para capturar cliques em qualquer card/linha de contato dentro da seção matriz_comunicacao
+        // Usamos delegação de eventos para garantir que funciona mesmo com conteúdo carregado via AJAX
+        document.getElementById('matriz_comunicacao').addEventListener('click', function(e) {
+            const clickableElement = e.target.closest('.contact-card-clickable');
+            const editTrigger = e.target.closest('.edit-trigger-card');
+
+            // Abre o modal apenas se um elemento clicável for encontrado e o clique não foi no botão de editar
+            if (clickableElement && !editTrigger) {
+                openContactDetailModal(clickableElement);
+            }
+        });
+
+        // Eventos para fechar o modal
+        closeContactDetailModalBtn?.addEventListener('click', closeContactDetailModal);
+        cancelContactDetailBtn?.addEventListener('click', closeContactDetailModal);
+        contactDetailModal?.addEventListener('click', function(e) {
+            if (e.target === contactDetailModal) {
+                closeContactDetailModal();
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !contactDetailModal.classList.contains('hidden')) {
+                closeContactDetailModal();
+            }
+        });
+    });
     </script>
     <script src="src/js/script.js"></script>
     <!-- Scripts do Tour: Colocados no final do body para garantir a ordem de carregamento correta -->

@@ -81,7 +81,12 @@ if (count($funcionarios_matriz) > 0) {
     foreach ($funcionarios_matriz as $funcionario) {
         $is_admin = in_array($user_role, ['admin', 'god']);
 ?>
-        <div class="matriz-card bg-white rounded-lg shadow p-4 flex flex-col relative" data-id="<?= $funcionario['id'] ?>">
+        <div class="matriz-card contact-card-clickable bg-white rounded-lg shadow p-4 flex flex-col relative cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
+            data-id="<?= $funcionario['id'] ?>"
+            data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
+            data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
+            data-email="<?= htmlspecialchars($funcionario['email']) ?>"
+            data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>">
             <?php if ($is_admin): ?>
                 <a href="#" class="edit-trigger-card absolute top-2 right-2 p-2 block rounded-full hover:bg-gray-200 transition-colors duration-200" title="Editar Card">
                     <i class="fa-solid fa-pen-to-square text-gray-400 hover:text-blue-600"></i>
@@ -120,7 +125,7 @@ if ($total_paginas_matriz > 1) {
     for ($i = 1; $i <= $total_paginas_matriz; $i++) {
         $query_params['pagina'] = $i;
         // O link deve apontar para o próprio script AJAX para funcionar com a delegação de evento no JS
-        $link = 'filtrar_matriz_ajax.php?' . http_build_query($query_params);
+        $link = 'index.php?section=matriz_comunicacao&' . http_build_query($query_params);
         $active_class = ($i == $pagina_atual_matriz) ? 'bg-[#254c90] text-white' : 'bg-white text-[#254c90] hover:bg-gray-100';
         echo "<a href=\"{$link}\" class=\"px-3 py-1 border border-gray-300 rounded-md text-sm {$active_class}\">{$i}</a>";
     }

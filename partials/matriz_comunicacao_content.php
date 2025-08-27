@@ -81,7 +81,13 @@
                     <?php 
                     $is_admin_tab = isset($user_role) && in_array($user_role, ['admin', 'god']); 
                     ?>
-                    <tr class="hover:bg-gray-50 matriz-card" data-id="<?= $funcionario['id'] ?>">
+                    <tr class="hover:bg-gray-50 matriz-card contact-card-clickable cursor-pointer" 
+                        data-id="<?= $funcionario['id'] ?>"
+                        data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
+                        data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
+                        data-email="<?= htmlspecialchars($funcionario['email']) ?>"
+                        data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>"
+                    >
                         <td class="py-3 px-4 text-sm text-gray-700" data-column="nome">
                             <div class="cell-content-wrapper">
                                 <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
@@ -104,7 +110,7 @@
                         </td>
                         <?php if ($is_admin_tab): ?>
                             <td class="py-3 px-4 text-sm text-center">
-                                <i class="fa-solid fa-pen-to-square edit-trigger-card cursor-pointer text-blue-500 hover:text-blue-700" title="Editar"></i>
+                                <i class="fas fa-pencil-alt edit-trigger-card cursor-pointer text-blue-500 hover:text-blue-700" title="Editar"></i>
                             </td>
                         <?php endif; ?>
                     </tr>

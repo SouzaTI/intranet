@@ -424,6 +424,7 @@ body.theme-mixkar {
 
 /* Estilos para os Cards da Matriz de Comunicação */
 .matriz-card {
+    background-color: rgba(224, 242, 247, 0.5) !important; /* Cor azul clara e transparente */
     transition: all 0.3s ease-in-out;
     border: 0; /* Remove a borda esquerda anterior */
     border-radius: 25px; /* Cantos bem arredondados para efeito de bolha */
