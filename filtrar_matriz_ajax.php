@@ -75,18 +75,42 @@ if ($stmt_main) {
 
 // --- Geração do HTML para a resposta AJAX ---
 
-// 1. HTML da Tabela
+// 1. HTML dos Cards
 ob_start();
 if (count($funcionarios_matriz) > 0) {
     foreach ($funcionarios_matriz as $funcionario) {
-        // AQUI ESTÁ A CORREÇÃO: Usar a variável segura $user_role
-        $is_admin_tab = in_array($user_role, ['admin', 'god']);
-        include 'partials/matriz_comunicacao_row.php'; // Inclui o template da linha
+        $is_admin = in_array($user_role, ['admin', 'god']);
+?>
+        <div class="matriz-card bg-white rounded-lg shadow p-4 flex flex-col relative" data-id="<?= $funcionario['id'] ?>">
+            <?php if ($is_admin): ?>
+                <a href="#" class="edit-trigger-card absolute top-2 right-2 p-2 block rounded-full hover:bg-gray-200 transition-colors duration-200" title="Editar Card">
+                    <i class="fa-solid fa-pen-to-square text-gray-400 hover:text-blue-600"></i>
+                </a>
+            <?php endif; ?>
+            <div class="flex-grow">
+                <div class="font-bold text-lg mb-2 cell-content-wrapper" data-column="nome">
+                    <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
+                </div>
+                <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="setor">
+                    <strong class="w-16 inline-block">Setor:</strong>
+                    <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['setor']) ?></span>
+                </p>
+                <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="email">
+                    <strong class="w-16 inline-block">Email:</strong>
+                    <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['email']) ?></span>
+                </p>
+                <p class="text-gray-700 text-base cell-content-wrapper" data-column="ramal">
+                    <strong class="w-16 inline-block">Ramal:</strong>
+                    <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['ramal']) ?></span>
+                </p>
+            </div>
+        </div>
+<?php
     }
 } else {
-    echo '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">Nenhum funcionário encontrado.</td></tr>';
+    echo '<div class="col-span-full text-center text-gray-500 py-4">Nenhum resultado encontrado.</div>';
 }
-$table_html = ob_get_clean();
+$cards_html = ob_get_clean();
 
 // 2. HTML da Paginação
 ob_start();
@@ -107,9 +131,10 @@ $pagination_html = ob_get_clean();
 // 3. Retorna a resposta JSON
 header('Content-Type: application/json');
 echo json_encode([
-    'table_html' => $table_html,
+        'table_html' => $cards_html,
     'pagination_html' => $pagination_html
 ]);
+
 
 $conn->close();
 ?>

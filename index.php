@@ -1642,55 +1642,39 @@ $nome_mes_atual = $nomes_meses[date('m')];
                             </form>
                         </div>
 
-                        <!-- Tabela de Resultados -->
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white">
-                                <thead class="bg-[#254c90] text-white">
-                                    <tr>
-                                        <th class="py-3 px-4 text-left">Nome</th>
-                                        <th class="py-3 px-4 text-left">Setor</th>
-                                        <th class="py-3 px-4 text-left">E-mail</th>
-                                        <th class="py-3 px-4 text-left">Ramal</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="matriz-comunicacao-tbody-main" class="divide-y divide-gray-200">
-                                    <?php if (count($funcionarios_matriz) > 0): ?>
-                                        <?php foreach ($funcionarios_matriz as $funcionario): ?>
-                                            <?php $is_admin = in_array($user_role, ['admin', 'god']); ?>
-                                            <tr data-id="<?= $funcionario['id'] ?>">
-                                                <td class="py-3 px-4" data-column="nome">
-                                                    <div class="cell-content-wrapper">
-                                                        <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
-                                                        <?php if ($is_admin): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
-                                                    </div>
-                                                </td>
-                                                <td class="py-3 px-4" data-column="setor">
-                                                    <div class="cell-content-wrapper">
-                                                        <span class="cell-content"><?= htmlspecialchars($funcionario['setor']) ?></span>
-                                                        <?php if ($is_admin): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
-                                                    </div>
-                                                </td>
-                                                <td class="py-3 px-4" data-column="email">
-                                                    <div class="cell-content-wrapper">
-                                                        <span class="cell-content"><?= htmlspecialchars($funcionario['email']) ?></span>
-                                                        <?php if ($is_admin): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
-                                                    </div>
-                                                </td>
-                                                <td class="py-3 px-4" data-column="ramal">
-                                                    <div class="cell-content-wrapper">
-                                                        <span class="cell-content"><?= htmlspecialchars($funcionario['ramal']) ?></span>
-                                                        <?php if ($is_admin): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="4" class="py-4 px-4 text-center text-gray-500">Nenhum resultado encontrado.</td>
-                                        </tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
+                        <!-- Container de Cards -->
+                        <div id="matriz-cards-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <?php if (count($funcionarios_matriz) > 0): ?>
+                                <?php foreach ($funcionarios_matriz as $funcionario): ?>
+                                    <?php $is_admin = in_array($user_role, ['admin', 'god']); ?>
+                                    <div class="matriz-card bg-white rounded-lg shadow p-4 flex flex-col relative" data-id="<?= $funcionario['id'] ?>">
+                                        <?php if ($is_admin): ?>
+                                            <a href="#" class="edit-trigger-card absolute top-2 right-2 p-2 block rounded-full hover:bg-gray-200 transition-colors duration-200" title="Editar Card"><i class="fa-solid fa-pen-to-square text-gray-400 hover:text-blue-600"></i></a>
+                                        <?php endif; ?>
+                                        <div class="flex-grow">
+                                            <div class="font-bold text-lg mb-2 cell-content-wrapper" data-column="nome">
+                                                <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
+                                            </div>
+                                            <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="setor">
+                                                <strong class="w-16 inline-block">Setor:</strong>
+                                                <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['setor']) ?></span>
+                                            </p>
+                                            <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="email">
+                                                <strong class="w-16 inline-block">Email:</strong>
+                                                <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['email']) ?></span>
+                                            </p>
+                                            <p class="text-gray-700 text-base cell-content-wrapper" data-column="ramal">
+                                                <strong class="w-16 inline-block">Ramal:</strong>
+                                                <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['ramal']) ?></span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="col-span-full text-center text-gray-500 py-4">
+                                    Nenhum resultado encontrado.
+                                </div>
+                            <?php endif; ?>
                         </div>
 
                         <!-- Controles de Paginação -->

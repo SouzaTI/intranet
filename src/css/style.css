@@ -312,8 +312,8 @@
             font-weight: 600;
         }
 
-/* ==========================================================================
-   TEMA MIXKAR - Preto + Amarelo (cores da logo)
+/* ========================================================================== 
+   TEMA MIXKAR - Preto + Amarelo (cores da logo) 
    ========================================================================== */
 
 body.theme-mixkar {
@@ -420,4 +420,46 @@ body.theme-mixkar {
 .quick-action-block i {
     font-size: 2rem; /* Larger icon size */
     margin-bottom: 0.5rem;
+}
+
+/* Estilos para os Cards da Matriz de Comunicação */
+.matriz-card {
+    transition: all 0.3s ease-in-out;
+    border: 0; /* Remove a borda esquerda anterior */
+    border-radius: 25px; /* Cantos bem arredondados para efeito de bolha */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.matriz-card:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 8px 25px rgba(44, 62, 80, 0.2);
+}
+
+.matriz-card .cell-content-wrapper {
+    align-items: baseline;
+    position: relative; /* Para o ícone de edição */
+}
+
+/* Força a quebra de linha em e-mails e outros conteúdos longos */
+.matriz-card .cell-content {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    padding-right: 20px; /* Espaço para o ícone de edição não sobrepor o texto */
+}
+
+.matriz-card .edit-trigger {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    cursor: pointer;
+    color: #97abccff;
+    font-size: 0.75rem;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.matriz-card:hover .edit-trigger {
+    opacity: 1;
 }

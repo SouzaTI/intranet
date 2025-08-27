@@ -616,135 +616,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const matrizSection = document.getElementById('matriz_comunicacao');
 
-    if(matrizSection) {
-        matrizSection.addEventListener('click', function(e) {
-            if (e.target && e.target.classList.contains('edit-trigger')) {
-                const wrapper = e.target.closest('.cell-content-wrapper');
-                const contentSpan = wrapper.querySelector('.cell-content');
-
-                contentSpan.setAttribute('contenteditable', 'true');
-                contentSpan.focus();
-
-                const range = document.createRange();
-                range.selectNodeContents(contentSpan);
-                const sel = window.getSelection();
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
-        });
-
-        matrizSection.addEventListener('blur', function(e) {
-            if (e.target && e.target.classList.contains('cell-content') && e.target.isContentEditable) {
-                const contentSpan = e.target;
-                const td = contentSpan.closest('td');
-                const tr = contentSpan.closest('tr');
-
-                const id = tr.dataset.id;
-                const column = td.dataset.column;
-                const value = contentSpan.textContent.trim();
-
-                contentSpan.setAttribute('contenteditable', 'false');
-
-                td.classList.remove('cell-success', 'cell-error');
-                td.classList.add('cell-saving');
-
-                const formData = new FormData();
-                formData.append('id', id);
-                formData.append('column', column);
-                formData.append('value', value);
-
-                fetch('atualizar_matriz.php', { method: 'POST', body: formData })
-                    .then(response => response.json())
-                    .then(data => {
-                        td.classList.remove('cell-saving');
-                        td.classList.add(data.success ? 'cell-success' : 'cell-error');
-                        if (!data.success) alert(data.message || 'Erro ao salvar.');
-                        setTimeout(() => td.classList.remove('cell-success', 'cell-error'), 2000);
-                    })
-                    .catch(() => alert('Erro de conexão.'));
-            }
-        }, true);
-    }
-
-    const informationSection = document.getElementById('information');
-
-    if (informationSection) {
-        informationSection.addEventListener('click', function(e) {
-            if (e.target && e.target.classList.contains('edit-trigger')) {
-                const wrapper = e.target.closest('.cell-content-wrapper');
-                const contentSpan = wrapper.querySelector('.cell-content');
-
-                contentSpan.setAttribute('contenteditable', 'true');
-                contentSpan.focus();
-
-                const range = document.createRange();
-                range.selectNodeContents(contentSpan);
-                const sel = window.getSelection();
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
-        });
-
-        informationSection.addEventListener('blur', function(e) {
-            if (e.target && e.target.classList.contains('cell-content') && e.target.isContentEditable) {
-                const contentSpan = e.target;
-                const td = contentSpan.closest('td');
-                const tr = contentSpan.closest('tr');
-
-                const id = tr.dataset.id;
-                const column = td.dataset.column;
-                const value = contentSpan.textContent.trim();
-
-                contentSpan.setAttribute('contenteditable', 'false');
-                td.classList.add('cell-saving');
-
-                const formData = new FormData();
-                formData.append('id', id);
-                formData.append('column', column);
-                formData.append('value', value);
-
-                fetch('atualizar_matriz.php', { method: 'POST', body: formData })
-                    .then(response => response.json())
-                    .then(data => {
-                        td.classList.remove('cell-saving');
-                        td.classList.add(data.success ? 'cell-success' : 'cell-error');
-                        if (!data.success) alert(data.message || 'Erro ao salvar.');
-                        setTimeout(() => td.classList.remove('cell-success', 'cell-error'), 2000);
-                    })
-                    .catch(() => {
-                        td.classList.remove('cell-saving');
-                        td.classList.add('cell-error');
-                        alert('Erro de conexão.');
-                        setTimeout(() => td.classList.remove('cell-error'), 2000);
-                    });
-            }
-        }, true);
-    }
-
-    // --- Lógica Unificada para Matriz de Comunicação (Filtro e Paginação com AJAX) ---
-    const matrizSectionEl = document.getElementById('matriz_comunicacao');
-
     function fetchMatrizContent(url) {
-        const tbody = document.getElementById('matriz-comunicacao-tbody-main');
+        const cardsContainer = document.getElementById('matriz-cards-container');
         const paginationContainer = document.getElementById('matriz-comunicacao-pagination-main');
 
-        // Mostra feedback de carregamento
-        if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">Carregando...</td></tr>';
+        if (cardsContainer) {
+            cardsContainer.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4">Carregando...</p>';
         }
         if (paginationContainer) {
             paginationContainer.innerHTML = '';
         }
 
-        // Constrói a URL para o endpoint AJAX
         const ajaxUrl = new URL('/intranet/filtrar_matriz_ajax.php', window.location.origin);
-        ajaxUrl.search = new URL(url).search; // Usa os parâmetros da URL de destino
+        ajaxUrl.search = new URL(url).search;
 
         fetch(ajaxUrl)
             .then(response => response.json())
             .then(data => {
-                if (tbody) {
-                    tbody.innerHTML = data.table_html;
+                if (cardsContainer) {
+                    cardsContainer.innerHTML = data.table_html;
                 }
                 if (paginationContainer) {
                     paginationContainer.innerHTML = data.pagination_html;
@@ -752,52 +642,124 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Erro ao atualizar a Matriz de Comunicação:', error);
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-red-500">Erro ao carregar os dados. Tente novamente.</td></tr>';
+                if (cardsContainer) {
+                    cardsContainer.innerHTML = '<p class="col-span-full text-center text-red-500 py-4">Erro ao carregar os dados. Tente novamente.</p>';
                 }
             });
     }
 
-    if (matrizSectionEl) {
-        matrizSectionEl.addEventListener('click', function(e) {
+    if (matrizSection) {
+        matrizSection.addEventListener('click', function(e) {
+            const editBtn = e.target.closest('.edit-trigger-card');
+            const saveBtn = e.target.closest('.save-trigger-card');
             const filterBtn = e.target.closest('.matriz-filter-btn');
             const paginationLink = e.target.closest('#matriz-comunicacao-pagination-main a');
 
-            if (filterBtn) {
+            if (editBtn) { // This is the <a> tag with class 'edit-trigger-card'
+                const card = editBtn.closest('.matriz-card');
+                const contentSpans = card.querySelectorAll('.cell-content');
+                const iconElement = editBtn.querySelector('i'); // Get the <i> element inside the <a>
+
+                contentSpans.forEach(span => {
+                    span.setAttribute('contenteditable', 'true');
+                });
+
+                // Change the <a> tag's class
+                editBtn.classList.remove('edit-trigger-card');
+                editBtn.classList.add('save-trigger-card');
+
+                // Change the <i> tag's icon
+                iconElement.classList.remove('fa-pen-to-square');
+                iconElement.classList.add('fa-save');
+                editBtn.title = 'Salvar todas as alterações';
+
+                if (contentSpans.length > 0) {
+                    contentSpans[0].focus();
+                }
+            } 
+            else if (saveBtn) { // This is the <a> tag with class 'save-trigger-card'
+                const card = saveBtn.closest('.matriz-card');
+                const contentSpans = card.querySelectorAll('.cell-content');
+                const id = card.dataset.id;
+                const iconElement = saveBtn.querySelector('i'); // Get the <i> element inside the <a>
+
+                // Change the <i> tag's icon to spinner
+                iconElement.classList.remove('fa-save');
+                iconElement.classList.add('fa-spinner', 'fa-spin');
+                saveBtn.title = 'Salvando...';
+
+                const promises = [];
+
+                contentSpans.forEach(span => {
+                    span.setAttribute('contenteditable', 'false'); // Make it non-editable while saving
+                    const wrapper = span.closest('.cell-content-wrapper');
+                    const column = wrapper.dataset.column;
+                    const value = span.textContent.trim();
+
+                    const formData = new FormData();
+                    formData.append('id', id);
+                    formData.append('column', column);
+                    formData.append('value', value);
+                    
+                    const promise = fetch('atualizar_matriz.php', { method: 'POST', body: formData })
+                        .then(response => response.json())
+                        .then(data => {
+                            wrapper.classList.add(data.success ? 'cell-success' : 'cell-error');
+                            return data.success;
+                        });
+                    promises.push(promise);
+                });
+
+                Promise.all(promises).then(results => {
+                    // Revert icon and classes after save operation
+                    iconElement.classList.remove('fa-spinner', 'fa-spin');
+                    const allSucceeded = results.every(res => res === true);
+
+                    if(allSucceeded) {
+                        iconElement.classList.add('fa-check-circle'); // Show checkmark for success
+                        saveBtn.title = 'Salvo com sucesso!';
+                    } else {
+                        iconElement.classList.add('fa-times-circle'); // Show X for failure
+                        saveBtn.title = 'Ocorreu um erro ao salvar um ou mais campos.';
+                    }
+
+                    setTimeout(() => {
+                        // Revert to pencil icon and edit mode
+                        iconElement.classList.remove('fa-check-circle', 'fa-times-circle');
+                        iconElement.classList.add('fa-pen-to-square');
+                        
+                        saveBtn.classList.remove('save-trigger-card');
+                        saveBtn.classList.add('edit-trigger-card');
+                        saveBtn.title = 'Editar Card';
+
+                        card.querySelectorAll('.cell-content-wrapper').forEach(w => w.classList.remove('cell-success', 'cell-error'));
+                    }, 2500); // Show success/failure for 2.5 seconds
+                });
+            }
+            else if (filterBtn) {
                 e.preventDefault();
                 const setor = filterBtn.dataset.setor;
-
-                // Atualiza a URL no navegador
                 const url = new URL(window.location);
                 url.searchParams.set('section', 'matriz_comunicacao');
-                url.searchParams.delete('pagina'); // Volta para a primeira página ao aplicar filtro
-
+                url.searchParams.delete('pagina');
                 if (setor) {
                     url.searchParams.set('setor', setor);
                 } else {
                     url.searchParams.delete('setor');
                 }
                 window.history.pushState({}, '', url);
-
-                // Atualiza o estado visual dos botões
-                matrizSectionEl.querySelectorAll('.matriz-filter-btn').forEach(btn => {
+                matrizSection.querySelectorAll('.matriz-filter-btn').forEach(btn => {
                     btn.classList.remove('active');
                     btn.classList.add('inactive');
                 });
                 filterBtn.classList.add('active');
                 filterBtn.classList.remove('inactive');
-
-                // Busca o conteúdo
                 fetchMatrizContent(url.toString());
-
-            } else if (paginationLink) {
+            } 
+            else if (paginationLink) {
                 e.preventDefault();
                 const destinationUrl = paginationLink.href;
-                
-                // Atualiza a URL no navegador
                 window.history.pushState({}, '', destinationUrl);
-
-                // Busca o conteúdo
                 fetchMatrizContent(destinationUrl);
             }
         });

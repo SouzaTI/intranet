@@ -70,45 +70,48 @@
                 <th class="py-3 px-4 text-left text-sm font-semibold">Setor</th>
                 <th class="py-3 px-4 text-left text-sm font-semibold">E-mail</th>
                 <th class="py-3 px-4 text-left text-sm font-semibold">Ramal</th>
+                <?php if (isset($user_role) && in_array($user_role, ['admin', 'god'])): ?>
+                    <th class="py-3 px-4 text-center text-sm font-semibold">Ações</th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody id="matriz-comunicacao-tbody" class="divide-y divide-gray-200">
             <?php if (isset($funcionarios_matriz) && count($funcionarios_matriz) > 0): ?>
                 <?php foreach ($funcionarios_matriz as $funcionario): ?>
                     <?php 
-                    // Usa a variável $user_role definida em index.php para evitar erro quando não logado
                     $is_admin_tab = isset($user_role) && in_array($user_role, ['admin', 'god']); 
                     ?>
-                    <tr class="hover:bg-gray-50" data-id="<?= $funcionario['id'] ?>">
+                    <tr class="hover:bg-gray-50 matriz-card" data-id="<?= $funcionario['id'] ?>">
                         <td class="py-3 px-4 text-sm text-gray-700" data-column="nome">
                             <div class="cell-content-wrapper">
                                 <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
-                                <?php if ($is_admin_tab): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
                             </div>
                         </td>
                         <td class="py-3 px-4 text-sm text-gray-700" data-column="setor">
                             <div class="cell-content-wrapper">
                                 <span class="cell-content"><?= htmlspecialchars($funcionario['setor']) ?></span>
-                                <?php if ($is_admin_tab): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
                             </div>
                         </td>
                         <td class="py-3 px-4 text-sm text-gray-700" data-column="email">
                             <div class="cell-content-wrapper">
                                 <span class="cell-content"><?= htmlspecialchars($funcionario['email']) ?></span>
-                                <?php if ($is_admin_tab): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
                             </div>
                         </td>
                         <td class="py-3 px-4 text-sm text-gray-700" data-column="ramal">
                             <div class="cell-content-wrapper">
                                 <span class="cell-content"><?= htmlspecialchars($funcionario['ramal']) ?></span>
-                                <?php if ($is_admin_tab): ?><i class="fas fa-pencil-alt edit-trigger"></i><?php endif; ?>
                             </div>
                         </td>
+                        <?php if ($is_admin_tab): ?>
+                            <td class="py-3 px-4 text-sm text-center">
+                                <i class="fa-solid fa-pen-to-square edit-trigger-card cursor-pointer text-blue-500 hover:text-blue-700" title="Editar"></i>
+                            </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="4" class="py-4 px-4 text-center text-gray-500">Nenhum funcionário encontrado.</td>
+                    <td colspan="<?php echo (isset($user_role) && in_array($user_role, ['admin', 'god'])) ? '5' : '4'; ?>" class="py-4 px-4 text-center text-gray-500">Nenhum funcionário encontrado.</td>
                 </tr>
             <?php endif; ?>
         </tbody>
