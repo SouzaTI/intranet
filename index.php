@@ -130,6 +130,7 @@ $available_sections = [
     'documents' => 'Normas e Procedimentos',
     'information' => 'Informações (Visualização)',
     'matriz_comunicacao' => 'Matriz de Comunicação',
+    'blank_section' => 'Nova Seção', // Adicionado para a nova página em branco
     
     'sugestoes' => 'Sugestões e Reclamações (Envio)',
     'create_procedure' => 'Criar Procedimento',
@@ -565,7 +566,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         <?php endif; ?>
                         
                         <?php if (can_view_section('matriz_comunicacao')): ?>
-                        <a href="#" data-section="matriz_comunicacao" onclick="showSection('matriz_comunicacao', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
+                        <a href="#" data-section="blank_section" onclick="showSection('blank_section', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
                             <i class="fa-solid fa-briefcase"></i>
                         </a>
                         <?php endif; ?>
@@ -1815,6 +1816,53 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 <!-- Seção do Calendário -->
                 <section id="calendario" class="content-section hidden">
                     <!-- O conteúdo de calendario.php será carregado aqui via AJAX -->
+                </section>
+
+                <section id="blank_section" class="content-section hidden">
+                    <div class="p-4 bg-gray-200 h-full">
+                        <div class="flex justify-between items-center mb-4">
+                            <h1 class="text-2xl font-bold text-gray-800">Página de Vagas</h1>
+                            <button id="btnGerenciarVagas" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300">
+                                Gerenciar Vagas
+                            </button>
+                        </div>
+
+                        <!-- Conteúdo da página de vagas aqui -->
+                        <div class="bg-white rounded-lg shadow p-6 mb-6">
+                            <p class="text-gray-700">Aqui será exibido o conteúdo das vagas.</p>
+                            <!-- Futuramente, o conteúdo das vagas será carregado aqui -->
+                        </div>
+
+                        <!-- Formulário Gerenciar Vagas (inicialmente oculto) -->
+                        <div id="formGerenciarVagas" class="hidden bg-white rounded-lg shadow p-6">
+                            <h2 class="text-xl font-bold text-gray-800 mb-4">Gerenciar Vagas</h2>
+                            <form>
+                                <div class="mb-4">
+                                    <label for="vagaTitulo" class="block text-sm font-medium text-gray-700">Título</label>
+                                    <input type="text" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" id="vagaTitulo" required>
+                                </div>
+                                <div class="mb-4">
+                                    <label for="vagaSetor" class="block text-sm font-medium text-gray-700">Setor</label>
+                                    <select class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" id="vagaSetor" required>
+                                        <option value="">Selecione um setor</option>
+                                    </select>
+                                </div>
+                                <div class="mb-4">
+                                    <label for="vagaDescricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+                                    <textarea class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 tinymce-editor" id="vagaDescricao" rows="5"></textarea>
+                                </div>
+                                <div class="mb-4">
+                                    <label for="vagaRequisitos" class="block text-sm font-medium text-gray-700">Requisitos</label>
+                                    <textarea class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 tinymce-editor" id="vagaRequisitos" rows="5"></textarea>
+                                </div>
+                                <div class="mb-4">
+                                    <label for="vagaData" class="block text-sm font-medium text-gray-700">Data</label>
+                                    <input type="text" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-100" id="vagaData" value="<?php echo date('d/m/Y'); ?>" readonly>
+                                </div>
+                                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-300">Salvar Vaga</button>
+                            </form>
+                        </div>
+                    </div>
                 </section>
 
                 
