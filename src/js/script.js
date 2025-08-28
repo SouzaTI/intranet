@@ -407,6 +407,47 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Lógica para o formulário de vagas
+    if(document.getElementById('vagaForm')){
+        document.getElementById('vagaForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var form = this;
+            var formData = new FormData(form);
+            var statusDiv = document.getElementById('vagaStatus'); // Assumindo que haverá um div com id="vagaStatus" para mensagens
+
+            // Salva o conteúdo do TinyMCE antes de enviar
+            tinymce.triggerSave();
+
+            // --- DEBUG: Log FormData content ---
+            for (var pair of formData.entries()) {
+                console.log(pair[0]+ ': ' + pair[1]); 
+            }
+            // --- END DEBUG ---
+
+            statusDiv.innerHTML = '<p class="text-blue-600">Enviando vaga...</p>';
+
+            fetch('salvar_vaga.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusDiv.innerHTML = `<p class="text-green-600 font-semibold">${data.message}</p>`;
+                    form.reset();
+                    // Opcional: Fechar modal ou recarregar lista de vagas
+                    // $('#gerenciarVagasModal').modal('hide'); 
+                    // window.location.reload(); 
+                } else {
+                    statusDiv.innerHTML = `<p class="text-red-600 font-semibold">${data.message}</p>`;
+                }
+            })
+            .catch(() => {
+                statusDiv.innerHTML = '<p class="text-red-600 font-semibold">Ocorreu um erro de conexão ao salvar a vaga. Tente novamente.</p>';
+            });
+        });
+    }
+
     document.addEventListener('change', function(e) {
         if (e.target && e.target.classList.contains('status-sugestao')) {
             const selectElement = e.target;
@@ -1562,4 +1603,49 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Inicialização do TinyMCE para o modal de vagas
+    if(typeof tinymce !== 'undefined'){
+        tinymce.init({
+            selector: '.tinymce-editor',
+            plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
+            toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
+            height: 300,
+            menubar: false,
+            readonly: false,
+            license_key: 'gpl',
+            images_upload_url: 'upload_image.php',
+            images_upload_handler: (blobInfo, progress) => new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.withCredentials = false;
+                xhr.open('POST', 'upload_image.php');
+                
+                xhr.onload = () => {
+                    if (xhr.status >= 400) {
+                        reject('HTTP Error: ' + xhr.status); return;
+                    }
+                    const json = JSON.parse(xhr.responseText);
+                    if (!json || typeof json.location != 'string') {
+                        reject('Invalid JSON: ' + xhr.responseText); return;
+                    }
+                    resolve(json.location);
+                };
+                const formData = new FormData();
+                formData.append('file', blobInfo.blob(), blobInfo.filename());
+                xhr.send(formData);
+            })
+        });
+    }
+
+    // Lógica para carregar setores ao abrir o modal de vagas
+    $('#gerenciarVagasModal').on('show.bs.modal', function () {
+        var setorSelect = $('#vagaSetor');
+        setorSelect.empty();
+        setorSelect.append('<option value="">Selecione um setor</option>');
+        // phpSetores é a variável global que contém os setores do PHP
+        if (typeof phpSetores !== 'undefined' && phpSetores.length > 0) {
+            $.each(phpSetores, function(index, setor) {
+                setorSelect.append($('<option></option>').attr('value', setor.id).text(setor.nome));
+            });
+        }
+    });
 });

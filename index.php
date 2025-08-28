@@ -445,6 +445,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
     <!-- 3. Adicionar JS do Shepherd.js e o nosso script do tour (movido para o head com 'defer') -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
     <link rel="stylesheet" href="src/css/style.css">
 </head>
 <body class="<?= $themeClass ?>">
@@ -1828,10 +1829,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         </div>
 
                         <!-- Conteúdo da página de vagas aqui -->
-                        <div class="bg-white rounded-lg shadow p-6 mb-6">
-                            <p class="text-gray-700">Aqui será exibido o conteúdo das vagas.</p>
-                            <!-- Futuramente, o conteúdo das vagas será carregado aqui -->
-                        </div>
+                        <?php include 'vagas.php'; ?>
                     </div>
                 </section>
 
@@ -1841,6 +1839,47 @@ $nome_mes_atual = $nomes_meses[date('m')];
 
                 
             </main>
+        </div>
+    </div>
+    <!-- Modal Gerenciar Vagas -->
+    <div class="modal fade" id="gerenciarVagasModal" tabindex="-1" aria-labelledby="gerenciarVagasModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gerenciarVagasModalLabel">Gerenciar Vagas</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="vagaForm" action="salvar_vaga.php" method="POST">
+                        <div class="form-group">
+                            <label for="vagaTitulo">Título</label>
+                            <input type="text" class="form-control" id="vagaTitulo" name="titulo" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="vagaSetor">Setor</label>
+                            <select class="form-control" id="vagaSetor" name="setor" required>
+                                <!-- Opções de setor serão carregadas dinamicamente -->
+                                <option value="">Selecione um setor</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="vagaDescricao">Descrição</label>
+                            <textarea class="form-control tinymce-editor" id="vagaDescricao" name="descricao" rows="5"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="vagaRequisitos">Requisitos</label>
+                            <textarea class="form-control tinymce-editor" id="vagaRequisitos" name="requisitos" rows="5"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="vagaData">Data</label>
+                            <input type="text" class="form-control" id="vagaData" value="<?php echo date('d/m/Y'); ?>" readonly>
+                        </div>
+                        <button type="submit" class="btn btn-success">Salvar Vaga</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
     <!-- Modal de Permissões -->
@@ -2294,6 +2333,9 @@ $nome_mes_atual = $nomes_meses[date('m')];
         }
     });
     </script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="src/js/script.js"></script>
     <!-- Scripts do Tour: Colocados no final do body para garantir a ordem de carregamento correta -->
     <script src="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/js/shepherd.min.js"></script>
@@ -2302,6 +2344,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <script>
+    const phpSetores = <?php echo json_encode($setores); ?>;
     document.addEventListener('DOMContentLoaded', function() {
         // --- Lógica para o Modal de Edição de Atalho ---
         const editSistemaModal = document.getElementById('editSistemaModal');
@@ -2352,45 +2395,4 @@ $nome_mes_atual = $nomes_meses[date('m')];
         });
     });
     </script>
-    <!-- Modal Gerenciar Vagas -->
-    <div class="modal fade" id="gerenciarVagasModal" tabindex="-1" aria-labelledby="gerenciarVagasModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="gerenciarVagasModalLabel">Gerenciar Vagas</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form>
-                        <div class="form-group">
-                            <label for="vagaTitulo">Título</label>
-                            <input type="text" class="form-control" id="vagaTitulo" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="vagaSetor">Setor</label>
-                            <select class="form-control" id="vagaSetor" required>
-                                <!-- Opções de setor serão carregadas dinamicamente -->
-                                <option value="">Selecione um setor</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="vagaDescricao">Descrição</label>
-                            <textarea class="form-control tinymce-editor" id="vagaDescricao" rows="5"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="vagaRequisitos">Requisitos</label>
-                            <textarea class="form-control tinymce-editor" id="vagaRequisitos" rows="5"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="vagaData">Data</label>
-                            <input type="text" class="form-control" id="vagaData" value="<?php echo date('d/m/Y'); ?>" readonly>
-                        </div>
-                        <button type="submit" class="btn btn-success">Salvar Vaga</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</body>
+    </body>
