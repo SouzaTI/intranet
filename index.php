@@ -1876,6 +1876,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                             <label for="vagaData">Data</label>
                             <input type="text" class="form-control" id="vagaData" value="<?php echo date('d/m/Y'); ?>" readonly>
                         </div>
+                        <div id="vagaStatus" class="mt-4 text-center"></div>
                         <button type="submit" class="btn btn-success">Salvar Vaga</button>
                     </form>
                 </div>
@@ -2395,4 +2396,10 @@ $nome_mes_atual = $nomes_meses[date('m')];
         });
     });
     </script>
-    </body>
+        <script>
+        // Ensure TinyMCE saves content to original textarea before form submission
+        document.getElementById('vagaForm').addEventListener('submit', function() {
+            tinymce.triggerSave();
+        });
+    </script>
+</body>
