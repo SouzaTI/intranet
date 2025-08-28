@@ -2,6 +2,44 @@
 session_start();
 require_once 'conexao.php';
 
+$sector_colors = [
+    'CADASTRO' => ['from' => '#87CEEB', 'to' => '#6A5ACD'], // Azul Claro
+    'CARREGAMENTO' => ['from' => '#FF8C00', 'to' => '#FF4500'], // Laranja Escuro
+    'COBRANÇA' => ['from' => '#FF0000', 'to' => '#B22222'], // Vermelho
+    'COMERCIAL' => ['from' => '#50C878', 'to' => '#2E8B57'], // Verde Esmeralda
+    'COMPRAS' => ['from' => '#800080', 'to' => '#4B0082'], // Roxo
+    'CONTAS A PAGAR' => ['from' => '#191970', 'to' => '#000080'], // Azul Marinho
+    'COORD. LOGÍSTICA' => ['from' => '#00FFFF', 'to' => '#00CED1'], // Ciano
+    'DIRETORIA' => ['from' => '#FFD700', 'to' => '#DAA520'], // Dourado
+    'ESTOQUE' => ['from' => '#32CD32', 'to' => '#008000'], // Verde Limão
+    'FACILITIES & T.I' => ['from' => '#36454F', 'to' => '#2F4F4F'], // Cinza Chumbo
+    'FATURAMENTO' => ['from' => '#FFFF00', 'to' => '#FFD700'], // Amarelo
+    'FATURAMENTO/FINANCEIRO' => ['from' => '#CC7722', 'to' => '#A0522D'], // Amarelo Queimado
+    'FECHAMENTO DE CARGAS' => ['from' => '#A52A2A', 'to' => '#8B0000'], // Marrom
+    'FINANCEIRO' => ['from' => '#4169E1', 'to' => '#191970'], // Azul Royal
+    'FINANCEIRO/COBRANÇA' => ['from' => '#4682B4', 'to' => '#2F4F4F'], // Azul Petróleo
+    'FISCAL' => ['from' => '#556B2F', 'to' => '#2E8B57'], // Verde Musgo
+    'GERÊNCIA ADMINISTRATIVA (BP)' => ['from' => '#C0C0C0', 'to' => '#A9A9A9'], // Prata
+    'GERÊNCIA COMERCIAL' => ['from' => '#228B22', 'to' => '#006400'], // Verde Floresta
+    'GERÊNCIA GERAL' => ['from' => '#000000', 'to' => '#2F4F4F'], // Preto
+    'KPI\'s e BI\' ' => ['from' => '#5DADE2', 'to' => '#2874A6'], // Azul Céu
+    'MANUTENÇÃO' => ['from' => '#FFA500', 'to' => '#FF8C00'], // Laranja
+    'MARKETING' => ['from' => '#FF69B4', 'to' => '#C71585'], // Rosa Choque
+    'OPERAÇÕES LOGÍSTICAS' => ['from' => '#6B8E23', 'to' => '#556B2F'], // Verde Oliva
+    'PORTARIA P1 (1521)' => ['from' => '#D3D3D3', 'to' => '#A9A9A9'], // Cinza Claro
+    'PORTARIA P2 (1519)' => ['from' => '#808080', 'to' => '#696969'], // Cinza Médio
+    'RECEBIMENTO' => ['from' => '#00CED1', 'to' => '#008B8B'], // Azul Turquesa
+    'RECEBIMENTO FISCAL' => ['from' => '#66CDAA', 'to' => '#3CB371'], // Verde Água
+    'RECURSOS HUMANOS' => ['from' => '#F5F5DC', 'to' => '#DEB887'], // Bege
+    'SALA DE REUNIÃO' => ['from' => '#FFFFFF', 'to' => '#F0F0F0'], // Branco
+    'SUPERVISÃO DE VENDAS' => ['from' => '#8B0000', 'to' => '#800000'], // Vermelho Escuro
+    'SUPERVISÃO OPERAÇÃO' => ['from' => '#CD5C5C', 'to' => '#B22222'], // Laranja Avermelhado
+    'TELEVENDAS' => ['from' => '#0000FF', 'to' => '#0000CD'], // Azul Elétrico
+    'TESOURARIA' => ['from' => '#006400', 'to' => '#008000'], // Verde Escuro
+    'TI' => ['from' => '#00008B', 'to' => '#0000CD'], // Azul Escuro
+    'TRANSPORTE' => ['from' => '#696969', 'to' => '#2F4F4F'], // Cinza Escuro
+];
+
 // Define o papel do usuário de forma segura para evitar erros com visitantes
 $user_role = $_SESSION['role'] ?? 'visitor';
 
@@ -9,6 +47,7 @@ $user_role = $_SESSION['role'] ?? 'visitor';
 $funcionarios_matriz = [];
 $total_paginas_matriz = 1;
 $pagina_atual_matriz = 1;
+
 
 // Define os filtros possíveis.
 $filtros_disponiveis_matriz = ['nome', 'setor', 'email', 'ramal'];
@@ -96,7 +135,13 @@ if (count($funcionarios_matriz) > 0) {
             <?php endif; ?>
 
             <!-- Cabeçalho do Card -->
-            <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-3 flex items-center">
+            <?php
+            $sector_name = htmlspecialchars($funcionario['setor']);
+            $color_info = $sector_colors[$sector_name] ?? ['from' => '#254c90', 'to' => '#1d3870']; // Default blue if sector not found
+            $color_from = $color_info['from'];
+            $color_to = $color_info['to'];
+            ?>
+            <div class="bg-gradient-to-r" style="background-image: linear-gradient(to right, <?= $color_from ?>, <?= $color_to ?>); padding: 0.75rem; display: flex; align-items: center;">
                 <img src="img/Slogan branco.png" alt="Logo" class="h-8 w-auto mr-4">
                 <h3 class="text-white font-bold text-sm uppercase tracking-wider">Matriz de Comunicação</h3>
             </div>
