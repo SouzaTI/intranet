@@ -1822,7 +1822,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <div class="p-4 bg-gray-200 h-full">
                         <div class="flex justify-between items-center mb-4">
                             <h1 class="text-2xl font-bold text-gray-800">Página de Vagas</h1>
-                            <button id="btnGerenciarVagas" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300">
+                            <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300" data-toggle="modal" data-target="#gerenciarVagasModal">
                                 Gerenciar Vagas
                             </button>
                         </div>
@@ -1831,36 +1831,6 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         <div class="bg-white rounded-lg shadow p-6 mb-6">
                             <p class="text-gray-700">Aqui será exibido o conteúdo das vagas.</p>
                             <!-- Futuramente, o conteúdo das vagas será carregado aqui -->
-                        </div>
-
-                        <!-- Formulário Gerenciar Vagas (inicialmente oculto) -->
-                        <div id="formGerenciarVagas" class="hidden bg-white rounded-lg shadow p-6">
-                            <h2 class="text-xl font-bold text-gray-800 mb-4">Gerenciar Vagas</h2>
-                            <form>
-                                <div class="mb-4">
-                                    <label for="vagaTitulo" class="block text-sm font-medium text-gray-700">Título</label>
-                                    <input type="text" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" id="vagaTitulo" required>
-                                </div>
-                                <div class="mb-4">
-                                    <label for="vagaSetor" class="block text-sm font-medium text-gray-700">Setor</label>
-                                    <select class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" id="vagaSetor" required>
-                                        <option value="">Selecione um setor</option>
-                                    </select>
-                                </div>
-                                <div class="mb-4">
-                                    <label for="vagaDescricao" class="block text-sm font-medium text-gray-700">Descrição</label>
-                                    <textarea class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 tinymce-editor" id="vagaDescricao" rows="5"></textarea>
-                                </div>
-                                <div class="mb-4">
-                                    <label for="vagaRequisitos" class="block text-sm font-medium text-gray-700">Requisitos</label>
-                                    <textarea class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 tinymce-editor" id="vagaRequisitos" rows="5"></textarea>
-                                </div>
-                                <div class="mb-4">
-                                    <label for="vagaData" class="block text-sm font-medium text-gray-700">Data</label>
-                                    <input type="text" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-100" id="vagaData" value="<?php echo date('d/m/Y'); ?>" readonly>
-                                </div>
-                                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-300">Salvar Vaga</button>
-                            </form>
                         </div>
                     </div>
                 </section>
@@ -2382,4 +2352,45 @@ $nome_mes_atual = $nomes_meses[date('m')];
         });
     });
     </script>
+    <!-- Modal Gerenciar Vagas -->
+    <div class="modal fade" id="gerenciarVagasModal" tabindex="-1" aria-labelledby="gerenciarVagasModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gerenciarVagasModalLabel">Gerenciar Vagas</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="form-group">
+                            <label for="vagaTitulo">Título</label>
+                            <input type="text" class="form-control" id="vagaTitulo" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="vagaSetor">Setor</label>
+                            <select class="form-control" id="vagaSetor" required>
+                                <!-- Opções de setor serão carregadas dinamicamente -->
+                                <option value="">Selecione um setor</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="vagaDescricao">Descrição</label>
+                            <textarea class="form-control tinymce-editor" id="vagaDescricao" rows="5"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="vagaRequisitos">Requisitos</label>
+                            <textarea class="form-control tinymce-editor" id="vagaRequisitos" rows="5"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="vagaData">Data</label>
+                            <input type="text" class="form-control" id="vagaData" value="<?php echo date('d/m/Y'); ?>" readonly>
+                        </div>
+                        <button type="submit" class="btn btn-success">Salvar Vaga</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
