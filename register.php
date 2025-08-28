@@ -45,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt_setor->execute();
             $department_name = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
 
-            $stmt_insert = $conn->prepare("INSERT INTO users (username, password, department, setor_id, empresa, role) VALUES (?, ?, ?, ?, ?, 'user')");
-            $stmt_insert->bind_param("sssiss", $username, $hashed_password, $department_name, $setor_id, $empresa);
+                        $stmt_insert = $conn->prepare("INSERT INTO users (username, password, department, setor_id, empresa, role) VALUES (?, ?, ?, ?, ?, 'user')");
+            $stmt_insert->bind_param("sssis", $username, $hashed_password, $department_name, $setor_id, $empresa);
 
             if ($stmt_insert->execute()) {
                 $new_user_id = $stmt_insert->insert_id;
