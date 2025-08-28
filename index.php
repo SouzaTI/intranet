@@ -557,10 +557,16 @@ $nome_mes_atual = $nomes_meses[date('m')];
                             <input type="text" placeholder="Buscar..." class="search-input py-2 pl-10 pr-4 rounded-md border border-[#4A6572] focus:outline-none focus:border-[#2C3E50] w-64 g-white text-[#4A90E2] placeholder-[#AAB7C4]">
                             <i class="fas fa-search text-white absolute left-3 top-3"></i>
                         </div>
-                        <?php if (can_view_section('calendario')): ?>
+                                                <?php if (can_view_section('calendario')): ?>
                         <a href="#" data-section="calendario" onclick="showSection('calendario', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
                             <i class="fas fa-calendar-alt"></i>
                             <span>Calendário</span>
+                        </a>
+                        <?php endif; ?>
+                        
+                        <?php if (can_view_section('matriz_comunicacao')): ?>
+                        <a href="#" data-section="matriz_comunicacao" onclick="showSection('matriz_comunicacao', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
+                            <i class="fa-solid fa-briefcase"></i>
                         </a>
                         <?php endif; ?>
                         
