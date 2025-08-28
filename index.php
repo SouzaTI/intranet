@@ -2040,6 +2040,26 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 selectedMatrizContactDiv.innerHTML = '';
                 matrizSearchResultsDiv.innerHTML = '';
                 matrizSearchResultsDiv.classList.add('hidden');
+
+                // Fetch o contato atualmente associado
+                fetch(`get_user_associated_contact.php?user_id=${userId}`)
+                    .then(response => response.json())
+                    .then(contact => {
+                        if (contact) {
+                            matrizContactIdInput.value = contact.id;
+                            selectedMatrizContactDiv.innerHTML = `
+                                <div class="flex justify-between items-center">
+                                    <span>Contato associado: <strong>${contact.nome}</strong></span>
+                                    <button type="button" id="unassignContactBtn" class="text-red-500 hover:text-red-700 text-sm font-bold">Desassociar</button>
+                                </div>`;
+                            selectedMatrizContactDiv.classList.remove('hidden');
+                            
+                            document.getElementById('unassignContactBtn').addEventListener('click', () => {
+                                matrizContactIdInput.value = '0'; // Use 0 for removal
+                                selectedMatrizContactDiv.innerHTML = `<div class="text-red-600">O contato <strong>${contact.nome}</strong> será desassociado ao salvar.</div>`;
+                            });
+                        }
+                    });
                 
                 associateModal.classList.remove('hidden');
                 setTimeout(() => {
@@ -2066,9 +2086,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
 
             matrizContactSearchInput.addEventListener('input', function() {
                 const searchTerm = this.value;
-                selectedMatrizContactDiv.classList.add('hidden');
-                matrizContactIdInput.value = '';
-
+                
                 if (searchTerm.length < 2) {
                     matrizSearchResultsDiv.innerHTML = '';
                     matrizSearchResultsDiv.classList.add('hidden');
@@ -2087,7 +2105,10 @@ $nome_mes_atual = $nomes_meses[date('m')];
                                 div.innerHTML = `<strong>${contact.nome}</strong> <span class="text-sm text-gray-500">(${contact.setor || 'Sem setor'})</span>`;
                                 div.addEventListener('click', () => {
                                     matrizContactIdInput.value = contact.id;
-                                    selectedMatrizContactDiv.innerHTML = `Contato selecionado: <strong>${contact.nome}</strong>`;
+                                    selectedMatrizContactDiv.innerHTML = `
+                                    <div class="flex justify-between items-center">
+                                        <span>Novo contato: <strong>${contact.nome}</strong></span>
+                                    </div>`;
                                     selectedMatrizContactDiv.classList.remove('hidden');
                                     matrizSearchResultsDiv.innerHTML = '';
                                     matrizSearchResultsDiv.classList.add('hidden');
