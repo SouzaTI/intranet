@@ -19,10 +19,10 @@ $tipos_parametros_matriz = '';
 foreach ($filtros_disponiveis_matriz as $filtro) {
     if (!empty($_GET[$filtro])) {
         if ($filtro === 'setor') {
-            $condicoes_matriz[] = "`setor` = ?";
+            $condicoes_matriz[] = "mc.`setor` = ?";
             $parametros_matriz[] = $_GET[$filtro];
         } else {
-            $condicoes_matriz[] = "`$filtro` LIKE ?";
+            $condicoes_matriz[] = "mc.`$filtro` LIKE ?";
             $parametros_matriz[] = '%' . $_GET[$filtro] . '%';
         }
         $tipos_parametros_matriz .= 's';
@@ -30,7 +30,7 @@ foreach ($filtros_disponiveis_matriz as $filtro) {
 }
 
 // Monta a query de contagem
-$sql_count_matriz = "SELECT COUNT(*) FROM matriz_comunicacao";
+$sql_count_matriz = "SELECT COUNT(mc.id) FROM matriz_comunicacao mc";
 if (count($condicoes_matriz) > 0) {
     $sql_count_matriz .= " WHERE " . implode(' AND ', $condicoes_matriz);
 }
@@ -55,11 +55,11 @@ $pagina_atual_matriz = max(1, min($pagina_atual_matriz, $total_paginas_matriz));
 $offset_matriz = ($pagina_atual_matriz - 1) * $resultados_por_pagina_matriz;
 
 // Monta a query principal
-$sql_matriz = "SELECT id, nome, setor, email, ramal FROM matriz_comunicacao";
+$sql_matriz = "SELECT mc.id, mc.nome, mc.setor, mc.email, mc.ramal, u.username AS associated_username FROM matriz_comunicacao mc LEFT JOIN users u ON mc.id = u.matriz_comunicacao_id";
 if (count($condicoes_matriz) > 0) {
     $sql_matriz .= " WHERE " . implode(' AND ', $condicoes_matriz);
 }
-$sql_matriz .= " ORDER BY nome ASC LIMIT ?, ?";
+$sql_matriz .= " ORDER BY mc.nome ASC LIMIT ?, ?";
 $parametros_matriz[] = $offset_matriz;
 $parametros_matriz[] = $resultados_por_pagina_matriz;
 $tipos_parametros_matriz .= 'ii';
@@ -143,4 +143,3 @@ echo json_encode([
 
 $conn->close();
 ?>
-

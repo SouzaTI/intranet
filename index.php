@@ -1227,7 +1227,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                                         <tr>
                                             <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>                                            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Setor</th>
                                             <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Nível</th>
-                                            <th class="py-2 px-4 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
+                                            <th class="py-2 px-4 text-center text-xs font-medium text-gray-500 uppercase w-64">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200">
@@ -1235,7 +1235,10 @@ $nome_mes_atual = $nomes_meses[date('m')];
                                             <tr>
                                                 <td class="py-3 px-4 text-sm text-gray-800 font-medium"><?= htmlspecialchars($usuario['username']) ?></td>                                                <td class="py-3 px-4 text-sm text-gray-600"><?= htmlspecialchars($usuario['setor_nome'] ?? 'N/A') ?></td>
                                                 <td class="py-3 px-4 text-sm text-gray-600"><?= ucfirst(htmlspecialchars($usuario['role'])) ?></td>
-                                                <td class="py-3 px-4 text-sm text-center"><button class="open-permissions-modal px-3 py-1 bg-[#254c90] text-white text-xs font-semibold rounded-md hover:bg-[#1d3870]" data-userid="<?= $usuario['id'] ?>" data-username="<?= htmlspecialchars($usuario['username']) ?>">Gerenciar</button></td>
+                                                <td class="py-3 px-4 text-sm text-center space-x-2">
+                                                    <button class="open-permissions-modal px-3 py-1 bg-gray-600 text-white text-xs font-semibold rounded-md hover:bg-gray-700" data-userid="<?= $usuario['id'] ?>" data-username="<?= htmlspecialchars($usuario['username']) ?>">Permissões</button>
+                                                    <button class="open-associate-modal px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700" data-userid="<?= $usuario['id'] ?>" data-username="<?= htmlspecialchars($usuario['username']) ?>">Associar Matriz</button>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -1843,6 +1846,32 @@ $nome_mes_atual = $nomes_meses[date('m')];
             </form>
         </div>
     </div>
+    <!-- Modal de Associação com Matriz -->
+    <div id="associateModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform transition-all scale-95 opacity-0">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-semibold text-[#4A90E2]">Associar Usuário à Matriz: <span id="associateModalUsername" class="font-bold"></span></h3>
+                <button id="closeAssociateModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <form id="associateForm" action="associar_usuario_matriz.php" method="POST">
+                <input type="hidden" name="user_id" id="associateModalUserId">
+                <div class="space-y-4">
+                    <div>
+                        <label for="matrizContactSearch" class="block text-sm font-medium text-[#4A90E2]">Buscar Contato da Matriz</label>
+                        <p class="text-xs text-gray-500 mb-2">Busque pelo nome ou e-mail do contato na Matriz de Comunicação.</p>
+                        <input type="text" id="matrizContactSearch" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]" placeholder="Comece a digitar para buscar...">
+                        <div id="matrizSearchResults" class="mt-1 border border-gray-300 rounded-md max-h-48 overflow-y-auto bg-white hidden"></div>
+                        <input type="hidden" name="matriz_id" id="matrizContactId">
+                        <div id="selectedMatrizContact" class="mt-2 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-md hidden"></div>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-6 pt-4 border-t">
+                    <button type="button" id="cancelAssociate" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md mr-2 hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Salvar Associação</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <!-- Modal Detalhes do Contato -->
     <div id="contactDetailModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform transition-all scale-95 opacity-0">
@@ -1982,6 +2011,96 @@ $nome_mes_atual = $nomes_meses[date('m')];
                 closeContactDetailModal();
             }
         });
+    });
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Lógica para o Modal de Associação com Matriz ---
+        const associateModal = document.getElementById('associateModal');
+        if (associateModal) {
+            const closeAssociateModalBtn = document.getElementById('closeAssociateModal');
+            const cancelAssociateBtn = document.getElementById('cancelAssociate');
+            const associateForm = document.getElementById('associateForm');
+            const openAssociateModalBtns = document.querySelectorAll('.open-associate-modal');
+
+            const modalUserIdInput = document.getElementById('associateModalUserId');
+            const modalUsernameSpan = document.getElementById('associateModalUsername');
+            const matrizContactSearchInput = document.getElementById('matrizContactSearch');
+            const matrizSearchResultsDiv = document.getElementById('matrizSearchResults');
+            const matrizContactIdInput = document.getElementById('matrizContactId');
+            const selectedMatrizContactDiv = document.getElementById('selectedMatrizContact');
+
+            function openAssociateModal(userId, username) {
+                modalUserIdInput.value = userId;
+                modalUsernameSpan.textContent = username;
+                
+                associateForm.reset();
+                matrizContactIdInput.value = '';
+                selectedMatrizContactDiv.classList.add('hidden');
+                selectedMatrizContactDiv.innerHTML = '';
+                matrizSearchResultsDiv.innerHTML = '';
+                matrizSearchResultsDiv.classList.add('hidden');
+                
+                associateModal.classList.remove('hidden');
+                setTimeout(() => {
+                    associateModal.querySelector('.transform').classList.remove('scale-95', 'opacity-0');
+                }, 10);
+            }
+
+            function closeAssociateModal() {
+                associateModal.querySelector('.transform').classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    associateModal.classList.add('hidden');
+                }, 200);
+            }
+
+            openAssociateModalBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    openAssociateModal(this.dataset.userid, this.dataset.username);
+                });
+            });
+
+            closeAssociateModalBtn.addEventListener('click', closeAssociateModal);
+            cancelAssociateBtn.addEventListener('click', closeAssociateModal);
+            associateModal.addEventListener('click', e => e.target === associateModal && closeAssociateModal());
+
+            matrizContactSearchInput.addEventListener('input', function() {
+                const searchTerm = this.value;
+                selectedMatrizContactDiv.classList.add('hidden');
+                matrizContactIdInput.value = '';
+
+                if (searchTerm.length < 2) {
+                    matrizSearchResultsDiv.innerHTML = '';
+                    matrizSearchResultsDiv.classList.add('hidden');
+                    return;
+                }
+
+                fetch(`buscar_contato_matriz.php?term=${encodeURIComponent(searchTerm)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        matrizSearchResultsDiv.innerHTML = '';
+                        matrizSearchResultsDiv.classList.remove('hidden');
+                        if (data.length > 0) {
+                            data.forEach(contact => {
+                                const div = document.createElement('div');
+                                div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                                div.innerHTML = `<strong>${contact.nome}</strong> <span class="text-sm text-gray-500">(${contact.setor || 'Sem setor'})</span>`;
+                                div.addEventListener('click', () => {
+                                    matrizContactIdInput.value = contact.id;
+                                    selectedMatrizContactDiv.innerHTML = `Contato selecionado: <strong>${contact.nome}</strong>`;
+                                    selectedMatrizContactDiv.classList.remove('hidden');
+                                    matrizSearchResultsDiv.innerHTML = '';
+                                    matrizSearchResultsDiv.classList.add('hidden');
+                                    matrizContactSearchInput.value = '';
+                                });
+                                matrizSearchResultsDiv.appendChild(div);
+                            });
+                        } else {
+                            matrizSearchResultsDiv.innerHTML = '<div class="p-2 text-gray-500">Nenhum contato encontrado.</div>';
+                        }
+                    });
+            });
+        }
     });
     </script>
     <script src="src/js/script.js"></script>
