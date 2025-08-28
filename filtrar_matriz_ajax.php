@@ -125,7 +125,8 @@ if (count($funcionarios_matriz) > 0) {
             data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
             data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
             data-email="<?= htmlspecialchars($funcionario['email']) ?>"
-            data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>">
+            data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>"
+            data-photo="<?= htmlspecialchars($funcionario['associated_user_photo'] ?? '') ?>">
 
             <!-- Botão de Edição para Admin -->
             <?php if ($is_admin): ?>
