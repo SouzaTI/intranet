@@ -13,7 +13,7 @@ $sector_colors = [
     'DIRETORIA' => ['from' => '#FFD700', 'to' => '#DAA520'], // Dourado
     'ESTOQUE' => ['from' => '#32CD32', 'to' => '#008000'], // Verde Limão
     'FACILITIES & T.I' => ['from' => '#36454F', 'to' => '#2F4F4F'], // Cinza Chumbo
-    'FATURAMENTO' => ['from' => '#FFFF00', 'to' => '#FFD700'], // Amarelo
+    'FATURAMENTO' => ['from' => '#c4c46eff', 'to' => '#c4c46eff'], // Amarelo
     'FATURAMENTO/FINANCEIRO' => ['from' => '#CC7722', 'to' => '#A0522D'], // Amarelo Queimado
     'FECHAMENTO DE CARGAS' => ['from' => '#A52A2A', 'to' => '#8B0000'], // Marrom
     'FINANCEIRO' => ['from' => '#4169E1', 'to' => '#191970'], // Azul Royal
