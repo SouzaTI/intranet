@@ -74,6 +74,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $msg = "Erro ao excluir o atalho.";
         }
         $stmt->close();
+    } elseif ($action === 'edit' && !empty($_POST['sistema_id']) && !empty($_POST['nome']) && !empty($_POST['link'])) {
+        $sistema_id = intval($_POST['sistema_id']);
+        $nome = trim($_POST['nome']);
+        $link = trim($_POST['link']);
+        $icon_class = !empty(trim($_POST['icon_class'])) ? trim($_POST['icon_class']) : 'fas fa-external-link-alt';
+        
+        $setor_id = filter_input(INPUT_POST, 'setor_id', FILTER_VALIDATE_INT);
+        if ($setor_id === false || $setor_id === 0) {
+            $setor_id = null;
+        }
+
+        $departamento = null;
+        if ($setor_id) {
+            $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
+            $stmt_setor->bind_param("i", $setor_id);
+            $stmt_setor->execute();
+            $departamento = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
+            $stmt_setor->close();
+        }
+
+        // Busca o nome do sistema para o log antes de atualizar
+        $stmt_get_name = $conn->prepare("SELECT nome FROM sistemas_externos WHERE id = ?");
+        $stmt_get_name->bind_param("i", $sistema_id);
+        $stmt_get_name->execute();
+        $result = $stmt_get_name->get_result();
+        $sistema_nome_old = $result->fetch_assoc()['nome'] ?? 'ID: ' . $sistema_id;
+        $stmt_get_name->close();
+
+        $stmt = $conn->prepare("UPDATE sistemas_externos SET nome = ?, link = ?, icon_class = ?, departamento = ?, setor_id = ? WHERE id = ?");
+        $stmt->bind_param("ssssii", $nome, $link, $icon_class, $departamento, $setor_id, $sistema_id);
+        if ($stmt->execute()) {
+            logActivity($loggedInUserId, 'Editou atalho de sistema', "Sistema: {$sistema_nome_old} para {$nome} (ID: {$sistema_id})");
+            $status = "success";
+            $msg = "Atalho atualizado com sucesso!";
+        } else {
+            logActivity($loggedInUserId, 'Erro ao editar atalho de sistema', "Tentativa para sistema: {$nome} (ID: {$sistema_id})", 'error');
+            $status = "error";
+            $msg = "Erro ao atualizar o atalho.";
+        }
+        $stmt->close();
     }
 }
 

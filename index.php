@@ -1339,11 +1339,21 @@ $nome_mes_atual = $nomes_meses[date('m')];
                                                     <span class="text-[#4A90E2] font-medium"><i class="<?= htmlspecialchars($sistema['icon_class']) ?> mr-2 text-gray-500"></i><?= htmlspecialchars($sistema['nome']) ?></span>
                                                     <span class="block text-xs text-gray-500 ml-6"><?= htmlspecialchars($sistema['departamento'] ?? 'Visível para Todos') ?></span>
                                                 </div>
-                                                <form action="gerenciar_sistemas.php" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este atalho?');">
-                                                    <input type="hidden" name="action" value="delete">
-                                                    <input type="hidden" name="sistema_id" value="<?= $sistema['id'] ?>">
-                                                    <button type="submit" class="text-red-500 hover:text-red-700" title="Excluir Atalho"><i class="fas fa-trash-alt"></i></button>
-                                                </form>
+                                                <div class="flex items-center space-x-2">
+                                                    <button type="button" class="edit-sistema-btn text-blue-500 hover:text-blue-700" title="Editar Atalho"
+                                                        data-id="<?= $sistema['id'] ?>"
+                                                        data-nome="<?= htmlspecialchars($sistema['nome']) ?>"
+                                                        data-link="<?= htmlspecialchars($sistema['link']) ?>"
+                                                        data-icon_class="<?= htmlspecialchars($sistema['icon_class']) ?>"
+                                                        data-setor_id="<?= htmlspecialchars($sistema['setor_id'] ?? '') ?>">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <form action="gerenciar_sistemas.php" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este atalho?');">
+                                                        <input type="hidden" name="action" value="delete">
+                                                        <input type="hidden" name="sistema_id" value="<?= $sistema['id'] ?>">
+                                                        <button type="submit" class="text-red-500 hover:text-red-700" title="Excluir Atalho"><i class="fas fa-trash-alt"></i></button>
+                                                    </form>
+                                                </div>
                                             </li>
                                         <?php endforeach; ?>
                                     </ul>
@@ -1973,6 +1983,48 @@ $nome_mes_atual = $nomes_meses[date('m')];
             </div>
         </div>
     </div>
+    <!-- Modal de Edição de Atalho -->
+    <div id="editSistemaModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform transition-all scale-95 opacity-0">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-semibold text-[#4A90E2]">Editar Atalho de Sistema</h3>
+                <button id="closeEditSistemaModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <form id="editSistemaForm" action="gerenciar_sistemas.php" method="POST">
+                <input type="hidden" name="action" value="edit">
+                <input type="hidden" name="sistema_id" id="edit_sistema_id">
+                <div class="space-y-4">
+                    <div>
+                        <label for="edit_nome_sistema" class="block text-sm font-medium text-[#4A90E2]">Nome do Sistema</label>
+                        <input type="text" id="edit_nome_sistema" name="nome" required class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                    </div>
+                    <div>
+                        <label for="edit_link_sistema" class="block text-sm font-medium text-[#4A90E2]">Link do Sistema</label>
+                        <input type="url" id="edit_link_sistema" name="link" required placeholder="https://..." class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                    </div>
+                    <div>
+                        <label for="edit_departamento_sistema" class="block text-sm font-medium text-[#4A90E2]">Departamento (Opcional)</label>
+                        <select id="edit_departamento_sistema" name="setor_id" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90] bg-white text-[#4A90E2]">
+                            <option value="">Visível para Todos</option>
+                            <?php foreach ($setores as $setor): ?>
+                                <option value="<?= $setor['id'] ?>"><?= htmlspecialchars($setor['nome']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Selecione um departamento ou deixe em "Todos".</p>
+                    </div>
+                    <div>
+                        <label for="edit_icon_sistema" class="block text-sm font-medium text-[#4A90E2]">Ícone (Font Awesome)</label>
+                        <input type="text" id="edit_icon_sistema" name="icon_class" placeholder="Ex: fas fa-cogs" class="mt-1 w-full border border-[#1d3870] rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#254c90]">
+                        <p class="text-xs text-gray-500 mt-1">Opcional. Veja os ícones em <a href="https://fontawesome.com/v6/search" target="_blank" class="text-blue-500 underline">fontawesome.com</a>.</p>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-6 pt-4 border-t">
+                    <button type="button" id="cancelEditSistema" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md mr-2 hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-[#254c90] text-white rounded-md hover:bg-[#1d3870]">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <!-- Success Modal -->
     <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
@@ -2223,4 +2275,56 @@ $nome_mes_atual = $nomes_meses[date('m')];
     <script src="tour.js.php"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Lógica para o Modal de Edição de Atalho ---
+        const editSistemaModal = document.getElementById('editSistemaModal');
+        const closeEditSistemaModalBtn = document.getElementById('closeEditSistemaModal');
+        const cancelEditSistemaBtn = document.getElementById('cancelEditSistema');
+        const editSistemaForm = document.getElementById('editSistemaForm');
+
+        const editSistemaIdInput = document.getElementById('edit_sistema_id');
+        const editNomeSistemaInput = document.getElementById('edit_nome_sistema');
+        const editLinkSistemaInput = document.getElementById('edit_link_sistema');
+        const editIconSistemaInput = document.getElementById('edit_icon_sistema');
+        const editDepartamentoSistemaSelect = document.getElementById('edit_departamento_sistema');
+
+        document.querySelectorAll('.edit-sistema-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const data = this.dataset;
+                editSistemaIdInput.value = data.id;
+                editNomeSistemaInput.value = data.nome;
+                editLinkSistemaInput.value = data.link;
+                editIconSistemaInput.value = data.icon_class;
+                editDepartamentoSistemaSelect.value = data.setor_id;
+
+                editSistemaModal.classList.remove('hidden');
+                setTimeout(() => {
+                    editSistemaModal.querySelector('.transform').classList.remove('scale-95', 'opacity-0');
+                }, 10);
+            });
+        });
+
+        function closeEditSistemaModal() {
+            editSistemaModal.querySelector('.transform').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                editSistemaModal.classList.add('hidden');
+            }, 200);
+        }
+
+        closeEditSistemaModalBtn.addEventListener('click', closeEditSistemaModal);
+        cancelEditSistemaBtn.addEventListener('click', closeEditSistemaModal);
+        editSistemaModal.addEventListener('click', function(e) {
+            if (e.target === editSistemaModal) {
+                closeEditSistemaModal();
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !editSistemaModal.classList.contains('hidden')) {
+                closeEditSistemaModal();
+            }
+        });
+    });
+    </script>
 </body>
