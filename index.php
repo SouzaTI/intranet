@@ -13,7 +13,7 @@ $sector_colors = [
     'DIRETORIA' => ['from' => '#FFD700', 'to' => '#DAA520'], // Dourado
     'ESTOQUE' => ['from' => '#32CD32', 'to' => '#008000'], // Verde Limão
     'FACILITIES & T.I' => ['from' => '#36454F', 'to' => '#2F4F4F'], // Cinza Chumbo
-    'FATURAMENTO' => ['from' => '#FFFF00', 'to' => '#FFD700'], // Amarelo
+    'FATURAMENTO' => ['from' => '#FFD700', 'to' => '#FFD700'], // Amarelo
     'FATURAMENTO/FINANCEIRO' => ['from' => '#CC7722', 'to' => '#A0522D'], // Amarelo Queimado
     'FECHAMENTO DE CARGAS' => ['from' => '#A52A2A', 'to' => '#8B0000'], // Marrom
     'FINANCEIRO' => ['from' => '#4169E1', 'to' => '#191970'], // Azul Royal
@@ -31,7 +31,7 @@ $sector_colors = [
     'RECEBIMENTO' => ['from' => '#00CED1', 'to' => '#008B8B'], // Azul Turquesa
     'RECEBIMENTO FISCAL' => ['from' => '#66CDAA', 'to' => '#3CB371'], // Verde Água
     'RECURSOS HUMANOS' => ['from' => '#F5F5DC', 'to' => '#DEB887'], // Bege
-    'SALA DE REUNIÃO' => ['from' => '#FFFFFF', 'to' => '#F0F0F0'], // Branco
+    'SALA DE REUNIÃO' => ['from' => '#221e1eff', 'to' => '#221e1eff'], // Branco
     'SUPERVISÃO DE VENDAS' => ['from' => '#8B0000', 'to' => '#800000'], // Vermelho Escuro
     'SUPERVISÃO OPERAÇÃO' => ['from' => '#CD5C5C', 'to' => '#B22222'], // Laranja Avermelhado
     'TELEVENDAS' => ['from' => '#0000FF', 'to' => '#0000CD'], // Azul Elétrico
