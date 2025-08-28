@@ -34,8 +34,8 @@
                             </div>
                             <div class="card-body">
                                 <h6 class="card-subtitle mb-2 text-muted"><i class="fas fa-building mr-2"></i><?php echo htmlspecialchars($vaga['setor_nome']); ?></h6>
-                                <p class="card-text"><strong>Descrição:</strong><br><?php echo nl2br(htmlspecialchars($vaga['descricao'])); ?></p>
-                                <p class="card-text"><strong>Requisitos:</strong><br><?php echo nl2br(htmlspecialchars($vaga['requisitos'])); ?></p>
+                                <p class="card-text"><strong>Descrição:</strong><br><?php echo nl2br($vaga['descricao']); ?></p>
+                                <p class="card-text"><strong>Requisitos:</strong><br><?php echo nl2br($vaga['requisitos']); ?></p>
                             </div>
                             <div class="card-footer text-muted d-flex justify-content-between align-items-center">
                                 <span><i class="fas fa-calendar-alt mr-2"></i>Publicado em: <?php echo $data_publicacao_formatada; ?></span>

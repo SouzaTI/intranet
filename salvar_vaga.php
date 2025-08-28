@@ -20,8 +20,8 @@ if (!isset($_SESSION['user_id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $titulo = trim($_POST['titulo'] ?? '');
     $setor = trim($_POST['setor'] ?? '');
-    $descricao = trim($_POST['descricao'] ?? '');
-    $requisitos = trim($_POST['requisitos'] ?? '');
+    $descricao = strip_tags(trim($_POST['descricao'] ?? ''));
+    $requisitos = strip_tags(trim($_POST['requisitos'] ?? ''));
     $data_publicacao = date('Y-m-d'); // A data é gerada no servidor
 
     // Validação básica
