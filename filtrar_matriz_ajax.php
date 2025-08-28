@@ -55,7 +55,7 @@ $pagina_atual_matriz = max(1, min($pagina_atual_matriz, $total_paginas_matriz));
 $offset_matriz = ($pagina_atual_matriz - 1) * $resultados_por_pagina_matriz;
 
 // Monta a query principal
-$sql_matriz = "SELECT mc.id, mc.nome, mc.setor, mc.email, mc.ramal, u.username AS associated_username FROM matriz_comunicacao mc LEFT JOIN users u ON mc.id = u.matriz_comunicacao_id";
+$sql_matriz = "SELECT mc.id, mc.nome, mc.setor, mc.email, mc.ramal, u.username AS associated_username, u.profile_photo AS associated_user_photo FROM matriz_comunicacao mc LEFT JOIN users u ON mc.id = u.matriz_comunicacao_id";
 if (count($condicoes_matriz) > 0) {
     $sql_matriz .= " WHERE " . implode(' AND ', $condicoes_matriz);
 }
@@ -96,6 +96,21 @@ if (count($funcionarios_matriz) > 0) {
                 <div class="font-bold text-lg mb-2 cell-content-wrapper" data-column="nome">
                     <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
                 </div>
+                <?php if (!empty($funcionario['associated_username'])): ?>
+                    <div class="flex items-center bg-blue-50 p-2 rounded-md mb-3 border border-blue-200">
+                        <?php 
+                        // Verifica se a foto existe e o caminho não está vazio
+                        if (!empty($funcionario['associated_user_photo']) && file_exists($funcionario['associated_user_photo'])): 
+                        ?>
+                            <img src="<?= htmlspecialchars($funcionario['associated_user_photo']) ?>" alt="Foto de <?= htmlspecialchars($funcionario['associated_username']) ?>" class="w-8 h-8 rounded-full mr-3 object-cover border-2 border-white">
+                        <?php else: ?>
+                            <div class="w-8 h-8 rounded-full mr-3 bg-gray-300 flex items-center justify-center text-gray-500"><i class="fas fa-user"></i></div>
+                        <?php endif; ?>
+                        <p class="text-sm text-blue-800" title="Usuário do sistema associado a este contato">
+                            Associado a: <strong><?= htmlspecialchars($funcionario['associated_username']) ?></strong>
+                        </p>
+                    </div>
+                <?php endif; ?>
                 <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="setor">
                     <strong class="w-16 inline-block">Setor:</strong>
                     <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['setor']) ?></span>
