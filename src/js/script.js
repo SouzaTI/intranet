@@ -553,6 +553,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
         closeModalBtn.addEventListener('click', closePermissionsModal);
         cancelBtn.addEventListener('click', closePermissionsModal);
+
+        // Handle permissions form submission
+        const permissionsForm = document.getElementById('permissionsForm');
+        if (permissionsForm) {
+            permissionsForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+
+                try {
+                    const response = await fetch('update_user_permissions.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert(data.message);
+                        closePermissionsModal();
+                        // Optionally, refresh the user list in the main table if roles/sectors are displayed
+                        window.location.reload(); 
+                    } else {
+                        alert('Erro: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Erro ao atualizar permissões:', error);
+                    alert('Erro de conexão ao atualizar permissões. Tente novamente.');
+                }
+            });
+        }
     }
 
     const createUserModal = document.getElementById('createUserModal');
@@ -582,7 +611,70 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (closeCreateUserModalBtn) closeCreateUserModalBtn.addEventListener('click', closeCreateUserModal);
         if (cancelCreateUserBtn) cancelCreateUserBtn.addEventListener('click', closeCreateUserModal);
+
+        // Handle create user form submission
+        const createUserForm = document.getElementById('createUserForm');
+        if (createUserForm) {
+            createUserForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+
+                try {
+                    const response = await fetch('create_user_admin.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert(data.message);
+                        closeCreateUserModal();
+                        this.reset(); // Clear the form
+                        // Optionally, refresh the user list in the main table
+                        // For now, a page reload might be simplest if the list isn't dynamically updated
+                        window.location.reload(); 
+                    } else {
+                        alert('Erro: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Erro ao criar usuário:', error);
+                    alert('Erro de conexão ao criar usuário. Tente novamente.');
+                }
+            });
+        }
     }
+
+    // Handle delete user button click
+    document.querySelectorAll('.delete-user-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const userIdToDelete = this.dataset.userid;
+            const usernameToDelete = this.closest('tr').querySelector('td:first-child').textContent; // Get username from the first td
+
+            if (confirm(`Tem certeza que deseja excluir o usuário '${usernameToDelete}'? Esta ação é irreversível.`)) {
+                try {
+                    const formData = new FormData();
+                    formData.append('user_id', userIdToDelete);
+
+                    const response = await fetch('delete_user.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert(data.message);
+                        // Remove the row from the table
+                        this.closest('tr').remove();
+                    } else {
+                        alert('Erro: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Erro ao excluir usuário:', error);
+                    alert('Erro de conexão ao excluir usuário. Tente novamente.');
+                }
+            }
+        });
+    });
 
     const btnAdicionar = document.getElementById('btn-adicionar-funcionario');
     const formAdicionar = document.getElementById('form-adicionar-funcionario');

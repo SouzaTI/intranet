@@ -27,17 +27,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         // Busca o nome do setor para a coluna 'departamento' (para compatibilidade)
-        $departamento = null;
-        if ($setor_id) {
-            $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
-            $stmt_setor->bind_param("i", $setor_id);
-            $stmt_setor->execute();
-            $departamento = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
-            $stmt_setor->close();
-        }
+        // O departamento será buscado via JOIN na exibição, não armazenado diretamente
+        // $departamento = null;
+        // if ($setor_id) {
+        //     $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
+        //     $stmt_setor->bind_param("i", $setor_id);
+        //     $stmt_setor->execute();
+        //     $departamento = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
+        //     $stmt_setor->close();
+        // }
 
-        $stmt = $conn->prepare("INSERT INTO sistemas_externos (nome, link, icon_class, departamento, setor_id) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssi", $nome, $link, $icon_class, $departamento, $setor_id);
+        $stmt = $conn->prepare("INSERT INTO sistemas_externos (nome, link, icon_class, setor_id) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("sssi", $nome, $link, $icon_class, $setor_id);
         if ($stmt->execute()) {
             $new_system_id = $stmt->insert_id;
             logActivity($loggedInUserId, 'Adicionou novo atalho de sistema', "Sistema: {$nome} (ID: {$new_system_id})");
@@ -85,14 +86,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $setor_id = null;
         }
 
-        $departamento = null;
-        if ($setor_id) {
-            $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
-            $stmt_setor->bind_param("i", $setor_id);
-            $stmt_setor->execute();
-            $departamento = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
-            $stmt_setor->close();
-        }
+                // O departamento será buscado via JOIN na exibição, não armazenado diretamente
+        // $departamento = null;
+        // if ($setor_id) {
+        //     $stmt_setor = $conn->prepare("SELECT nome FROM setores WHERE id = ?");
+        //     $stmt_setor->bind_param("i", $setor_id);
+        //     $stmt_setor->execute();
+        //     $departamento = $stmt_setor->get_result()->fetch_assoc()['nome'] ?? null;
+        //     $stmt_setor->close();
+        // }
 
         // Busca o nome do sistema para o log antes de atualizar
         $stmt_get_name = $conn->prepare("SELECT nome FROM sistemas_externos WHERE id = ?");
@@ -102,8 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $sistema_nome_old = $result->fetch_assoc()['nome'] ?? 'ID: ' . $sistema_id;
         $stmt_get_name->close();
 
-        $stmt = $conn->prepare("UPDATE sistemas_externos SET nome = ?, link = ?, icon_class = ?, departamento = ?, setor_id = ? WHERE id = ?");
-        $stmt->bind_param("ssssii", $nome, $link, $icon_class, $departamento, $setor_id, $sistema_id);
+        $stmt = $conn->prepare("UPDATE sistemas_externos SET nome = ?, link = ?, icon_class = ?, setor_id = ? WHERE id = ?");
+        $stmt->bind_param("sssii", $nome, $link, $icon_class, $setor_id, $sistema_id);
         if ($stmt->execute()) {
             logActivity($loggedInUserId, 'Editou atalho de sistema', "Sistema: {$sistema_nome_old} para {$nome} (ID: {$sistema_id})");
             $status = "success";

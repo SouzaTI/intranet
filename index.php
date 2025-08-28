@@ -1284,6 +1284,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                                                 <td class="py-3 px-4 text-sm text-center space-x-2">
                                                     <button class="open-permissions-modal px-3 py-1 bg-gray-600 text-white text-xs font-semibold rounded-md hover:bg-gray-700" data-userid="<?= $usuario['id'] ?>" data-username="<?= htmlspecialchars($usuario['username']) ?>">Permissões</button>
                                                     <button class="open-associate-modal px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700" data-userid="<?= $usuario['id'] ?>" data-username="<?= htmlspecialchars($usuario['username']) ?>">Associar Matriz</button>
+                                                    <button class="delete-user-btn px-3 py-1 bg-red-600 text-white text-xs font-semibold rounded-md hover:bg-red-700" data-userid="<?= $usuario['id'] ?>">Excluir</button>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
