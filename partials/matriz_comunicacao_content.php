@@ -63,65 +63,99 @@
         </form>
     </div>
 
-    <table class="min-w-full bg-white">
-        <thead class="bg-[#254c90] text-white">
-            <tr>
-                <th class="py-3 px-4 text-left text-sm font-semibold">Nome</th>
-                <th class="py-3 px-4 text-left text-sm font-semibold">Setor</th>
-                <th class="py-3 px-4 text-left text-sm font-semibold">E-mail</th>
-                <th class="py-3 px-4 text-left text-sm font-semibold">Ramal</th>
-                <?php if (isset($user_role) && in_array($user_role, ['admin', 'god'])): ?>
-                    <th class="py-3 px-4 text-center text-sm font-semibold">Ações</th>
-                <?php endif; ?>
-            </tr>
-        </thead>
-        <tbody id="matriz-comunicacao-tbody" class="divide-y divide-gray-200">
-            <?php if (isset($funcionarios_matriz) && count($funcionarios_matriz) > 0): ?>
-                <?php foreach ($funcionarios_matriz as $funcionario): ?>
-                    <?php 
-                    $is_admin_tab = isset($user_role) && in_array($user_role, ['admin', 'god']); 
-                    ?>
-                    <tr class="hover:bg-gray-50 matriz-card contact-card-clickable cursor-pointer" 
-                        data-id="<?= $funcionario['id'] ?>"
-                        data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
-                        data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
-                        data-email="<?= htmlspecialchars($funcionario['email']) ?>"
-                        data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>"
-                    >
-                        <td class="py-3 px-4 text-sm text-gray-700" data-column="nome">
-                            <div class="cell-content-wrapper">
+    <!-- Grid de Cards -->
+    <div id="matriz-comunicacao-tbody" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <?php if (isset($funcionarios_matriz) && count($funcionarios_matriz) > 0): ?>
+            <?php foreach ($funcionarios_matriz as $funcionario): ?>
+                <?php 
+                $is_admin = isset($user_role) && in_array($user_role, ['admin', 'god']);
+                // Precisamos buscar a foto do usuário associado, se houver.
+                // Esta lógica está no AJAX, vamos replicá-la aqui.
+                $funcionario['associated_user_photo'] = ''; // Default
+                if (!empty($funcionario['id'])) {
+                    $stmt_user = $conn->prepare("SELECT profile_photo FROM users WHERE matriz_comunicacao_id = ?");
+                    if ($stmt_user) {
+                        $stmt_user->bind_param("i", $funcionario['id']);
+                        $stmt_user->execute();
+                        $result_user = $stmt_user->get_result();
+                        if ($user_data = $result_user->fetch_assoc()) {
+                            $funcionario['associated_user_photo'] = $user_data['profile_photo'];
+                        }
+                        $stmt_user->close();
+                    }
+                }
+                ?>
+                <div class="matriz-card contact-card-clickable bg-gray-50 rounded-xl shadow-lg overflow-hidden relative cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                    data-id="<?= $funcionario['id'] ?>"
+                    data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
+                    data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
+                    data-email="<?= htmlspecialchars($funcionario['email']) ?>"
+                    data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>">
+
+                    <!-- Botão de Edição para Admin -->
+                    <?php if ($is_admin): ?>
+                        <a href="#" class="edit-trigger-card absolute top-3 right-3 z-20 p-2 block rounded-full bg-white/60 hover:bg-white transition-colors duration-200" title="Editar Card">
+                            <i class="fa-solid fa-pen-to-square text-gray-500 hover:text-blue-700"></i>
+                        </a>
+                    <?php endif; ?>
+
+                    <!-- Cabeçalho do Card -->
+                    <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-3 flex items-center">
+                        <img src="img/Slogan branco.png" alt="Logo" class="h-8 w-auto mr-4">
+                        <h3 class="text-white font-bold text-sm uppercase tracking-wider">Matriz de Comunicação</h3>
+                    </div>
+
+                    <!-- Corpo do Card -->
+                    <div class="p-5 flex sm:flex-row flex-col sm:space-x-5 items-center">
+                        <!-- Foto do Usuário -->
+                        <div class="flex-shrink-0 mb-4 sm:mb-0">
+                            <?php 
+                            $photo_path = $funcionario['associated_user_photo'];
+                            if (!empty($photo_path) && file_exists($photo_path)): 
+                            ?>
+                                <img src="<?= htmlspecialchars($photo_path) ?>?t=<?= time() ?>" alt="Foto de <?= htmlspecialchars($funcionario['nome']) ?>" class="h-28 w-28 rounded-full object-cover border-4 border-white shadow-lg">
+                            <?php else: ?>
+                                <div class="h-28 w-28 rounded-full bg-gray-200 flex items-center justify-center border-4 border-white shadow-lg">
+                                    <i class="fas fa-user fa-3x text-gray-400"></i>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Detalhes do Funcionário -->
+                        <div class="flex-grow text-center sm:text-left">
+                            <div class="font-bold text-2xl text-gray-800 mb-2 cell-content-wrapper" data-column="nome">
                                 <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
                             </div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-700" data-column="setor">
-                            <div class="cell-content-wrapper">
-                                <span class="cell-content"><?= htmlspecialchars($funcionario['setor']) ?></span>
+                            <div class="text-sm text-gray-600 space-y-1">
+                                <p class="cell-content-wrapper" data-column="setor">
+                                    <strong class="font-semibold text-gray-700"><i class="fas fa-briefcase w-4 mr-1"></i>Setor:</strong>
+                                    <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['setor']) ?></span>
+                                </p>
+                                <p class="cell-content-wrapper" data-column="email">
+                                    <strong class="font-semibold text-gray-700"><i class="fas fa-envelope w-4 mr-1"></i>Email:</strong>
+                                    <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['email']) ?></span>
+                                </p>
+                                <p class="cell-content-wrapper" data-column="ramal">
+                                    <strong class="font-semibold text-gray-700"><i class="fas fa-phone w-4 mr-1"></i>Ramal:</strong>
+                                    <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['ramal']) ?></span>
+                                </p>
                             </div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-700" data-column="email">
-                            <div class="cell-content-wrapper">
-                                <span class="cell-content"><?= htmlspecialchars($funcionario['email']) ?></span>
-                            </div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-700" data-column="ramal">
-                            <div class="cell-content-wrapper">
-                                <span class="cell-content"><?= htmlspecialchars($funcionario['ramal']) ?></span>
-                            </div>
-                        </td>
-                        <?php if ($is_admin_tab): ?>
-                            <td class="py-3 px-4 text-sm text-center">
-                                <i class="fas fa-pencil-alt edit-trigger-card cursor-pointer text-blue-500 hover:text-blue-700" title="Editar"></i>
-                            </td>
-                        <?php endif; ?>
-                    </tr>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <tr>
-                    <td colspan="<?php echo (isset($user_role) && in_array($user_role, ['admin', 'god'])) ? '5' : '4'; ?>" class="py-4 px-4 text-center text-gray-500">Nenhum funcionário encontrado.</td>
-                </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="col-span-full text-center text-gray-500 py-10">
+                <div class="mx-auto w-24 h-24">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2zm3-12V3m12 0v2" />
+                    </svg>
+                </div>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum funcionário encontrado</h3>
+                <p class="mt-1 text-sm text-gray-500">Tente ajustar seus filtros ou adicione um novo funcionário.</p>
+            </div>
+        <?php endif; ?>
+    </div>
 
     <!-- Controles de Paginação -->
     <div id="matriz-comunicacao-pagination" class="mt-6 flex justify-center">

@@ -81,48 +81,62 @@ if (count($funcionarios_matriz) > 0) {
     foreach ($funcionarios_matriz as $funcionario) {
         $is_admin = in_array($user_role, ['admin', 'god']);
 ?>
-        <div class="matriz-card contact-card-clickable bg-white rounded-lg shadow p-4 flex flex-col relative cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
+        <div class="matriz-card contact-card-clickable bg-gray-50 rounded-xl shadow-lg overflow-hidden relative cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
             data-id="<?= $funcionario['id'] ?>"
             data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
             data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
             data-email="<?= htmlspecialchars($funcionario['email']) ?>"
             data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>">
+
+            <!-- Botão de Edição para Admin -->
             <?php if ($is_admin): ?>
-                <a href="#" class="edit-trigger-card absolute top-2 right-2 p-2 block rounded-full hover:bg-gray-200 transition-colors duration-200" title="Editar Card">
-                    <i class="fa-solid fa-pen-to-square text-gray-400 hover:text-blue-600"></i>
+                <a href="#" class="edit-trigger-card absolute top-3 right-3 z-20 p-2 block rounded-full bg-white/60 hover:bg-white transition-colors duration-200" title="Editar Card">
+                    <i class="fa-solid fa-pen-to-square text-gray-500 hover:text-blue-700"></i>
                 </a>
             <?php endif; ?>
-            <div class="flex-grow">
-                <div class="font-bold text-lg mb-2 cell-content-wrapper" data-column="nome">
-                    <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
+
+            <!-- Cabeçalho do Card -->
+            <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-3 flex items-center">
+                <img src="img/Slogan branco.png" alt="Logo" class="h-8 w-auto mr-4">
+                <h3 class="text-white font-bold text-sm uppercase tracking-wider">Matriz de Comunicação</h3>
+            </div>
+
+            <!-- Corpo do Card -->
+            <div class="p-5 flex sm:flex-row flex-col sm:space-x-5 items-center">
+                <!-- Foto do Usuário -->
+                <div class="flex-shrink-0 mb-4 sm:mb-0">
+                    <?php 
+                    $photo_path = $funcionario['associated_user_photo'];
+                    if (!empty($photo_path) && file_exists($photo_path)): 
+                    ?>
+                        <img src="<?= htmlspecialchars($photo_path) ?>?t=<?= time() ?>" alt="Foto de <?= htmlspecialchars($funcionario['nome']) ?>" class="h-28 w-28 rounded-full object-cover border-4 border-white shadow-lg">
+                    <?php else: ?>
+                        <div class="h-28 w-28 rounded-full bg-gray-200 flex items-center justify-center border-4 border-white shadow-lg">
+                            <i class="fas fa-user fa-3x text-gray-400"></i>
+                        </div>
+                    <?php endif; ?>
                 </div>
-                <?php if (!empty($funcionario['associated_username'])): ?>
-                    <div class="flex items-center bg-blue-50 p-2 rounded-md mb-3 border border-blue-200">
-                        <?php 
-                        // Verifica se a foto existe e o caminho não está vazio
-                        if (!empty($funcionario['associated_user_photo']) && file_exists($funcionario['associated_user_photo'])): 
-                        ?>
-                            <img src="<?= htmlspecialchars($funcionario['associated_user_photo']) ?>" alt="Foto de <?= htmlspecialchars($funcionario['associated_username']) ?>" class="w-8 h-8 rounded-full mr-3 object-cover border-2 border-white">
-                        <?php else: ?>
-                            <div class="w-8 h-8 rounded-full mr-3 bg-gray-300 flex items-center justify-center text-gray-500"><i class="fas fa-user"></i></div>
-                        <?php endif; ?>
-                        <p class="text-sm text-blue-800" title="Usuário do sistema associado a este contato">
-                            Associado a: <strong><?= htmlspecialchars($funcionario['associated_username']) ?></strong>
+
+                <!-- Detalhes do Funcionário -->
+                <div class="flex-grow text-center sm:text-left">
+                    <div class="font-bold text-2xl text-gray-800 mb-2 cell-content-wrapper" data-column="nome">
+                        <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
+                    </div>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <p class="cell-content-wrapper" data-column="setor">
+                            <strong class="font-semibold text-gray-700"><i class="fas fa-briefcase w-4 mr-1"></i>Setor:</strong>
+                            <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['setor']) ?></span>
+                        </p>
+                        <p class="cell-content-wrapper" data-column="email">
+                            <strong class="font-semibold text-gray-700"><i class="fas fa-envelope w-4 mr-1"></i>Email:</strong>
+                            <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['email']) ?></span>
+                        </p>
+                        <p class="cell-content-wrapper" data-column="ramal">
+                            <strong class="font-semibold text-gray-700"><i class="fas fa-phone w-4 mr-1"></i>Ramal:</strong>
+                            <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['ramal']) ?></span>
                         </p>
                     </div>
-                <?php endif; ?>
-                <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="setor">
-                    <strong class="w-16 inline-block">Setor:</strong>
-                    <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['setor']) ?></span>
-                </p>
-                <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="email">
-                    <strong class="w-16 inline-block">Email:</strong>
-                    <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['email']) ?></span>
-                </p>
-                <p class="text-gray-700 text-base cell-content-wrapper" data-column="ramal">
-                    <strong class="w-16 inline-block">Ramal:</strong>
-                    <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['ramal']) ?></span>
-                </p>
+                </div>
             </div>
         </div>
 <?php

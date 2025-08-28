@@ -158,7 +158,6 @@ if ($result_sistemas) {
 $funcionarios_matriz = [];
 $total_paginas_matriz = 1;
 $pagina_atual_matriz = 1;
-$query_string_matriz = '';
 
 // Define os filtros possíveis.
 $filtros_disponiveis_matriz = ['nome', 'setor', 'email', 'ramal'];
@@ -169,12 +168,10 @@ $tipos_parametros_matriz = '';
 foreach ($filtros_disponiveis_matriz as $filtro) {
     if (!empty($_GET[$filtro])) {
         if ($filtro === 'setor') {
-            // Para o filtro de setor (pílulas), usamos correspondência exata
-            $condicoes_matriz[] = "`setor` = ?";
+            $condicoes_matriz[] = "mc.`setor` = ?";
             $parametros_matriz[] = $_GET[$filtro];
         } else {
-            // Para outros filtros, mantemos a busca parcial com LIKE
-            $condicoes_matriz[] = "`$filtro` LIKE ?";
+            $condicoes_matriz[] = "mc.`$filtro` LIKE ?";
             $parametros_matriz[] = '%' . $_GET[$filtro] . '%';
         }
         $tipos_parametros_matriz .= 's';
@@ -182,39 +179,48 @@ foreach ($filtros_disponiveis_matriz as $filtro) {
 }
 
 // Monta a query de contagem
-$sql_count_matriz = "SELECT COUNT(*) FROM matriz_comunicacao";
+$sql_count_matriz = "SELECT COUNT(mc.id) FROM matriz_comunicacao mc";
 if (count($condicoes_matriz) > 0) {
     $sql_count_matriz .= " WHERE " . implode(' AND ', $condicoes_matriz);
 }
 
 $stmt_count = $conn->prepare($sql_count_matriz);
-if (count($parametros_matriz) > 0) {
+if ($stmt_count && count($parametros_matriz) > 0) {
     $stmt_count->bind_param($tipos_parametros_matriz, ...$parametros_matriz);
 }
-$stmt_count->execute();
-$total_resultados_matriz = $stmt_count->get_result()->fetch_row()[0];
+if ($stmt_count) {
+    $stmt_count->execute();
+    $total_resultados_matriz = $stmt_count->get_result()->fetch_row()[0];
+    $stmt_count->close();
+} else {
+    $total_resultados_matriz = 0;
+}
 
 // Define variáveis de paginação
-$resultados_por_pagina_matriz = 20; // Você pode ajustar este valor
+$resultados_por_pagina_matriz = 20;
 $total_paginas_matriz = $total_resultados_matriz > 0 ? ceil($total_resultados_matriz / $resultados_por_pagina_matriz) : 1;
 $pagina_atual_matriz = isset($_GET['pagina']) && is_numeric($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
 $pagina_atual_matriz = max(1, min($pagina_atual_matriz, $total_paginas_matriz));
 $offset_matriz = ($pagina_atual_matriz - 1) * $resultados_por_pagina_matriz;
 
 // Monta a query principal
-$sql_matriz = "SELECT id, nome, setor, email, ramal FROM matriz_comunicacao";
+$sql_matriz = "SELECT mc.id, mc.nome, mc.setor, mc.email, mc.ramal, u.username AS associated_username, u.profile_photo AS associated_user_photo FROM matriz_comunicacao mc LEFT JOIN users u ON mc.id = u.matriz_comunicacao_id";
 if (count($condicoes_matriz) > 0) {
     $sql_matriz .= " WHERE " . implode(' AND ', $condicoes_matriz);
 }
-$sql_matriz .= " ORDER BY nome ASC LIMIT ?, ?";
+$sql_matriz .= " ORDER BY mc.nome ASC LIMIT ?, ?";
 $parametros_matriz[] = $offset_matriz;
 $parametros_matriz[] = $resultados_por_pagina_matriz;
 $tipos_parametros_matriz .= 'ii';
+
 $stmt_main = $conn->prepare($sql_matriz);
-$stmt_main->bind_param($tipos_parametros_matriz, ...$parametros_matriz);
-$stmt_main->execute();
-$result_matriz = $stmt_main->get_result();
-$funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
+if ($stmt_main) {
+    $stmt_main->bind_param($tipos_parametros_matriz, ...$parametros_matriz);
+    $stmt_main->execute();
+    $result_matriz = $stmt_main->get_result();
+    $funcionarios_matriz = $result_matriz->fetch_all(MYSQLI_ASSOC);
+    $stmt_main->close();
+}
 // --- Fim da Lógica para Matriz de Comunicação ---
 
 // --- Início da Lógica para Gerenciar FAQs (incorporado de manage_faq.php) ---
@@ -1646,44 +1652,78 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         </div>
 
                         <!-- Container de Cards -->
-                        <div id="matriz-cards-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div id="matriz-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                             <?php if (count($funcionarios_matriz) > 0): ?>
                                 <?php foreach ($funcionarios_matriz as $funcionario): ?>
-                                    <?php 
-                                    $is_admin = in_array($user_role, ['admin', 'god']); 
-                                    // Adicionando classes para o clique e cursor, e atributos de dados para o modal
-                                    ?>
-                                    <div class="matriz-card contact-card-clickable bg-white rounded-lg shadow p-4 flex flex-col relative cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-200" 
-                                         data-id="<?= $funcionario['id'] ?>"
-                                         data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
-                                         data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
-                                         data-email="<?= htmlspecialchars($funcionario['email']) ?>"
-                                         data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>">
+                                    <?php $is_admin = in_array($user_role, ['admin', 'god']); ?>
+                                    <div class="matriz-card contact-card-clickable bg-gray-50 rounded-xl shadow-lg overflow-hidden relative cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                                        data-id="<?= $funcionario['id'] ?>"
+                                        data-nome="<?= htmlspecialchars($funcionario['nome']) ?>"
+                                        data-setor="<?= htmlspecialchars($funcionario['setor']) ?>"
+                                        data-email="<?= htmlspecialchars($funcionario['email']) ?>"
+                                        data-ramal="<?= htmlspecialchars($funcionario['ramal']) ?>">
+
+                                        <!-- Botão de Edição para Admin -->
                                         <?php if ($is_admin): ?>
-                                            <a href="#" class="edit-trigger-card absolute top-2 right-2 p-2 block rounded-full hover:bg-gray-200 transition-colors duration-200" title="Editar Card"><i class="fa-solid fa-pen-to-square text-gray-400 hover:text-blue-600"></i></a>
+                                            <a href="#" class="edit-trigger-card absolute top-3 right-3 z-20 p-2 block rounded-full bg-white/60 hover:bg-white transition-colors duration-200" title="Editar Card">
+                                                <i class="fa-solid fa-pen-to-square text-gray-500 hover:text-blue-700"></i>
+                                            </a>
                                         <?php endif; ?>
-                                        <div class="flex-grow">
-                                            <div class="font-bold text-lg mb-2 cell-content-wrapper" data-column="nome">
-                                                <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
+
+                                        <!-- Cabeçalho do Card -->
+                                        <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-3 flex items-center">
+                                            <img src="img/Slogan branco.png" alt="Logo" class="h-8 w-auto mr-4">
+                                            <h3 class="text-white font-bold text-sm uppercase tracking-wider">Matriz de Comunicação</h3>
+                                        </div>
+
+                                        <!-- Corpo do Card -->
+                                        <div class="p-5 flex sm:flex-row flex-col sm:space-x-5 items-center">
+                                            <!-- Foto do Usuário -->
+                                            <div class="flex-shrink-0 mb-4 sm:mb-0">
+                                                <?php 
+                                                $photo_path = $funcionario['associated_user_photo'];
+                                                if (!empty($photo_path) && file_exists($photo_path)): 
+                                                ?>
+                                                    <img src="<?= htmlspecialchars($photo_path) ?>?t=<?= time() ?>" alt="Foto de <?= htmlspecialchars($funcionario['nome']) ?>" class="h-28 w-28 rounded-full object-cover border-4 border-white shadow-lg">
+                                                <?php else: ?>
+                                                    <div class="h-28 w-28 rounded-full bg-gray-200 flex items-center justify-center border-4 border-white shadow-lg">
+                                                        <i class="fas fa-user fa-3x text-gray-400"></i>
+                                                    </div>
+                                                <?php endif; ?>
                                             </div>
-                                            <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="setor">
-                                                <strong class="w-16 inline-block">Setor:</strong>
-                                                <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['setor']) ?></span>
-                                            </p>
-                                            <p class="text-gray-700 text-base mb-1 cell-content-wrapper" data-column="email">
-                                                <strong class="w-16 inline-block">Email:</strong>
-                                                <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['email']) ?></span>
-                                            </p>
-                                            <p class="text-gray-700 text-base cell-content-wrapper" data-column="ramal">
-                                                <strong class="w-16 inline-block">Ramal:</strong>
-                                                <span class="cell-content flex-1"><?= htmlspecialchars($funcionario['ramal']) ?></span>
-                                            </p>
+
+                                            <!-- Detalhes do Funcionário -->
+                                            <div class="flex-grow text-center sm:text-left">
+                                                <div class="font-bold text-2xl text-gray-800 mb-2 cell-content-wrapper" data-column="nome">
+                                                    <span class="cell-content"><?= htmlspecialchars($funcionario['nome']) ?></span>
+                                                </div>
+                                                <div class="text-sm text-gray-600 space-y-1">
+                                                    <p class="cell-content-wrapper" data-column="setor">
+                                                        <strong class="font-semibold text-gray-700"><i class="fas fa-briefcase w-4 mr-1"></i>Setor:</strong>
+                                                        <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['setor']) ?></span>
+                                                    </p>
+                                                    <p class="cell-content-wrapper" data-column="email">
+                                                        <strong class="font-semibold text-gray-700"><i class="fas fa-envelope w-4 mr-1"></i>Email:</strong>
+                                                        <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['email']) ?></span>
+                                                    </p>
+                                                    <p class="cell-content-wrapper" data-column="ramal">
+                                                        <strong class="font-semibold text-gray-700"><i class="fas fa-phone w-4 mr-1"></i>Ramal:</strong>
+                                                        <span class="cell-content ml-1"><?= htmlspecialchars($funcionario['ramal']) ?></span>
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <div class="col-span-full text-center text-gray-500 py-4">
-                                    Nenhum resultado encontrado.
+                                <div class="col-span-full text-center text-gray-500 py-10">
+                                    <div class="mx-auto w-24 h-24">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2zm3-12V3m12 0v2" />
+                                        </svg>
+                                    </div>
+                                    <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum resultado encontrado</h3>
+                                    <p class="mt-1 text-sm text-gray-500">Tente ajustar seus filtros.</p>
                                 </div>
                             <?php endif; ?>
                         </div>
