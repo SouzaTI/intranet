@@ -31,7 +31,7 @@ $sector_colors = [
     'RECEBIMENTO' => ['from' => '#00CED1', 'to' => '#008B8B'], // Azul Turquesa
     'RECEBIMENTO FISCAL' => ['from' => '#66CDAA', 'to' => '#3CB371'], // Verde Água
     'RECURSOS HUMANOS' => ['from' => '#F5F5DC', 'to' => '#DEB887'], // Bege
-    'SALA DE REUNIÃO' => ['from' => '#FFFFFF', 'to' => '#F0F0F0'], // Branco
+    'SALA DE REUNIÃO' => ['from' => '#2e2c2cff', 'to' => '#2e2c2cff'], // 
     'SUPERVISÃO DE VENDAS' => ['from' => '#8B0000', 'to' => '#800000'], // Vermelho Escuro
     'SUPERVISÃO OPERAÇÃO' => ['from' => '#CD5C5C', 'to' => '#B22222'], // Laranja Avermelhado
     'TELEVENDAS' => ['from' => '#0000FF', 'to' => '#0000CD'], // Azul Elétrico
