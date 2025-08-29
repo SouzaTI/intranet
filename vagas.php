@@ -1,118 +1,224 @@
-    <?php
-require_once 'conexao.php'; // Ensure conexao.php is included
-
-// Fetch sectors for the modal
-$setores_result = $conn->query("SELECT id, nome FROM setores ORDER BY nome");
-$setores = [];
-while ($setor = $setores_result->fetch_assoc()) {
-    $setores[] = $setor;
-}
-// We need a new connection for the vacancies query, because the previous one was closed.
+<?php
+// Inclui o arquivo de conexão com o banco de dados
 require_once 'conexao.php';
-?>
-<script>
-    const phpSetores = <?php echo json_encode($setores); ?>;
-</script>
 
-    <div class="row">
-            <?php
+// Verifica se o usuário está logado e se tem permissão de admin para gerenciar vagas
+$is_admin = isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'god']);
 
-            $vagas = [];
-            try {
-                $stmt = $conn->prepare("SELECT v.id, v.titulo, s.nome AS setor_nome, v.descricao, v.requisitos, v.data_publicacao FROM vagas v JOIN setores s ON v.setor = s.id ORDER BY v.data_publicacao DESC");
-                $stmt->execute();
-                $result = $stmt->get_result();
-                while ($row = $result->fetch_assoc()) {
-                    $vagas[] = $row;
+$message = '';
+
+// Lógica para adicionar/editar vaga
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if ($is_admin) {
+        $titulo = $_POST['titulo'] ?? '';
+        $descricao = $_POST['descricao'] ?? '';
+        $requisitos = $_POST['requisitos'] ?? '';
+        $contato = $_POST['contato'] ?? '';
+        $data_publicacao = $_POST['data_publicacao'] ?? date('Y-m-d');
+        $data_expiracao = $_POST['data_expiracao'] ?? null;
+        $status = $_POST['status'] ?? 'ativa';
+
+        if (empty($titulo) || empty($descricao)) {
+            $message = '<div class="alert alert-danger">Título e descrição são obrigatórios.</div>';
+        } else {
+            if ($_POST['action'] === 'add') {
+                $stmt = $conn->prepare("INSERT INTO vagas (titulo, descricao, requisitos, contato, data_publicacao, data_expiracao, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssssss", $titulo, $descricao, $requisitos, $contato, $data_publicacao, $data_expiracao, $status);
+                if ($stmt->execute()) {
+                    $message = '<div class="alert alert-success">Vaga adicionada com sucesso!</div>';
+                } else {
+                    $message = '<div class="alert alert-danger">Erro ao adicionar vaga: ' . $conn->error . '</div>';
                 }
-            } catch (Exception $e) {
-                error_log("Erro ao carregar vagas: " . $e->getMessage());
-                echo '<div class="col-12"><div class="alert alert-danger">Erro ao carregar vagas. Tente novamente mais tarde.</div></div>';
-            } finally {
-                if (isset($stmt)) {
-                    $stmt->close();
-                }
-                if (isset($conn)) {
-                    $conn->close();
+            } elseif ($_POST['action'] === 'edit') {
+                $id = $_POST['id'] ?? null;
+                if ($id) {
+                    $stmt = $conn->prepare("UPDATE vagas SET titulo = ?, descricao = ?, requisitos = ?, contato = ?, data_publicacao = ?, data_expiracao = ?, status = ? WHERE id = ?");
+                    $stmt->bind_param("sssssssi", $titulo, $descricao, $requisitos, $contato, $data_publicacao, $data_expiracao, $status, $id);
+                    if ($stmt->execute()) {
+                        $message = '<div class="alert alert-success">Vaga atualizada com sucesso!</div>';
+                    } else {
+                        $message = '<div class="alert alert-danger">Erro ao atualizar vaga: ' . $conn->error . '</div>';
+                    }
+                } else {
+                    $message = '<div class="alert alert-danger">ID da vaga não fornecido para edição.</div>';
                 }
             }
+            $stmt->close();
+        }
+    } else {
+        $message = '<div class="alert alert-danger">Você não tem permissão para realizar esta ação.</div>';
+    }
+}
 
-            if (count($vagas) > 0) {
-                foreach ($vagas as $vaga) {
-                    // Format date
-                    $data_publicacao_formatada = date('d/m/Y', strtotime($vaga['data_publicacao']));
-                    ?>
-                    <div class="col-md-6 col-lg-4 mb-4">
-                        <div class="card vaga-card h-100 shadow-lg rounded-lg border-left-primary">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="card-title mb-0 font-weight-bold"><i class="fa-solid fa-bullhorn mr-2"></i><?php echo htmlspecialchars($vaga['titulo']); ?></h5>
-                            </div>
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-3 text-muted font-italic"><i class="fas fa-building mr-2"></i><?php echo htmlspecialchars($vaga['setor_nome']); ?></h6>
-                                <div class="mb-3">
-                                    <h6 class="font-weight-bold"><i class="fas fa-info-circle mr-2"></i>Descrição</h6>
-                                    <div class="vaga-descricao"><?php echo $vaga['descricao']; ?></div>
-                                </div>
-                                <div class="mb-3">
-                                    <h6 class="font-weight-bold"><i class="fas fa-tasks mr-2"></i>Requisitos</h6>
-                                    <div class="vaga-requisitos"><?php echo $vaga['requisitos']; ?></div>
-                                </div>
-                            </div>
-                            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
-                                <span class="text-muted"><i class="fas fa-calendar-alt mr-2"></i><?php echo $data_publicacao_formatada; ?></span>
-                                <div class="card-actions">
-                                    <button class="btn btn-sm btn-outline-primary edit-vaga-btn" data-id="<?php echo $vaga['id']; ?>" title="Editar Vaga"><i class="fas fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-outline-danger delete-vaga-btn" data-id="<?php echo $vaga['id']; ?>" title="Excluir Vaga"><i class="fas fa-trash-alt"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <?php
-                }
+// Lógica para excluir vaga
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'delete') {
+    if ($is_admin) {
+        $id = $_GET['id'] ?? null;
+        if ($id) {
+            $stmt = $conn->prepare("DELETE FROM vagas WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            if ($stmt->execute()) {
+                $message = '<div class="alert alert-success">Vaga excluída com sucesso!</div>';
             } else {
-                echo '<div class="col-12"><div class="alert alert-info">Nenhuma vaga disponível no momento.</div></div>';
+                $message = '<div class="alert alert-danger">Erro ao excluir vaga: ' . $conn->error . '</div>';
             }
-            ?>
-        </div>
+            $stmt->close();
+        } else {
+            $message = '<div class="alert alert-danger">ID da vaga não fornecido para exclusão.</div>';
+        }
+    } else {
+        $message = '<div class="alert alert-danger">Você não tem permissão para realizar esta ação.</div>';
+    }
+}
 
-<!-- Modal de Edição de Vaga -->
-<div class="modal fade" id="editVagaModal" tabindex="-1" role="dialog" aria-labelledby="editVagaModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editVagaModalLabel">Editar Vaga</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="editVagaForm">
-                    <input type="hidden" id="editVagaId" name="vaga_id">
-                    <div class="form-group">
-                        <label for="editVagaTitulo">Título</label>
-                        <input type="text" class="form-control" id="editVagaTitulo" name="titulo" required>
+// Obter vagas para exibição
+$vagas = [];
+$result_vagas = $conn->query("SELECT * FROM vagas ORDER BY data_publicacao DESC");
+if ($result_vagas) {
+    while ($row = $result_vagas->fetch_assoc()) {
+        $vagas[] = $row;
+    }
+}
+
+// Obter vaga para edição (se houver um ID na URL)
+$vaga_to_edit = null;
+if ($is_admin && isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) {
+    $id = $_GET['id'] ?? null;
+    if ($id) {
+        $stmt = $conn->prepare("SELECT * FROM vagas WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $vaga_to_edit = $result->fetch_assoc();
+        $stmt->close();
+    }
+}
+?>
+
+<div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-2xl font-bold text-[#4A90E2] mb-4">Vagas Disponíveis</h2>
+
+    <?php if (!empty($message)): ?>
+        <?php
+            $status_class = strpos($message, 'alert-success') !== false
+                ? 'bg-green-100 border-green-500 text-green-700'
+                : 'bg-red-100 border-red-500 text-red-700';
+            echo '<div class="' . $status_class . ' border-l-4 p-4 mb-4 rounded-lg shadow-sm" role="alert">' . str_replace(['<div class="alert alert-success">', '<div class="alert alert-danger">', '</div>'], '', $message) . '</div>';
+        ?>
+    <?php endif; ?>
+
+    <?php if ($is_admin): ?>
+        <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h3 class="text-xl font-semibold text-[#4A90E2] mb-4"><?php echo $vaga_to_edit ? 'Editar Vaga' : 'Adicionar Nova Vaga'; ?></h3>
+            <form action="index.php?section=vagas" method="POST" class="space-y-4">
+                <?php if ($vaga_to_edit): ?>
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="id" value="<?php echo htmlspecialchars($vaga_to_edit['id']); ?>">
+                <?php else: ?>
+                    <input type="hidden" name="action" value="add">
+                <?php endif; ?>
+
+                <div>
+                    <label for="titulo" class="block text-sm font-medium text-gray-700">Título da Vaga</label>
+                    <input type="text" id="titulo" name="titulo" value="<?php echo htmlspecialchars($vaga_to_edit['titulo'] ?? ''); ?>" required class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
+                </div>
+                <div>
+                    <label for="descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+                    <textarea id="descricao" name="descricao" rows="5" required class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2"><?php echo htmlspecialchars($vaga_to_edit['descricao'] ?? ''); ?></textarea>
+                </div>
+                <div>
+                    <label for="requisitos" class="block text-sm font-medium text-gray-700">Requisitos (Opcional)</label>
+                    <textarea id="requisitos" name="requisitos" rows="3" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2"><?php echo htmlspecialchars($vaga_to_edit['requisitos'] ?? ''); ?></textarea>
+                </div>
+                <div>
+                    <label for="contato" class="block text-sm font-medium text-gray-700">Contato (E-mail/Telefone)</label>
+                    <input type="text" id="contato" name="contato" value="<?php echo htmlspecialchars($vaga_to_edit['contato'] ?? ''); ?>" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="data_publicacao" class="block text-sm font-medium text-gray-700">Data de Publicação</label>
+                        <input type="date" id="data_publicacao" name="data_publicacao" value="<?php echo htmlspecialchars($vaga_to_edit['data_publicacao'] ?? date('Y-m-d')); ?>" required class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
                     </div>
-                    <div class="form-group">
-                        <label for="editVagaSetor">Setor</label>
-                        <select class="form-control" id="editVagaSetor" name="setor" required>
-                            <!-- Options will be populated by JavaScript -->
-                        </select>
+                    <div>
+                        <label for="data_expiracao" class="block text-sm font-medium text-gray-700">Data de Expiração (Opcional)</label>
+                        <input type="date" id="data_expiracao" name="data_expiracao" value="<?php echo htmlspecialchars($vaga_to_edit['data_expiracao'] ?? ''); ?>" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
                     </div>
-                    <div class="form-group">
-                        <label for="editVagaDescricao">Descrição</label>
-                        <textarea class="form-control tinymce-editor" id="editVagaDescricao" name="descricao" rows="5"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="editVagaRequisitos">Requisitos</label>
-                        <textarea class="form-control tinymce-editor" id="editVagaRequisitos" name="requisitos" rows="5"></textarea>
-                    </div>
-                    <div id="editVagaStatus"></div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="submit" class="btn btn-primary" form="editVagaForm">Salvar Alterações</button>
-            </div>
+                </div>
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                    <select id="status" name="status" class="mt-1 w-full border border-[#1d3870] rounded-md px-3 py-2">
+                        <option value="ativa" <?php echo ($vaga_to_edit['status'] ?? 'ativa') === 'ativa' ? 'selected' : ''; ?>>Ativa</option>
+                        <option value="inativa" <?php echo ($vaga_to_edit['status'] ?? '') === 'inativa' ? 'selected' : ''; ?>>Inativa</option>
+                        <option value="preenchida" <?php echo ($vaga_to_edit['status'] ?? '') === 'preenchida' ? 'selected' : ''; ?>>Preenchida</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <?php if ($vaga_to_edit): ?>
+                        <a href="index.php?section=vagas" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Cancelar Edição</a>
+                    <?php endif; ?>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        <?php echo $vaga_to_edit ? 'Atualizar Vaga' : 'Adicionar Vaga'; ?>
+                    </button>
+                </div>
+            </form>
         </div>
+    <?php endif; ?>
+
+    <div class="space-y-6">
+        <?php if (count($vagas) > 0): ?>
+            <?php foreach ($vagas as $vaga): ?>
+                <div class="bg-gray-50 rounded-lg shadow-md p-6 border-l-4 
+                    <?php 
+                        if ($vaga['status'] === 'ativa') echo 'border-green-500';
+                        else if ($vaga['status'] === 'preenchida') echo 'border-blue-500';
+                        else echo 'border-red-500';
+                    ?>">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-xl font-bold text-gray-800"><?= htmlspecialchars($vaga['titulo']) ?></h3>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold 
+                            <?php 
+                                if ($vaga['status'] === 'ativa') echo 'bg-green-100 text-green-800';
+                                else if ($vaga['status'] === 'preenchida') echo 'bg-blue-100 text-blue-800';
+                                else echo 'bg-red-100 text-red-800';
+                            ?>">
+                            <?= ucfirst($vaga['status']) ?>
+                        </span>
+                    </div>
+                    <p class="text-gray-700 mb-3"><?= nl2br(htmlspecialchars($vaga['descricao'])) ?></p>
+                    <?php if (!empty($vaga['requisitos'])): ?>
+                        <div class="mb-3">
+                            <h4 class="font-semibold text-gray-600">Requisitos:</h4>
+                            <p class="text-gray-600 text-sm"><?= nl2br(htmlspecialchars($vaga['requisitos'])) ?></p>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (!empty($vaga['contato'])): ?>
+                        <div class="mb-3">
+                            <h4 class="font-semibold text-gray-600">Contato:</h4>
+                            <p class="text-gray-600 text-sm"><?= htmlspecialchars($vaga['contato']) ?></p>
+                        </div>
+                    <?php endif; ?>
+                    <div class="text-sm text-gray-500 flex justify-between items-center">
+                        <span>Publicado em: <?= date('d/m/Y', strtotime($vaga['data_publicacao'])) ?></span>
+                        <?php if (!empty($vaga['data_expiracao'])): ?>
+                            <span>Expira em: <?= date('d/m/Y', strtotime($vaga['data_expiracao'])) ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($is_admin): ?>
+                        <div class="mt-4 flex justify-end space-x-2">
+                            <a href="index.php?section=vagas&action=edit&id=<?= $vaga['id'] ?>" class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm">Editar</a>
+                            <a href="index.php?section=vagas&action=delete&id=<?= $vaga['id'] ?>" onclick="return confirm('Tem certeza que deseja excluir esta vaga?');" class="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm">Excluir</a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="text-center text-gray-500 py-10">
+                <i class="fas fa-briefcase text-5xl mb-4"></i>
+                <p class="text-lg">Nenhuma vaga disponível no momento.</p>
+                <?php if ($is_admin): ?>
+                    <p class="mt-2">Use o formulário acima para adicionar uma nova vaga.</p>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
     </div>
 </div>

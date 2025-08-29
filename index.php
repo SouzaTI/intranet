@@ -130,7 +130,7 @@ $available_sections = [
     'documents' => 'Normas e Procedimentos',
     'information' => 'Informações (Visualização)',
     'matriz_comunicacao' => 'Matriz de Comunicação',
-    'blank_section' => 'Nova Seção', // Adicionado para a nova página em branco
+    'vagas' => 'Vagas de Emprego',
     
     'sugestoes' => 'Sugestões e Reclamações (Envio)',
     'create_procedure' => 'Criar Procedimento',
@@ -566,11 +566,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                         </a>
                         <?php endif; ?>
                         
-                        <?php if (can_view_section('matriz_comunicacao')): ?>
-                        <a href="#" data-section="blank_section" onclick="showSection('blank_section', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
-                            <i class="fa-solid fa-briefcase"></i>
-                        </a>
-                        <?php endif; ?>
+                        
                         
                         <?php if (can_view_section('faq')): ?>
                         <a href="#" data-section="faq" onclick="showSection('faq', true); return false;" class="text-white hover:opacity-80 transition flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-[#34495E]">
@@ -1819,19 +1815,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
                     <!-- O conteúdo de calendario.php será carregado aqui via AJAX -->
                 </section>
 
-                <section id="blank_section" class="content-section hidden">
-                    <div class="p-4 bg-gray-200 h-full">
-                        <div class="flex justify-between items-center mb-4">
-                            <h1 class="text-2xl font-bold text-gray-800">Página de Vagas</h1>
-                            <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300" data-toggle="modal" data-target="#gerenciarVagasModal">
-                                Gerenciar Vagas
-                            </button>
-                        </div>
-
-                        <!-- Conteúdo da página de vagas aqui -->
-                        <?php include 'vagas.php'; ?>
-                    </div>
-                </section>
+                
 
                 
 
@@ -1841,48 +1825,7 @@ $nome_mes_atual = $nomes_meses[date('m')];
             </main>
         </div>
     </div>
-    <!-- Modal Gerenciar Vagas -->
-    <div class="modal fade" id="gerenciarVagasModal" tabindex="-1" aria-labelledby="gerenciarVagasModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="gerenciarVagasModalLabel">Gerenciar Vagas</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="vagaForm" action="salvar_vaga.php" method="POST">
-                        <div class="form-group">
-                            <label for="vagaTitulo">Título</label>
-                            <input type="text" class="form-control" id="vagaTitulo" name="titulo" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="vagaSetor">Setor</label>
-                            <select class="form-control" id="vagaSetor" name="setor" required>
-                                <!-- Opções de setor serão carregadas dinamicamente -->
-                                <option value="">Selecione um setor</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="vagaDescricao">Descrição</label>
-                            <textarea class="form-control tinymce-editor" id="vagaDescricao" name="descricao" rows="5"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="vagaRequisitos">Requisitos</label>
-                            <textarea class="form-control tinymce-editor" id="vagaRequisitos" name="requisitos" rows="5"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="vagaData">Data</label>
-                            <input type="text" class="form-control" id="vagaData" value="<?php echo date('d/m/Y'); ?>" readonly>
-                        </div>
-                        <div id="vagaStatus" class="mt-4 text-center"></div>
-                        <button type="submit" class="btn btn-success">Salvar Vaga</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+    
     <!-- Modal de Permissões -->
     <div id="permissionsModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl transform transition-all scale-95 opacity-0">
