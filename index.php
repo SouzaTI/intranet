@@ -2402,4 +2402,37 @@ $nome_mes_atual = $nomes_meses[date('m')];
             tinymce.triggerSave();
         });
     </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle delete vacancy button click
+        document.querySelectorAll('.delete-vaga-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const vagaId = this.dataset.id;
+                if (confirm('Tem certeza que deseja excluir esta vaga?')) {
+                    fetch('excluir_vaga.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'id=' + vagaId
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            // Remove the card from the DOM
+                            this.closest('.col-md-6.col-lg-4.mb-4').remove();
+                        } else {
+                            alert('Erro: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao excluir vaga:', error);
+                        alert('Erro ao excluir vaga. Tente novamente.');
+                    });
+                }
+            });
+        });
+    });
+    </script>
 </body>

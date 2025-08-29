@@ -1649,3 +1649,110 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.closest('.delete-vaga-btn')) {
+        const button = e.target.closest('.delete-vaga-btn');
+        const vagaId = button.dataset.id;
+        const card = button.closest('.vaga-card');
+
+        if (confirm('Tem certeza que deseja excluir esta vaga?')) {
+            const formData = new FormData();
+            formData.append('id', vagaId);
+
+            fetch('excluir_vaga.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Vaga excluída com sucesso!');
+                    card.remove();
+                } else {
+                    alert('Erro ao excluir a vaga: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Ocorreu um erro de comunicação. Tente novamente.');
+            });
+        }
+    }
+});
+
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.closest('.edit-vaga-btn')) {
+        const button = e.target.closest('.edit-vaga-btn');
+        const vagaId = button.dataset.id;
+
+        // Fetch vacancy details
+        fetch(`get_vaga_details.php?id=${vagaId}`)
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    const vaga = response.data;
+                    // Populate the modal form
+                    document.getElementById('editVagaId').value = vaga.id;
+                    document.getElementById('editVagaTitulo').value = vaga.titulo;
+                    
+                    // Populate and select the setor
+                    const setorSelect = document.getElementById('editVagaSetor');
+                    setorSelect.innerHTML = ''; // Clear existing options
+                    // Assuming phpSetores is available globally
+                    if (typeof phpSetores !== 'undefined' && phpSetores.length > 0) {
+                        phpSetores.forEach(setor => {
+                            const option = new Option(setor.nome, setor.id);
+                            setorSelect.add(option);
+                        });
+                    }
+                    setorSelect.value = vaga.setor;
+
+                    // Set content for TinyMCE editors
+                    tinymce.get('editVagaDescricao').setContent(vaga.descricao);
+                    tinymce.get('editVagaRequisitos').setContent(vaga.requisitos);
+
+                    // Show the modal
+                    $('#editVagaModal').modal('show');
+                } else {
+                    alert('Erro ao carregar detalhes da vaga: ' + response.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Ocorreu um erro de comunicação ao carregar os detalhes da vaga.');
+            });
+    }
+});
+
+if(document.getElementById('editVagaForm')){
+    document.getElementById('editVagaForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        tinymce.triggerSave(); // Save TinyMCE content
+
+        const formData = new FormData(this);
+        const statusDiv = document.getElementById('editVagaStatus');
+        statusDiv.innerHTML = '<p class="text-blue-600">Salvando alterações...</p>';
+
+        fetch('salvar_vaga.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusDiv.innerHTML = `<p class="text-green-600 font-semibold">${data.message}</p>`;
+                setTimeout(() => {
+                    $('#editVagaModal').modal('hide');
+                    location.reload();
+                }, 1500);
+            } else {
+                statusDiv.innerHTML = `<p class="text-red-600 font-semibold">${data.message}</p>`;
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            statusDiv.innerHTML = '<p class="text-red-600 font-semibold">Ocorreu um erro de comunicação. Tente novamente.</p>';
+        });
+    });
+}

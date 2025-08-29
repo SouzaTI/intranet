@@ -461,6 +461,37 @@ body.theme-mixkar {
     transform: translateY(-50%);
 }
 
+}
+
 .matriz-card:hover .edit-trigger {
     opacity: 1;
+}
+
+/* Estilos para os Cards de Vagas */
+.vaga-card {
+    border-left: 5px solid #007BFF; /* Cor primária para destaque */
+    transition: all 0.3s ease-in-out;
+}
+
+.vaga-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
+}
+
+.vaga-card .card-header {
+    background-color: #007BFF;
+    color: #fff;
+}
+
+.vaga-card .vaga-descricao p,
+.vaga-card .vaga-requisitos p {
+    margin-bottom: 0;
+}
+
+.vaga-card .card-actions .btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.vaga-card .card-actions .btn:hover {
+    transform: scale(1.1);
 }
