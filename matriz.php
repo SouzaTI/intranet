@@ -4,7 +4,7 @@ include 'includes/header.php';
 include 'includes/sidebar.php';
 
 // 1. Query Segura usando PDO e a trava ativo = 1
-$sql = "SELECT SETOR, NOME, RAMAL, `E-MAIL` as email, `CELULAR CORPORATIVO` as celular_corporativo 
+$sql = "SELECT EMPRESA, SETOR, lider, NOME, RAMAL, `E-MAIL` as email, `CELULAR CORPORATIVO` as celular_corporativo 
         FROM matriz_comunicacao
         WHERE NOME IS NOT NULL 
         AND TRIM(NOME) != '' 
@@ -17,7 +17,9 @@ $employees_json = [];
 if ($stmt && $stmt->rowCount() > 0) {
     while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $employees_json[] = [
+            'empresa' => $row['EMPRESA'],
             'setor' => $row['SETOR'],
+            'lider' => (int)$row['lider'],
             'nome' => $row['NOME'],
             'ramal' => $row['RAMAL'],
             'email' => $row['email'],
@@ -173,9 +175,12 @@ $setores_lista = $pdo_intra->query($sql_setores)->fetchAll(PDO::FETCH_COLUMN);
   .my-matriz-btn-cancel { background: #e5e7eb; color: var(--text-medium); }
   .my-matriz-btn-cancel:hover { background: #d1d5db; }
 
+  #setores-grid { grid-template-columns: repeat(3, 1fr) !important; }
+
   @media (max-width: 768px) {
     .actions-cell { flex-direction: row; gap: 8px; }
     .my-matriz-modal-content { padding: 1rem; }
+    #setores-grid { grid-template-columns: repeat(2, 1fr) !important; }
   }
 </style>
 
@@ -193,6 +198,20 @@ $setores_lista = $pdo_intra->query($sql_setores)->fetchAll(PDO::FETCH_COLUMN);
           <button id="setores-btn" class="my-matriz-btn my-matriz-btn-primary">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
               <span>Setores</span> 
+          </button>
+
+          <button id="lideres-btn" class="my-matriz-btn my-matriz-btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>Líderes</span>
+          </button>
+
+          <button id="clear-lideres-btn" class="my-matriz-btn my-matriz-btn-cancel" style="display: none;">
+              <span>Limpar Filtro</span>
           </button>
 
           <button id="copy-all-btn" class="my-matriz-btn my-matriz-btn-copy-email">
@@ -236,7 +255,7 @@ $setores_lista = $pdo_intra->query($sql_setores)->fetchAll(PDO::FETCH_COLUMN);
 <div id="setores-modal" class="my-matriz-modal">
   <div class="my-matriz-modal-content">
     <h2>Filtrar por Setor</h2>
-    <div id="setores-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 1.5rem;">
+    <div id="setores-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.5rem;">
         </div>
     <div style="display: flex; justify-content: space-between;">
         <button type="button" id="clear-setor-btn" class="my-matriz-btn my-matriz-btn-cancel">Limpar Filtro</button>
@@ -302,6 +321,7 @@ $setores_lista = $pdo_intra->query($sql_setores)->fetchAll(PDO::FETCH_COLUMN);
       let employees = <?php echo json_encode($employees_json); ?>; 
       let filteredEmployees = employees;
       let filtroSetorAtivo = ''; 
+      let filtroLiderAtivo = false;
       const setoresLista = <?php echo json_encode($setores_lista); ?>;
       
       function copyAll(isEmail) {
@@ -387,8 +407,13 @@ $setores_lista = $pdo_intra->query($sql_setores)->fetchAll(PDO::FETCH_COLUMN);
           const searchTerm = document.getElementById('search-input').value.toLowerCase();
           let listaParaFiltrar = employees;
           if (filtroSetorAtivo) {
-              listaParaFiltrar = employees.filter(emp => emp.setor.toLowerCase() === filtroSetorAtivo.toLowerCase());
+              listaParaFiltrar = employees.filter(emp => emp.setor && emp.setor.toLowerCase() === filtroSetorAtivo.toLowerCase());
           }
+
+          if (filtroLiderAtivo) {
+              listaParaFiltrar = listaParaFiltrar.filter(emp => Number(emp.lider) === 1);
+          }
+
           filteredEmployees = listaParaFiltrar.filter(emp => {
               return (emp.nome && emp.nome.toLowerCase().includes(searchTerm)) ||
                   (emp.setor && emp.setor.toLowerCase().includes(searchTerm)) ||
@@ -403,6 +428,31 @@ $setores_lista = $pdo_intra->query($sql_setores)->fetchAll(PDO::FETCH_COLUMN);
       document.getElementById('search-input').addEventListener('input', filterEmployees);
       document.getElementById('copy-all-btn').addEventListener('click', () => copyAll(true));
       document.getElementById('copy-all-phone-btn').addEventListener('click', () => copyAll(false));
+
+      document.getElementById('lideres-btn').addEventListener('click', function() {
+          filtroLiderAtivo = !filtroLiderAtivo;
+          const btnLimpar = document.getElementById('clear-lideres-btn');
+
+          filterEmployees();
+
+          if (filtroLiderAtivo) {
+              this.style.background = '#155a91';
+              btnLimpar.style.display = 'inline-flex';
+              showToast('Filtro de líderes ativado.');
+          } else {
+              this.style.background = '';
+              btnLimpar.style.display = 'none';
+              showToast('Filtro de líderes removido.');
+          }
+      });
+
+      document.getElementById('clear-lideres-btn').addEventListener('click', function() {
+          filtroLiderAtivo = false;
+          document.getElementById('lideres-btn').style.background = '';
+          this.style.display = 'none';
+          filterEmployees();
+          showToast('Filtro de líderes removido.');
+      });
       
       document.getElementById('setores-btn').addEventListener('click', () => {
           renderSetoresModal();
@@ -415,6 +465,13 @@ $setores_lista = $pdo_intra->query($sql_setores)->fetchAll(PDO::FETCH_COLUMN);
           aplicarFiltroSetor('');
       });
   }); 
+</script>
+
+<script>
+  // Atualiza a página a cada 35 minutos (2100000 ms)
+  setInterval(function() {
+    location.reload(true);
+  }, 2100000);
 </script>
 
 <?php include 'includes/footer.php'; ?>

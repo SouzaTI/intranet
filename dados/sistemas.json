@@ -1,0 +1,220 @@
+[
+    {
+        "id": 100,
+        "nome": "INFRAESTRUTURA T.I.",
+        "url": "#",
+        "icone": "🗄️",
+        "cor": "bg-blue-600",
+        "pai_id": null
+    },
+    {
+        "id": 101,
+        "nome": "SERVIDORES",
+        "url": "#",
+        "icone": "🖥️",
+        "cor": "bg-blue-600",
+        "pai_id": 100
+    },
+    {
+        "id": 102,
+        "nome": "REDES E LINKS",
+        "url": "#",
+        "icone": "🌐",
+        "cor": "bg-blue-600",
+        "pai_id": 100
+    },
+    {
+        "id": 103,
+        "nome": "BACKUPS",
+        "url": "#",
+        "icone": "💾",
+        "cor": "bg-blue-600",
+        "pai_id": 100
+    },
+
+
+    {
+        "id": 110,
+        "nome": "IOT & FACILITIES",
+        "url": "#",
+        "icone": "📡",
+        "cor": "bg-emerald-600",
+        "pai_id": null
+    },
+    {
+        "id": 111,
+        "nome": "SENSORES",
+        "url": "#",
+        "icone": "📡",
+        "cor": "bg-emerald-600",
+        "pai_id": 110
+    },
+    {
+        "id": 112,
+        "nome": "ENERGIA",
+        "url": "#",
+        "icone": "⚡",
+        "cor": "bg-emerald-600",
+        "pai_id": 110
+    },
+    {
+        "id": 113,
+        "nome": "MANUTENÇÕES",
+        "url": "#",
+        "icone": "🔧",
+        "cor": "bg-emerald-600",
+        "pai_id": 110
+    },
+
+
+    {
+        "id": 53,
+        "nome": "MONITORAMENTO",
+        "url": "#",
+        "icone": "🖥️",
+        "cor": "bg-cyan-600",
+        "pai_id": null
+    },
+    {
+        "id": 54,
+        "nome": "CENTRAL DE CÂMERAS",
+        "url": "#",
+        "icone": "📹",
+        "cor": "bg-blue-600",
+        "pai_id": 53
+    },
+    {
+        "id": 55,
+        "nome": "CENTRAL DE COLETORES",
+        "url": "#",
+        "icone": "📱",
+        "cor": "bg-blue-600",
+        "pai_id": 53
+    },
+    {
+        "id": 56,
+        "nome": "CENTRAL DE CELULARES",
+        "url": "#",
+        "icone": "📱",
+        "cor": "bg-blue-600",
+        "pai_id": 53
+    },
+    {
+        "id": 57,
+        "nome": "CONTROLE DE MÁQUINAS",
+        "url": "#",
+        "icone": "💻",
+        "cor": "bg-blue-600",
+        "pai_id": 53
+    },
+    {
+        "id": 58,
+        "nome": "E-MAILS CORP",
+        "url": "#",
+        "icone": "✉️",
+        "cor": "bg-blue-600",
+        "pai_id": 53
+    },
+
+
+    {
+        "id": 120,
+        "nome": "NUVEM & APLICAÇÕES",
+        "url": "#",
+        "icone": "☁️",
+        "cor": "bg-purple-600",
+        "pai_id": null
+    },
+    {
+        "id": 121,
+        "nome": "MICROSOFT 365",
+        "url": "#",
+        "icone": "☁️",
+        "cor": "bg-purple-600",
+        "pai_id": 120
+    },
+    {
+        "id": 122,
+        "nome": "GOOGLE WORKSPACE",
+        "url": "#",
+        "icone": "📁",
+        "cor": "bg-purple-600",
+        "pai_id": 120
+    },
+    {
+        "id": 123,
+        "nome": "APLICAÇÕES WEB",
+        "url": "#",
+        "icone": "🌐",
+        "cor": "bg-purple-600",
+        "pai_id": 120
+    },
+
+
+    {
+        "id": 130,
+        "nome": "SISTEMAS DE ROBÓTICA",
+        "url": "#",
+        "icone": "🤖",
+        "cor": "bg-purple-600",
+        "pai_id": null
+    },
+    {
+        "id": 131,
+        "nome": "AUTOMAÇÕES",
+        "url": "#",
+        "icone": "⚙️",
+        "cor": "bg-purple-600",
+        "pai_id": 130
+    },
+    {
+        "id": 132,
+        "nome": "INTEGRAÇÕES",
+        "url": "#",
+        "icone": "🔗",
+        "cor": "bg-purple-600",
+        "pai_id": 130
+    },
+    {
+        "id": 133,
+        "nome": "ROTINAS AUTOMÁTICAS",
+        "url": "#",
+        "icone": "🔄",
+        "cor": "bg-purple-600",
+        "pai_id": 130
+    },
+
+
+    {
+        "id": 140,
+        "nome": "CONTROLE DE ACESSO",
+        "url": "#",
+        "icone": "🔐",
+        "cor": "bg-amber-500",
+        "pai_id": null
+    },
+    {
+        "id": 141,
+        "nome": "PORTARIA",
+        "url": "#",
+        "icone": "🚪",
+        "cor": "bg-amber-500",
+        "pai_id": 140
+    },
+    {
+        "id": 142,
+        "nome": "CATRACAS",
+        "url": "#",
+        "icone": "🔒",
+        "cor": "bg-amber-500",
+        "pai_id": 140
+    },
+    {
+        "id": 143,
+        "nome": "VISITANTES",
+        "url": "#",
+        "icone": "👤",
+        "cor": "bg-amber-500",
+        "pai_id": 140
+    }
+]

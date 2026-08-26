@@ -112,7 +112,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $cid        = $_POST['contrato_id'] ?? '';
             $setor_novo = mb_strtoupper(trim((string) ($_POST['setor'] ?? '')), 'UTF-8');
 
-            $auth->exigir(empty($cid) ? 'criar' : 'editar');
+            if (empty($cid)) {
+                $auth->exigir('criar');
+            } else {
+                $auth->exigirNoContrato('editar', (int) $cid);
+
+                $stmt_status_atual = $pdo_intra->prepare("SELECT status FROM contratos WHERE id = ?");
+                $stmt_status_atual->execute([(int) $cid]);
+                $status_atual = (string) $stmt_status_atual->fetchColumn();
+                if ($status_atual === 'ENCERRADO') {
+                    throw new RuntimeException('Contrato encerrado é somente leitura. Use o histórico para consulta.', 409);
+                }
+            }
 
             $modo_salvamento = ($_POST['modo_salvamento'] ?? 'RASCUNHO') === 'ENVIAR_FINANCEIRO'
                 ? 'ENVIAR_FINANCEIRO' : 'RASCUNHO';
@@ -163,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
 
             if (!empty($cid)) {
-                $auth->exigirAcessoContrato((int) $cid);
+                // A autorização de edição já foi validada por exigirNoContrato().
             }
 
             // Salva o anexo no armazenamento local configurado em ContratoStorage.php.
@@ -311,7 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
 
             // Envio explícito ao Financeiro, somente depois da validação completa.
             if ($modo_salvamento === 'ENVIAR_FINANCEIRO') {
-                $auth->exigir('compartilhar');
+                $auth->exigirNoContrato('compartilhar', (int) $cid);
                 $pdo_intra->prepare("UPDATE contratos SET etapa_atual = 5, status_fluxo='AGUARDANDO_FINANCEIRO', compartilhado_em = NOW() WHERE id = ?")->execute([$cid]);
                 $pdo_intra->prepare("INSERT INTO contratos_acessos_grupos (contrato_id, grupo_id, concedido_por) VALUES (?, 17, ?) ON DUPLICATE KEY UPDATE concedido_por = VALUES(concedido_por), concedido_em = CURRENT_TIMESTAMP")
                           ->execute([$cid, $user_id_sessao]);
@@ -338,12 +349,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     // sem conceder acesso aos demais campos administrativos.
     elseif ($acao === 'atualizar_dados_contas_pagar') {
         $cid = (int) ($_POST['contrato_id'] ?? 0);
-        $pode_atualizar_financeiro = $auth->pode('ver_financeiro');
-        $pode_atualizar_responsavel = $auth->pode('editar');
+        // Diretoria em contrato de outro dono é SOMENTE LEITURA.
+        // Contas a Pagar continua podendo atualizar quando possuir a permissão financeira.
+        $pode_atualizar_financeiro =
+            !$auth->isDiretoria()
+            && $auth->pode('ver_financeiro')
+            && $auth->podeAcessarContrato($cid);
+
+        $pode_atualizar_responsavel = $auth->podeNoContrato('editar', $cid);
+
         if (!$pode_atualizar_financeiro && !$pode_atualizar_responsavel) {
-            throw new RuntimeException('Você não possui permissão para atualizar estes dados.', 403);
+            throw new RuntimeException('Você possui somente visualização deste contrato.', 403);
         }
-        $auth->exigirAcessoContrato($cid);
 
         $stmt = $pdo_intra->prepare("SELECT etapa_atual, valor, quantidade_parcelas, prazo_indeterminado FROM contratos WHERE id = ?");
         $stmt->execute([$cid]);
@@ -428,8 +445,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     // B. COMPARTILHAR COM CONTAS A PAGAR
     elseif ($acao === 'compartilhar_contrato') {
         $cid = (int) ($_POST['contrato_id'] ?? 0);
-        $auth->exigir('compartilhar');
-        $auth->exigirAcessoContrato($cid);
+        $auth->exigirNoContrato('compartilhar', $cid);
 
         $stmt_contrato = $pdo_intra->prepare("SELECT * FROM contratos WHERE id = ?");
         $stmt_contrato->execute([$cid]);
@@ -453,9 +469,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
 
     // C. CONFIRMAR USO/RECEBIMENTO
     elseif ($acao === 'confirmar_uso') {
-        $auth->exigir('confirmar_uso');
         $cid = (int) ($_POST['contrato_id'] ?? 0);
-        $auth->exigirAcessoContrato($cid);
+        $auth->exigirNoContrato('confirmar_uso', $cid);
         $stmt = $pdo_intra->prepare("SELECT etapa_atual FROM contratos WHERE id = ?");
         $stmt->execute([$cid]);
         $etapa_atual = (int) $stmt->fetchColumn();
@@ -490,9 +505,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
 
     // D. REGISTRAR DIVERGÊNCIA DE VALORES
     elseif ($acao === 'registrar_divergencia') {
-        $auth->exigir('registrar_divergencia');
         $cid       = (int) ($_POST['contrato_id'] ?? 0);
-        $auth->exigirAcessoContrato($cid);
+        $auth->exigirNoContrato('registrar_divergencia', $cid);
         $descricao = trim($_POST['descricao'] ?? '');
         if (empty($descricao)) { echo "erro: descreva a divergência de valores"; exit; }
 
@@ -516,11 +530,238 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         echo "sucesso"; exit;
     }
 
-    // E. EXCLUIR CONTRATO
-    elseif ($acao === 'excluir_contrato') {
-        $auth->exigir('excluir');
+    // E. RENOVAR CONTRATO VENCIDO
+    elseif ($acao === 'renovar_contrato') {
         $cid = (int) ($_POST['contrato_id'] ?? 0);
-        $auth->exigirAcessoContrato($cid);
+        $auth->exigirNoContrato('editar', $cid);
+
+        $stmt = $pdo_intra->prepare("
+            SELECT id, fornecedor, etapa_atual, status, tipo_prazo,
+                   data_inicio, data_vencimento
+              FROM contratos
+             WHERE id = ?
+             LIMIT 1
+        ");
+        $stmt->execute([$cid]);
+        $contrato = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$contrato) {
+            throw new RuntimeException('Contrato não encontrado.', 404);
+        }
+        if (($contrato['status'] ?? '') === 'ENCERRADO') {
+            throw new RuntimeException('Contrato encerrado não pode ser renovado diretamente.', 409);
+        }
+        if (($contrato['tipo_prazo'] ?? '') !== 'DETERMINADO' || empty($contrato['data_vencimento'])) {
+            throw new RuntimeException('A renovação rápida é destinada a contratos de prazo determinado.', 422);
+        }
+
+        $hoje = new DateTimeImmutable('today');
+        $vencimento_atual = DateTimeImmutable::createFromFormat('Y-m-d', (string) $contrato['data_vencimento']);
+        if (!$vencimento_atual) {
+            throw new RuntimeException('A data de vencimento atual do contrato é inválida.', 422);
+        }
+        if ($vencimento_atual >= $hoje) {
+            throw new RuntimeException('A renovação rápida fica disponível quando o contrato estiver vencido.', 409);
+        }
+
+        $tipo_novo = strtoupper(trim((string) ($_POST['tipo_prazo_novo'] ?? '')));
+        if (!in_array($tipo_novo, ['DETERMINADO', 'INDETERMINADO'], true)) {
+            throw new RuntimeException('Informe se a nova vigência possui prazo determinado ou indeterminado.', 422);
+        }
+
+        $data_inicio_nova = trim((string) ($_POST['data_inicio_nova'] ?? ''));
+        $inicio_novo = DateTimeImmutable::createFromFormat('Y-m-d', $data_inicio_nova);
+        if (!$inicio_novo || $inicio_novo->format('Y-m-d') !== $data_inicio_nova) {
+            throw new RuntimeException('Informe uma data válida para o início da nova vigência.', 422);
+        }
+
+        $data_vencimento_nova = null;
+        if ($tipo_novo === 'DETERMINADO') {
+            $data_vencimento_nova = trim((string) ($_POST['data_vencimento_nova'] ?? ''));
+            $fim_novo = DateTimeImmutable::createFromFormat('Y-m-d', $data_vencimento_nova);
+            if (!$fim_novo || $fim_novo->format('Y-m-d') !== $data_vencimento_nova) {
+                throw new RuntimeException('Informe a nova data final do contrato.', 422);
+            }
+            if ($fim_novo <= $inicio_novo) {
+                throw new RuntimeException('A nova data final deve ser posterior ao início da nova vigência.', 422);
+            }
+        }
+
+        $observacao = trim((string) ($_POST['observacao'] ?? ''));
+        if (mb_strlen($observacao, 'UTF-8') > 1000) {
+            throw new RuntimeException('A observação da renovação deve ter no máximo 1000 caracteres.', 422);
+        }
+
+        $pdo_intra->beginTransaction();
+        try {
+            $pdo_intra->prepare("
+                INSERT INTO contratos_renovacoes (
+                    contrato_id,
+                    tipo_prazo_anterior,
+                    data_inicio_anterior,
+                    data_vencimento_anterior,
+                    tipo_prazo_novo,
+                    data_inicio_nova,
+                    data_vencimento_nova,
+                    observacao,
+                    usuario_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ")->execute([
+                $cid,
+                $contrato['tipo_prazo'] ?? null,
+                $contrato['data_inicio'] ?: null,
+                $contrato['data_vencimento'] ?: null,
+                $tipo_novo,
+                $data_inicio_nova,
+                $data_vencimento_nova,
+                $observacao !== '' ? $observacao : null,
+                $user_id_sessao,
+            ]);
+
+            $pdo_intra->prepare("
+                UPDATE contratos
+                   SET tipo_prazo = ?,
+                       prazo_indeterminado = ?,
+                       data_inicio = ?,
+                       data_vencimento = ?,
+                       status = 'ATIVO',
+                       data_encerramento = NULL,
+                       motivo_encerramento = NULL,
+                       encerrado_por = NULL,
+                       renovacao_automatica = CASE WHEN ? = 'INDETERMINADO' THEN NULL ELSE renovacao_automatica END
+                 WHERE id = ?
+            ")->execute([
+                $tipo_novo,
+                $tipo_novo === 'INDETERMINADO' ? 1 : 0,
+                $data_inicio_nova,
+                $data_vencimento_nova,
+                $tipo_novo,
+                $cid,
+            ]);
+
+            $descricao_renovacao = $tipo_novo === 'INDETERMINADO'
+                ? 'Contrato renovado para prazo indeterminado'
+                : 'Contrato renovado até ' . (new DateTimeImmutable($data_vencimento_nova))->format('d/m/Y');
+
+            $pdo_intra->prepare("
+                INSERT INTO contratos_historico (contrato_id, etapa, acao, observacao, usuario_id)
+                VALUES (?, ?, ?, ?, ?)
+            ")->execute([
+                $cid,
+                (int) ($contrato['etapa_atual'] ?? 0),
+                $descricao_renovacao,
+                $observacao !== '' ? $observacao : null,
+                $user_id_sessao,
+            ]);
+
+            $pdo_intra->commit();
+        } catch (Throwable $e) {
+            if ($pdo_intra->inTransaction()) {
+                $pdo_intra->rollBack();
+            }
+            throw $e;
+        }
+
+        registrarLog(
+            $pdo_intra,
+            'RENOVOU CONTRATO',
+            "Renovou o contrato ID {$cid} - " . ($contrato['fornecedor'] ?? ''),
+            $user_id_sessao,
+            $admin_ip
+        );
+
+        echo 'sucesso';
+        exit;
+    }
+
+    // F. ENCERRAR CONTRATO (ARQUIVAMENTO LÓGICO)
+    elseif ($acao === 'encerrar_contrato') {
+        $cid = (int) ($_POST['contrato_id'] ?? 0);
+        $auth->exigirNoContrato('editar', $cid);
+
+        $stmt = $pdo_intra->prepare("
+            SELECT id, fornecedor, etapa_atual, status
+              FROM contratos
+             WHERE id = ?
+             LIMIT 1
+        ");
+        $stmt->execute([$cid]);
+        $contrato = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$contrato) {
+            throw new RuntimeException('Contrato não encontrado.', 404);
+        }
+        if (($contrato['status'] ?? '') === 'ENCERRADO') {
+            throw new RuntimeException('Este contrato já está encerrado.', 409);
+        }
+
+        $data_encerramento = trim((string) ($_POST['data_encerramento'] ?? ''));
+        $data_enc = DateTimeImmutable::createFromFormat('Y-m-d', $data_encerramento);
+        if (!$data_enc || $data_enc->format('Y-m-d') !== $data_encerramento) {
+            throw new RuntimeException('Informe uma data válida para o encerramento.', 422);
+        }
+        if ($data_enc > new DateTimeImmutable('today')) {
+            throw new RuntimeException('A data de encerramento não pode ser futura.', 422);
+        }
+
+        $motivo = trim((string) ($_POST['motivo_encerramento'] ?? ''));
+        if ($motivo === '') {
+            throw new RuntimeException('Informe o motivo do encerramento.', 422);
+        }
+        if (mb_strlen($motivo, 'UTF-8') > 500) {
+            throw new RuntimeException('O motivo do encerramento deve ter no máximo 500 caracteres.', 422);
+        }
+
+        $pdo_intra->beginTransaction();
+        try {
+            $pdo_intra->prepare("
+                UPDATE contratos
+                   SET status = 'ENCERRADO',
+                       data_encerramento = ?,
+                       motivo_encerramento = ?,
+                       encerrado_por = ?
+                 WHERE id = ?
+            ")->execute([
+                $data_encerramento,
+                $motivo,
+                $user_id_sessao,
+                $cid,
+            ]);
+
+            $pdo_intra->prepare("
+                INSERT INTO contratos_historico (contrato_id, etapa, acao, observacao, usuario_id)
+                VALUES (?, ?, 'Contrato encerrado', ?, ?)
+            ")->execute([
+                $cid,
+                (int) ($contrato['etapa_atual'] ?? 0),
+                $motivo,
+                $user_id_sessao,
+            ]);
+
+            $pdo_intra->commit();
+        } catch (Throwable $e) {
+            if ($pdo_intra->inTransaction()) {
+                $pdo_intra->rollBack();
+            }
+            throw $e;
+        }
+
+        registrarLog(
+            $pdo_intra,
+            'ENCERROU CONTRATO',
+            "Encerrou o contrato ID {$cid} - " . ($contrato['fornecedor'] ?? ''),
+            $user_id_sessao,
+            $admin_ip
+        );
+
+        echo 'sucesso';
+        exit;
+    }
+
+    // G. EXCLUIR CONTRATO
+    elseif ($acao === 'excluir_contrato') {
+        $cid = (int) ($_POST['contrato_id'] ?? 0);
+        $auth->exigirNoContrato('excluir', $cid);
         $stmt_check = $pdo_intra->prepare("SELECT setor, fornecedor FROM contratos WHERE id = ?");
         $stmt_check->execute([$cid]);
         $c = $stmt_check->fetch(PDO::FETCH_ASSOC);

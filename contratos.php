@@ -23,8 +23,9 @@ $user_id_sessao = $_SESSION['user_id'] ?? 0;
 $admin_ip       = $_SERVER['REMOTE_ADDR'];
 $eh_admin       = isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true;
 
-$setor_usuario  = mb_strtoupper(trim($_SESSION['setor'] ?? ''), 'UTF-8');
 $auth           = new ContratoAuth($pdo_intra, (int) $user_id_sessao, $eh_admin);
+// O setor exibido/usado pelo módulo agora vem do vínculo grupo -> setor da intranet.
+$setor_usuario  = $auth->setorUsuario();
 $pode_criar     = $auth->pode('criar');
 $pode_editar    = $auth->pode('editar');
 $pode_excluir   = $auth->pode('excluir');
@@ -69,9 +70,58 @@ function calcularAlerta(?string $data_vencimento, string $setor = '', bool $reco
 }
 
 [$filtroContratos, $paramsContratos] = $auth->filtroContratosSql();
-$stmt = $pdo_intra->prepare("SELECT c.* FROM contratos c WHERE {$filtroContratos} ORDER BY c.data_vencimento ASC");
+
+$visao_encerrados = (($_GET['visao'] ?? '') === 'encerrados');
+
+// Encerrados são arquivados logicamente: não poluem a lista operacional,
+// mas continuam disponíveis para consulta e auditoria.
+$stmt_encerrados = $pdo_intra->prepare("
+    SELECT COUNT(*)
+      FROM contratos c
+     WHERE {$filtroContratos}
+       AND COALESCE(c.status, 'ATIVO') = 'ENCERRADO'
+");
+$stmt_encerrados->execute($paramsContratos);
+$total_encerrados = (int) $stmt_encerrados->fetchColumn();
+
+$condicao_status_lista = $visao_encerrados
+    ? "COALESCE(c.status, 'ATIVO') = 'ENCERRADO'"
+    : "COALESCE(c.status, 'ATIVO') <> 'ENCERRADO'";
+
+$stmt = $pdo_intra->prepare("
+    SELECT c.*
+      FROM contratos c
+     WHERE {$filtroContratos}
+       AND {$condicao_status_lista}
+     ORDER BY c.data_vencimento ASC
+");
 $stmt->execute($paramsContratos);
 $contratos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Prioridade gerencial padrão: vencidos -> críticos -> alertas -> regulares -> sem data.
+// A mesma prioridade também é aplicada no JavaScript para permanecer correta após filtros/paginação.
+usort($contratos, static function (array $a, array $b): int {
+    $alertaA = calcularAlerta($a['data_vencimento'] ?? null, $a['setor'] ?? '', !empty($a['recorrente']), $a['status'] ?? 'ATIVO');
+    $alertaB = calcularAlerta($b['data_vencimento'] ?? null, $b['setor'] ?? '', !empty($b['recorrente']), $b['status'] ?? 'ATIVO');
+
+    $prioridade = static function (array $alerta): int {
+        if (($alerta['situacao'] ?? '') === 'vencido') return 0;
+        if (($alerta['situacao'] ?? '') === 'vencendo' && ($alerta['cor'] ?? '') === 'rose') return 1;
+        if (($alerta['situacao'] ?? '') === 'vencendo') return 2;
+        if (($alerta['situacao'] ?? '') === 'regular') return 3;
+        return 4;
+    };
+
+    $pa = $prioridade($alertaA);
+    $pb = $prioridade($alertaB);
+    if ($pa !== $pb) return $pa <=> $pb;
+
+    $dataA = !empty($a['data_vencimento']) ? (string) $a['data_vencimento'] : '9999-12-31';
+    $dataB = !empty($b['data_vencimento']) ? (string) $b['data_vencimento'] : '9999-12-31';
+    if ($dataA !== $dataB) return strcmp($dataA, $dataB);
+
+    return strcasecmp((string) ($a['fornecedor'] ?? ''), (string) ($b['fornecedor'] ?? ''));
+});
 
 $divergencias_abertas = $pdo_intra->query("SELECT contrato_id, COUNT(*) as qtd FROM contratos_divergencias WHERE status = 'ABERTA' GROUP BY contrato_id")
                                    ->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -83,6 +133,23 @@ if ($contratos) {
     $stmt_div->execute($ids);
     foreach ($stmt_div->fetchAll(PDO::FETCH_ASSOC) as $div) {
         $divergencias_por_contrato[(int) $div['contrato_id']][] = $div;
+    }
+}
+
+$renovacoes_por_contrato = [];
+if ($contratos) {
+    $ids_ren = array_map('intval', array_column($contratos, 'id'));
+    $marcadores_ren = implode(',', array_fill(0, count($ids_ren), '?'));
+    $stmt_ren = $pdo_intra->prepare("
+        SELECT id, contrato_id, tipo_prazo_anterior, data_inicio_anterior, data_vencimento_anterior,
+               tipo_prazo_novo, data_inicio_nova, data_vencimento_nova, observacao, usuario_id, criado_em
+          FROM contratos_renovacoes
+         WHERE contrato_id IN ($marcadores_ren)
+         ORDER BY id DESC
+    ");
+    $stmt_ren->execute($ids_ren);
+    foreach ($stmt_ren->fetchAll(PDO::FETCH_ASSOC) as $ren) {
+        $renovacoes_por_contrato[(int) $ren['contrato_id']][] = $ren;
     }
 }
 
@@ -130,6 +197,53 @@ $total_ativos     = count(array_filter($contratos, fn($c) => $c['status'] === 'A
 $total_alertas    = count(array_filter($contratos, fn($c) => calcularAlerta($c['data_vencimento'] ?? null, $c['setor'] ?? '', !empty($c['recorrente']), $c['status'] ?? 'ATIVO')['ativo']));
 $total_incompletos = count(array_filter($contratos, fn($c) => count(camposEssenciaisPendentes($c)) > 0));
 
+
+// =====================================================================
+// V6 - COLUNAS INTELIGENTES + NAVEGAÇÃO GERENCIAL
+// Colunas auxiliares só aparecem quando existe informação útil na base.
+// Isso evita ocupar espaço com campos completamente vazios após importações.
+// =====================================================================
+$mostrar_col_valores = false;
+$mostrar_col_pagamento = false;
+$mostrar_col_condicoes = false;
+
+foreach ($contratos as $contrato_coluna) {
+    if ((float) ($contrato_coluna['valor_parcela'] ?? 0) > 0 || (float) ($contrato_coluna['valor'] ?? 0) > 0) {
+        $mostrar_col_valores = true;
+    }
+
+    if (
+        trim((string) ($contrato_coluna['periodicidade'] ?? '')) !== '' ||
+        trim((string) ($contrato_coluna['forma_pagamento'] ?? '')) !== '' ||
+        (int) ($contrato_coluna['quantidade_parcelas'] ?? 0) > 0 ||
+        trim((string) ($contrato_coluna['tipo_pagamento'] ?? '')) !== ''
+    ) {
+        $mostrar_col_pagamento = true;
+    }
+
+    $campos_condicoes = [
+        $contrato_coluna['possui_aviso_cancelamento'] ?? null,
+        $contrato_coluna['possui_reajuste'] ?? null,
+        $contrato_coluna['possui_multa'] ?? null,
+        $contrato_coluna['possui_carencia'] ?? null,
+    ];
+    foreach ($campos_condicoes as $valor_condicao) {
+        if ($valor_condicao !== null && trim((string) $valor_condicao) !== '' && $valor_condicao !== 'NAO_INFORMADO') {
+            $mostrar_col_condicoes = true;
+            break;
+        }
+    }
+}
+
+$colunas_tabela = 5
+    + ($mostrar_col_valores ? 1 : 0)
+    + ($mostrar_col_pagamento ? 1 : 0)
+    + ($mostrar_col_condicoes ? 1 : 0);
+$largura_minima_tabela = 820
+    + ($mostrar_col_valores ? 135 : 0)
+    + ($mostrar_col_pagamento ? 145 : 0)
+    + ($mostrar_col_condicoes ? 170 : 0);
+
 $stmt_setores = $pdo_intra->query(
     "SELECT DISTINCT TRIM(SETOR) AS setor
        FROM matriz_comunicacao
@@ -140,21 +254,25 @@ $stmt_setores = $pdo_intra->query(
 $setores_distintos = $stmt_setores->fetchAll(PDO::FETCH_COLUMN);
 ?>
 
-<main class="flex-1 overflow-y-auto bg-slate-50 p-8">
-    <div class="max-w-7xl mx-auto">
+<main class="flex-1 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-4 lg:px-5">
+    <div class="w-full max-w-none mx-auto">
 
         <?php if (!empty($msg_sucesso)): ?>
-            <div class="mb-6 bg-emerald-50 text-emerald-700 p-4 rounded-2xl font-bold border border-emerald-100 shadow-sm"><?php echo htmlspecialchars($msg_sucesso); ?></div>
+            <div class="mb-4 bg-emerald-50 text-emerald-700 px-4 py-3 rounded-xl font-bold border border-emerald-100 shadow-sm"><?php echo htmlspecialchars($msg_sucesso); ?></div>
         <?php endif; ?>
         <?php if (!empty($msg_erro)): ?>
-            <div class="mb-6 bg-red-50 text-red-700 p-4 rounded-2xl font-bold border border-red-100 shadow-sm"><?php echo htmlspecialchars($msg_erro); ?></div>
+            <div class="mb-4 bg-red-50 text-red-700 px-4 py-3 rounded-xl font-bold border border-red-100 shadow-sm"><?php echo htmlspecialchars($msg_erro); ?></div>
         <?php endif; ?>
 
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 gap-3">
             <div>
-                <h2 class="text-3xl font-black text-navy-900 tracking-tight uppercase italic">Gestão de Contratos</h2>
-                <p class="text-slate-500 font-medium mt-1">
-                    <?php if ($pode_financeiro && !$pode_criar && !$eh_admin): ?>
+                <h2 class="text-2xl lg:text-3xl font-black text-navy-900 tracking-tight uppercase italic">Gestão de Contratos</h2>
+                <p class="text-slate-500 font-medium mt-0.5 text-sm">
+                    <?php if ($visao_encerrados): ?>
+                        Arquivo de contratos encerrados — consulta e histórico.
+                    <?php elseif ($auth->isDiretoria() && !$eh_admin): ?>
+                        Diretoria — visão geral; gestão somente dos contratos sob sua responsabilidade.
+                    <?php elseif ($pode_financeiro && !$pode_criar && !$eh_admin): ?>
                         Contratos compartilhados com o Contas a Pagar.
                     <?php elseif (!$eh_admin): ?>
                         Contratos do setor <?php echo htmlspecialchars($setor_usuario); ?>.
@@ -164,199 +282,682 @@ $setores_distintos = $stmt_setores->fetchAll(PDO::FETCH_COLUMN);
                 </p>
             </div>
 
-            <?php if ($pode_criar): ?>
-            <button onclick="abrirWizard()" class="bg-navy-900 hover:bg-navy-800 text-white font-bold px-5 py-3 rounded-2xl shadow-md transition-all">
-                + Novo Contrato
+            <div class="flex flex-wrap items-center gap-2">
+                <?php if ($visao_encerrados): ?>
+                    <a href="contratos.php" class="border border-slate-200 bg-white text-slate-700 font-bold px-4 py-2.5 rounded-xl shadow-sm hover:bg-slate-50 whitespace-nowrap">
+                        ← Voltar aos contratos
+                    </a>
+                <?php else: ?>
+                    <a href="contratos.php?visao=encerrados" class="border border-slate-200 bg-white text-slate-600 font-bold px-4 py-2.5 rounded-xl shadow-sm hover:bg-slate-50 whitespace-nowrap">
+                        Encerrados (<?php echo $total_encerrados; ?>)
+                    </a>
+                    <?php if ($pode_criar): ?>
+                    <button onclick="abrirWizard()" class="bg-navy-900 hover:bg-navy-800 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all whitespace-nowrap">
+                        + Novo Contrato
+                    </button>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <?php if ($visao_encerrados): ?>
+        <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Contratos encerrados</p>
+            <div class="flex items-end gap-2 mt-0.5">
+                <p class="text-2xl font-black text-navy-900"><?php echo $total_contratos; ?></p>
+                <span class="text-xs font-medium text-slate-500 mb-1">arquivado(s) nesta visão</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">Estes contratos não aparecem na rotina operacional, mas permanecem disponíveis para consulta e auditoria.</p>
+        </div>
+        <?php else: ?>
+        <!-- KPIs clicáveis: funcionam também como filtros rápidos -->
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+            <button type="button" class="kpi-filtro group text-left bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200" data-filtro-kpi="ativo" aria-pressed="false" title="Mostrar somente contratos ativos">
+                <div class="flex items-start justify-between gap-2">
+                    <div>
+                        <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Contratos Ativos</p>
+                        <p class="text-2xl font-black text-navy-900 mt-0.5"><?php echo $total_ativos; ?></p>
+                    </div>
+                    <span class="text-[9px] font-black text-blue-600 opacity-0 transition group-hover:opacity-100">Filtrar</span>
+                </div>
             </button>
-            <?php endif; ?>
+            <button type="button" class="kpi-filtro group text-left bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200" data-filtro-kpi="todos" aria-pressed="true" title="Mostrar todos os contratos">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Total de Contratos</p>
+                <div class="flex items-end gap-2"><p class="text-2xl font-black text-navy-900 mt-0.5"><?php echo $total_contratos; ?></p><span class="text-[9px] font-bold text-slate-400 mb-1">ver todos</span></div>
+            </button>
+            <button type="button" class="kpi-filtro group text-left bg-amber-50 rounded-xl border border-amber-200 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-200" data-filtro-kpi="alerta" aria-pressed="false" title="Mostrar somente contratos próximos do vencimento ou vencidos">
+                <p class="text-[10px] font-black uppercase tracking-wider text-amber-700">Alertas de Vencimento</p>
+                <div class="flex items-end gap-2"><p class="text-2xl font-black text-amber-700 mt-0.5"><?php echo $total_alertas; ?></p><span class="text-[10px] font-bold text-amber-600 mb-1">clique para ver</span></div>
+            </button>
+            <button type="button" class="kpi-filtro group text-left bg-rose-50 rounded-xl border border-rose-200 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-200" data-filtro-kpi="incompleto" aria-pressed="false" title="Mostrar somente cadastros incompletos">
+                <p class="text-[10px] font-black uppercase tracking-wider text-rose-700">Cadastros Incompletos</p>
+                <div class="flex items-end gap-2"><p class="text-2xl font-black text-rose-700 mt-0.5"><?php echo $total_incompletos; ?></p><span class="text-[10px] font-bold text-rose-500 mb-1">clique para ver</span></div>
+            </button>
         </div>
+        <?php endif; ?>
 
-        <!-- KPIs -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                <p class="text-xs font-black uppercase tracking-wider text-slate-400">Contratos Ativos</p>
-                <p class="text-3xl font-black text-navy-900 mt-1"><?php echo $total_ativos; ?></p>
-            </div>
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                <p class="text-xs font-black uppercase tracking-wider text-slate-400">Total de Contratos</p>
-                <p class="text-3xl font-black text-navy-900 mt-1"><?php echo $total_contratos; ?></p>
-            </div>
-            <div class="bg-amber-50 rounded-2xl border border-amber-100 p-5 shadow-sm">
-                <p class="text-xs font-black uppercase tracking-wider text-amber-600">Alertas de Vencimento</p>
-                <p class="text-3xl font-black text-amber-700 mt-1"><?php echo $total_alertas; ?></p>
-            </div>
-            <div class="bg-rose-50 rounded-2xl border border-rose-100 p-5 shadow-sm">
-                <p class="text-xs font-black uppercase tracking-wider text-rose-600">Cadastros Incompletos</p>
-                <p class="text-3xl font-black text-rose-700 mt-1"><?php echo $total_incompletos; ?></p>
-            </div>
+        <?php if (!$visao_encerrados): ?>
+        <div class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-[11px] text-blue-800">
+            <span class="font-black">Prioridade automática:</span>
+            <span><strong class="text-rose-700">1.</strong> Vencidos</span>
+            <span><strong class="text-rose-600">2.</strong> Até 15 dias</span>
+            <span><strong class="text-amber-700">3.</strong> Dentro do alerta</span>
+            <span class="text-blue-600">Facilities: 90 dias • Demais setores: 60 dias</span>
         </div>
+        <?php endif; ?>
 
-        <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-blue-800">
-            <span class="font-black">🔔 Alertas de término</span>
-            <span><strong>Facilities:</strong> 90 dias</span>
-            <span><strong>Demais setores:</strong> 60 dias</span>
-            <span><strong>Crítico:</strong> 15 dias ou menos</span>
-            <span class="text-blue-600">Prazo indeterminado não gera alerta.</span>
-        </div>
-
-        <!-- Filtros -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 mb-4 flex flex-col md:flex-row gap-3 shadow-sm">
-            <input type="text" id="busca-contrato" placeholder="🔍 Fornecedor, serviço, CNPJ..."
-                   class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-corporate-blue">
-            <?php if ($eh_admin): ?>
-            <select id="filtro-setor" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600">
+        <!-- Filtros compactos -->
+        <div class="bg-white rounded-xl border border-slate-200 p-3 mb-3 flex flex-col lg:flex-row gap-2.5 shadow-sm">
+            <div class="relative flex-1 min-w-0">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+                <input type="text" id="busca-contrato" placeholder="Fornecedor, serviço, CNPJ..."
+                       class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-sm font-medium outline-none focus:border-corporate-blue">
+            </div>
+            <?php if ($eh_admin || $auth->isDiretoria()): ?>
+            <select id="filtro-setor" class="lg:w-56 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600">
                 <option value="">Todos os setores</option>
                 <?php foreach ($setores_distintos as $s): ?>
                     <option value="<?php echo htmlspecialchars($s); ?>"><?php echo htmlspecialchars($s); ?></option>
                 <?php endforeach; ?>
             </select>
             <?php endif; ?>
-            <select id="filtro-situacao" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600">
+            <select id="filtro-situacao" class="lg:w-64 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600">
                 <option value="">Todas as situações</option>
+                <option value="ativo">Contratos ativos</option>
+                <option value="alerta">Próximos do vencimento / vencidos</option>
+                <option value="vencido">Somente vencidos</option>
+                <option value="vencendo">Somente dentro do alerta</option>
                 <option value="andamento">Em andamento</option>
                 <option value="aguardando_financeiro">Aguardando Contas a Pagar</option>
                 <option value="divergencia">Com divergência</option>
                 <option value="confirmado">Uso confirmado</option>
-                <option value="vencendo">Vencendo</option>
-                <option value="vencido">Vencidos</option>
                 <option value="incompleto">Cadastros incompletos</option>
+                <?php if ($visao_encerrados): ?><option value="encerrado">Encerrados</option><?php endif; ?>
             </select>
+            <?php if (!$visao_encerrados): ?>
+            <button type="button" id="priorizar-vencimentos" class="lg:w-auto whitespace-nowrap border border-amber-200 bg-amber-50 text-amber-800 rounded-lg px-4 py-2.5 text-xs font-black hover:bg-amber-100">
+                ↑ Priorizar vencimentos
+            </button>
+            <?php endif; ?>
         </div>
 
-        <!-- Visão gerencial compacta: uma linha por contrato, preparada para grandes volumes. -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="w-full overflow-visible">
-        <table id="tabela-contratos" class="w-full text-left border-collapse table-fixed" style="table-layout:fixed">
-            <thead class="bg-slate-50 text-[9px] uppercase tracking-wide text-slate-500 sticky top-0 z-10">
-                <tr>
-                    <th class="w-[17%] px-2 py-3 border-b border-slate-200"><button type="button" class="ordenar-coluna font-black" data-coluna="fornecedor">Fornecedor / serviço ↕</button></th>
-                    <?php if ($eh_admin): ?><th class="w-[7%] px-2 py-3 border-b border-slate-200"><button type="button" class="ordenar-coluna font-black" data-coluna="setor">Setor ↕</button></th><?php endif; ?>
-                    <th class="w-[10%] px-2 py-3 border-b border-slate-200 text-right"><button type="button" class="ordenar-coluna font-black" data-coluna="valor">Valor mensal ↕</button></th>
-                    <th class="w-[7%] px-2 py-3 border-b border-slate-200">Período</th>
-                    <th class="w-[8%] px-2 py-3 border-b border-slate-200 text-right">Total</th>
-                    <th class="w-[5%] px-2 py-3 border-b border-slate-200 text-center">Parcelas</th>
-                    <th class="w-[8%] px-2 py-3 border-b border-slate-200"><button type="button" class="ordenar-coluna font-black" data-coluna="vigencia">Vigência ↕</button></th>
-                    <th class="w-[6%] px-2 py-3 border-b border-slate-200">Aviso</th>
-                    <th class="w-[7%] px-2 py-3 border-b border-slate-200">Reajuste</th>
-                    <th class="w-[8%] px-2 py-3 border-b border-slate-200">Multa</th>
-                    <th class="w-[7%] px-2 py-3 border-b border-slate-200">Carência</th>
-                    <th class="w-[9%] px-2 py-3 border-b border-slate-200"><button type="button" class="ordenar-coluna font-black" data-coluna="situacao">Situação ↕</button></th>
-                    <th class="w-[8%] px-2 py-3 border-b border-slate-200 text-right sticky right-0 bg-slate-50">Ações</th>
-                </tr>
-            </thead>
-            <tbody id="corpo-tabela-contratos" class="divide-y divide-slate-100 text-[10px]">
-                    <?php if (empty($contratos)): ?>
-                        <tr><td colspan="13" class="text-center px-6 py-10 text-slate-400 font-medium">Nenhum contrato encontrado.</td></tr>
-                    <?php endif; ?>
-                    <?php foreach ($contratos as $c):
-                        $alerta   = calcularAlerta($c['data_vencimento'] ?? null, $c['setor'] ?? '', !empty($c['recorrente']), $c['status'] ?? 'ATIVO');
-                        $etapa    = (int) $c['etapa_atual'];
-                        $tem_div  = isset($divergencias_abertas[$c['id']]);
-                        $eh_responsavel = (int) $c['gestor_id'] === (int) $user_id_sessao;
-                        $eh_dono  = $eh_admin || $eh_responsavel;
-                        $pode_editar_este = $pode_editar && ($eh_admin || $auth->podeAcessarContrato((int) $c['id']));
-                        $pendentes = camposEssenciaisPendentes($c);
-                        $c_cliente = $c;
-                        if (!$pode_financeiro && !$eh_dono) {
-                            foreach (['valor','valor_parcela','forma_pagamento','quantidade_parcelas','periodicidade','indices_reajuste','centro_custo','multa_carencia','prazo_comunicacao_cancelamento','renovacao_automatica','aviso_previo','multa_contratual','carencia_contratual','dados_bancarios_fornecedor','retencoes_tributarias','condicoes_pagamento','responsavel_aprovacao_servico','contato_financeiro_nome','contato_financeiro_email','contato_financeiro_telefone'] as $campo) unset($c_cliente[$campo]);
-                        }
-                        if (!$pode_restritos && !$eh_dono && !$pode_financeiro) {
-                            foreach (['clausula_tecnica','codigo_sistema','arquivo_path'] as $campo) unset($c_cliente[$campo]);
-                        }
-                        $c_cliente['divergencias'] = $divergencias_por_contrato[(int) $c['id']] ?? [];
-                        $c_cliente['campos_pendentes'] = array_keys(array_filter([
-                            'fornecedor'=>in_array('Fornecedor',$pendentes,true),'cnpj'=>in_array('CNPJ do fornecedor',$pendentes,true),
-                            'servico_objeto'=>in_array('Objeto / serviço',$pendentes,true),'setor'=>in_array('Setor responsável',$pendentes,true),
-                            'empresa'=>in_array('Empresa contratante',$pendentes,true),'cnpj_empresa_contratante'=>in_array('CNPJ da contratante',$pendentes,true),
-                            'data_inicio'=>in_array('Início da vigência',$pendentes,true),'tipo_prazo'=>in_array('Tipo de prazo',$pendentes,true),
-                            'tipo_pagamento'=>in_array('Tipo de pagamento',$pendentes,true),'forma_pagamento'=>in_array('Forma de pagamento',$pendentes,true),
-                            'arquivo_contrato'=>in_array('Contrato em PDF',$pendentes,true),'data_vencimento'=>in_array('Data final',$pendentes,true),
-                            'valor'=>in_array('Valor total',$pendentes,true),'valor_parcela'=>in_array('Valor mensal',$pendentes,true),
-                            'quantidade_parcelas'=>in_array('Quantidade de parcelas',$pendentes,true),'periodicidade'=>in_array('Periodicidade',$pendentes,true),
-                            'dia_vencimento'=>in_array('Dia do vencimento',$pendentes,true),'possui_reajuste'=>in_array('Reajuste',$pendentes,true),
-                            'indice_reajuste'=>in_array('Índice de reajuste',$pendentes,true),'periodicidade_reajuste'=>in_array('Periodicidade do reajuste',$pendentes,true),
-                            'mes_base_reajuste'=>in_array('Mês-base do reajuste',$pendentes,true),'possui_aviso_cancelamento'=>in_array('Aviso prévio',$pendentes,true),
-                            'possui_multa'=>in_array('Multa',$pendentes,true),'possui_carencia'=>in_array('Carência',$pendentes,true),
-                        ]));
-                        $situacoes = [];
-                        $status_fluxo = $c['status_fluxo'] ?? 'RASCUNHO';
-                        if ($tem_div || $status_fluxo === 'COM_DIVERGENCIA') $situacoes[] = 'divergencia';
-                        if ($status_fluxo === 'RASCUNHO') $situacoes[] = 'andamento';
-                        if ($status_fluxo === 'AGUARDANDO_FINANCEIRO') $situacoes[] = 'aguardando_financeiro';
-                        if ($status_fluxo === 'CONFIRMADO' && !$tem_div) $situacoes[] = 'confirmado';
-                        if (in_array($alerta['situacao'], ['vencendo', 'vencido'], true)) $situacoes[] = $alerta['situacao'];
-                        if ($pendentes) $situacoes[] = 'incompleto';
-                    ?>
-                    <tr class="linha-contrato group hover:bg-blue-50/40 transition-colors"
-                        data-nome="<?php echo htmlspecialchars(mb_strtolower($c['fornecedor'] . ' ' . $c['servico_objeto'] . ' ' . $c['cnpj'])); ?>"
-                        data-setor="<?php echo htmlspecialchars($c['setor']); ?>"
-                        data-situacao="<?php echo htmlspecialchars(implode(' ', $situacoes)); ?>"
-                        data-fornecedor="<?php echo htmlspecialchars(mb_strtolower($c['fornecedor'])); ?>"
-                        data-valor="<?php echo (float) ($c['valor_parcela'] ?? 0); ?>"
-                        data-vigencia="<?php echo htmlspecialchars($c['data_vencimento'] ?: '9999-12-31'); ?>">
-                        <td class="px-2 py-3 min-w-0 break-words">
-                            <p class="font-bold text-navy-900"><?php echo htmlspecialchars($c['fornecedor']); ?></p>
-                            <p class="text-slate-400 truncate" title="<?php echo htmlspecialchars($c['servico_objeto']); ?>"><?php echo htmlspecialchars($c['servico_objeto']); ?></p>
-                            <?php if ($tem_div): ?><span class="inline-block mt-1 text-[9px] font-black uppercase text-rose-700">⚠ Divergência</span><?php endif; ?>
-                        </td>
-                        <?php if ($eh_admin): ?>
-                        <td class="px-2 py-3 break-words"><span class="bg-slate-100 text-slate-700 text-[9px] font-black uppercase px-1.5 py-1 rounded-lg"><?php echo htmlspecialchars($c['setor']); ?></span></td>
-                        <?php endif; ?>
-                        <td class="px-2 py-3 text-right break-words font-black <?php echo $c['valor_parcela'] === null || $c['valor_parcela'] === '' ? 'text-rose-600' : 'text-navy-900'; ?>"><?php echo $c['valor_parcela'] === null || $c['valor_parcela'] === '' ? 'Pendente' : 'R$ ' . number_format((float) $c['valor_parcela'], 2, ',', '.') . (($c['tipo_pagamento'] ?? '') === 'RECORRENTE_MENSAL' ? '/mês' : ''); ?></td>
-                        <td class="px-2 py-3 break-words"><p class="font-bold text-slate-700"><?php echo htmlspecialchars($c['periodicidade'] ?: '—'); ?></p><p class="text-[9px] text-slate-400"><?php echo htmlspecialchars($c['forma_pagamento'] ?: '—'); ?></p></td>
-                        <td class="px-2 py-3 text-right break-words"><?php echo ($c['tipo_prazo'] ?? '') === 'INDETERMINADO' ? '—' : 'R$ ' . number_format((float) ($c['valor'] ?? 0), 2, ',', '.'); ?></td>
-                        <td class="px-2 py-3 text-center"><?php echo ($c['tipo_prazo'] ?? '') === 'INDETERMINADO' ? '—' : (int) ($c['quantidade_parcelas'] ?? 0); ?></td>
-                        <td class="px-2 py-3 break-words"><p class="font-bold"><?php echo !empty($c['data_inicio']) ? (new DateTime($c['data_inicio']))->format('d/m/Y') : '—'; ?></p><p class="text-[9px] text-slate-400"><?php echo !empty($c['prazo_indeterminado']) ? 'Indeterminado' : (!empty($c['data_vencimento']) ? 'até ' . (new DateTime($c['data_vencimento']))->format('d/m/Y') : 'Final pendente'); ?></p></td>
-                        <td class="px-2 py-3 break-words"><?php echo ($c['possui_aviso_cancelamento'] ?? '') === 'SIM' ? (int) $c['prazo_comunicacao_cancelamento'] . ' dias' : (($c['possui_aviso_cancelamento'] ?? '') === 'NAO' ? 'Não possui' : '—'); ?></td>
-                        <td class="px-2 py-3 break-words"><?php if ((string) ($c['possui_reajuste'] ?? '') === '1'): ?><p class="font-bold text-emerald-700"><?php echo htmlspecialchars(($c['indice_reajuste'] ?? '') === 'OUTRO' ? ($c['indice_reajuste_outro'] ?: 'Outro') : ($c['indice_reajuste'] ?: '—')); ?></p><p class="text-[9px] text-slate-400"><?php echo htmlspecialchars($c['periodicidade_reajuste'] ?: '—'); ?></p><?php elseif ((string) ($c['possui_reajuste'] ?? '') === '0'): ?>Não possui<?php else: ?>—<?php endif; ?></td>
-                        <td class="px-2 py-3 break-words leading-tight" title="<?php echo htmlspecialchars($c['multa_contratual'] ?? ''); ?>"><?php echo ($c['possui_multa'] ?? '') === 'SIM' ? htmlspecialchars($c['multa_contratual'] ?: 'Pendente') : (($c['possui_multa'] ?? '') === 'NAO' ? 'Não possui' : '—'); ?></td>
-                        <td class="px-2 py-3 break-words leading-tight" title="<?php echo htmlspecialchars($c['carencia_contratual'] ?? ''); ?>"><?php echo ($c['possui_carencia'] ?? '') === 'SIM' ? htmlspecialchars($c['carencia_contratual'] ?: 'Pendente') : (($c['possui_carencia'] ?? '') === 'NAO' ? 'Não possui' : '—'); ?></td>
-                        <td class="px-2 py-3 break-words" data-status-ordenacao="<?php echo htmlspecialchars($status_fluxo); ?>">
-                            <span class="bg-<?php echo $alerta['cor']; ?>-100 text-<?php echo $alerta['cor']; ?>-700 text-xs font-bold px-2 py-1 rounded-full"><?php echo $alerta['texto']; ?></span>
-                            <p class="text-[11px] text-slate-500 mt-1 font-bold"><?php echo htmlspecialchars(ucfirst(mb_strtolower(str_replace('_', ' ', $c['status_fluxo'] ?? 'RASCUNHO'), 'UTF-8'))); ?></p>
-                            <?php if ($pendentes): ?><span title="<?php echo htmlspecialchars(implode(', ', $pendentes)); ?>" class="inline-block mt-1 bg-rose-100 text-rose-700 text-[10px] font-black uppercase px-2 py-1 rounded-full"><?php echo count($pendentes); ?> pendência(s)</span><?php endif; ?>
-                        </td>
-                        <td class="px-2 py-3 text-right sticky right-0 bg-white group-hover:bg-blue-50">
-                            <div class="relative menu-gerenciamento">
-                            <button type="button" onclick="alternarMenuGerenciamento(event, 'menu-contrato-<?php echo (int) $c['id']; ?>')" class="inline-flex items-center gap-1 bg-navy-900 text-white text-[10px] font-black px-2.5 py-2 rounded-lg shadow-sm hover:bg-navy-800">
-                                Gerenciar <span aria-hidden="true">▾</span>
-                            </button>
-                            <div id="menu-contrato-<?php echo (int) $c['id']; ?>" class="menu-gerenciamento-opcoes hidden fixed z-[70] w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 text-left">
-                            <?php if ($pode_editar_este): ?>
-                                <button onclick='fecharMenusGerenciamento(); abrirDetalhesEPendencias(<?php echo json_encode($c_cliente, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>)' class="w-full text-left text-xs font-black <?php echo $pendentes ? 'text-rose-700 bg-rose-50 hover:bg-rose-100' : 'text-slate-700 hover:bg-slate-50'; ?> px-3 py-2.5 rounded-xl">Ver detalhes<?php echo $pendentes ? ' e ' . count($pendentes) . ' pendência(s)' : ''; ?></button>
-                            <?php else: ?>
-                                <button onclick='fecharMenusGerenciamento(); abrirDetalhes(<?php echo json_encode($c_cliente, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>, <?php echo $eh_responsavel ? "true" : "false"; ?>)' class="w-full text-left text-xs font-bold text-slate-700 px-3 py-2.5 rounded-xl hover:bg-slate-50">Ver detalhes</button>
-                            <?php endif; ?>
+        <style>
+            #tabela-scroll thead th { position: sticky; top: 0; z-index: 30; background: #f1f5f9; }
+            #tabela-scroll thead th:last-child { right: 0; z-index: 45; }
+            #tabela-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f8fafc; }
+            #tabela-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+            #tabela-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+            #tabela-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f8fafc; }
+        </style>
 
-                            <?php if ($pode_compartilhar && ($status_fluxo === 'RASCUNHO' || $status_fluxo === 'COM_DIVERGENCIA')): ?>
-                                <button onclick="fecharMenusGerenciamento(); compartilharContrato(<?php echo $c['id']; ?>)" class="w-full text-left text-xs font-bold text-blue-700 px-3 py-2.5 rounded-xl hover:bg-blue-50">Compartilhar com Contas a Pagar</button>
-                            <?php endif; ?>
 
-                            <?php if ($pode_confirmar && ($etapa === 5 || $tem_div)): ?>
-                                <button onclick="fecharMenusGerenciamento(); confirmarUso(<?php echo $c['id']; ?>, <?php echo $tem_div ? 'true' : 'false'; ?>)" class="w-full text-left text-xs font-bold text-emerald-700 px-3 py-2.5 rounded-xl hover:bg-emerald-50"><?php echo $tem_div ? 'Confirmar correção' : 'Confirmar uso'; ?></button>
-                            <?php endif; ?>
+        <!-- V7 VISUAL: alta legibilidade. Somente CSS; nenhuma regra de negócio, permissão, fluxo ou JavaScript foi alterado. -->
+        <style id="contratos-v7-acessibilidade">
+            /* Texto neutro mais escuro e firme */
+            main { color: #0f172a; }
+            main .text-slate-400,
+            #slideover-detalhes .text-slate-400,
+            #modal-atualizar-financeiro .text-slate-400,
+            #modal-renovacao .text-slate-400,
+            #modal-encerramento .text-slate-400,
+            #modal-divergencia .text-slate-400 {
+                color: #64748b !important;
+                font-weight: 700 !important;
+            }
+            main .text-slate-500,
+            #slideover-detalhes .text-slate-500,
+            #modal-atualizar-financeiro .text-slate-500,
+            #modal-renovacao .text-slate-500,
+            #modal-encerramento .text-slate-500,
+            #modal-divergencia .text-slate-500 {
+                color: #475569 !important;
+                font-weight: 700 !important;
+            }
+            main .text-slate-600,
+            #slideover-detalhes .text-slate-600,
+            #modal-atualizar-financeiro .text-slate-600,
+            #modal-renovacao .text-slate-600,
+            #modal-encerramento .text-slate-600,
+            #modal-divergencia .text-slate-600 {
+                color: #334155 !important;
+                font-weight: 700 !important;
+            }
 
-                            <?php if ($pode_divergir && $etapa >= 5 && !$tem_div): ?>
-                                <button onclick="fecharMenusGerenciamento(); abrirDivergencia(<?php echo $c['id']; ?>)" class="w-full text-left text-xs font-bold text-rose-700 px-3 py-2.5 rounded-xl hover:bg-rose-50">Registrar divergência</button>
-                            <?php endif; ?>
+            /* Cabeçalho e cards */
+            main h2 { font-weight: 950 !important; }
+            main h2 + p { color: #334155 !important; font-weight: 700 !important; }
+            main .kpi-filtro {
+                border-width: 2px !important;
+                box-shadow: 0 1px 2px rgba(15,23,42,.08) !important;
+            }
+            main .kpi-filtro p,
+            main .kpi-filtro span { font-weight: 800 !important; }
+            main .kpi-filtro .text-2xl { font-weight: 950 !important; }
 
-                            </div>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <div class="px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <p id="resumo-paginacao" class="text-slate-500"></p>
-            <div class="flex items-center gap-2">
-                <label class="text-slate-500">Exibir <select id="itens-por-pagina" class="border border-slate-200 rounded-lg px-2 py-1 bg-white"><option>20</option><option>50</option><option>100</option></select></label>
-                <button type="button" id="pagina-anterior" class="border border-slate-200 rounded-lg px-3 py-1.5 font-bold disabled:opacity-40">Anterior</button>
-                <span id="pagina-atual" class="font-bold text-navy-900"></span>
-                <button type="button" id="proxima-pagina" class="border border-slate-200 rounded-lg px-3 py-1.5 font-bold disabled:opacity-40">Próxima</button>
+            /* Caixa de prioridade */
+            main .bg-blue-50.border-blue-100 {
+                border-width: 2px !important;
+                border-color: #93c5fd !important;
+                color: #1e3a8a !important;
+                font-weight: 700 !important;
+            }
+
+            /* Inputs, selects e textareas */
+            main input, main select, main textarea,
+            #slideover-detalhes input, #slideover-detalhes select, #slideover-detalhes textarea,
+            #modal-atualizar-financeiro input, #modal-atualizar-financeiro select, #modal-atualizar-financeiro textarea,
+            #modal-renovacao input, #modal-renovacao select, #modal-renovacao textarea,
+            #modal-encerramento input, #modal-encerramento select, #modal-encerramento textarea,
+            #modal-divergencia input, #modal-divergencia select, #modal-divergencia textarea {
+                border-width: 2px !important;
+                border-color: #94a3b8 !important;
+                color: #0f172a !important;
+                font-weight: 700 !important;
+                background-color: #fff !important;
+            }
+            main input::placeholder, main textarea::placeholder,
+            #modal-atualizar-financeiro input::placeholder, #modal-atualizar-financeiro textarea::placeholder,
+            #modal-renovacao input::placeholder, #modal-renovacao textarea::placeholder,
+            #modal-encerramento input::placeholder, #modal-encerramento textarea::placeholder,
+            #modal-divergencia input::placeholder, #modal-divergencia textarea::placeholder {
+                color: #64748b !important;
+                opacity: 1 !important;
+                font-weight: 600 !important;
+            }
+            main input:focus, main select:focus, main textarea:focus,
+            #modal-atualizar-financeiro input:focus, #modal-atualizar-financeiro select:focus, #modal-atualizar-financeiro textarea:focus,
+            #modal-renovacao input:focus, #modal-renovacao select:focus, #modal-renovacao textarea:focus,
+            #modal-encerramento input:focus, #modal-encerramento select:focus, #modal-encerramento textarea:focus,
+            #modal-divergencia input:focus, #modal-divergencia select:focus, #modal-divergencia textarea:focus {
+                border-color: #1d4ed8 !important;
+                outline: 3px solid rgba(59,130,246,.18) !important;
+                outline-offset: 1px;
+            }
+
+            /* Botões */
+            main button, main a[href*="contratos.php"],
+            .menu-gerenciamento-opcoes button,
+            #slideover-detalhes button,
+            #modal-atualizar-financeiro button,
+            #modal-renovacao button,
+            #modal-encerramento button,
+            #modal-divergencia button {
+                font-weight: 850 !important;
+            }
+            main button.border, main a.border,
+            #slideover-detalhes button.border,
+            #modal-atualizar-financeiro button.border,
+            #modal-renovacao button.border,
+            #modal-encerramento button.border,
+            #modal-divergencia button.border {
+                border-width: 2px !important;
+            }
+
+            /* Tabela */
+            #tabela-scroll { border-top: 1px solid #94a3b8; }
+            #tabela-contratos thead {
+                color: #334155 !important;
+                font-size: 11px !important;
+                font-weight: 900 !important;
+            }
+            #tabela-contratos thead th {
+                border-bottom-width: 2px !important;
+                border-bottom-color: #94a3b8 !important;
+            }
+            #tabela-contratos thead button,
+            #tabela-contratos thead th {
+                font-weight: 950 !important;
+                color: #334155 !important;
+            }
+            #corpo-tabela-contratos { font-size: 12px !important; }
+            #corpo-tabela-contratos > tr { border-bottom: 1px solid #cbd5e1 !important; }
+            #corpo-tabela-contratos td { color: #1e293b; }
+            #corpo-tabela-contratos td p,
+            #corpo-tabela-contratos td span:not(.text-slate-300) { font-weight: 700; }
+            #corpo-tabela-contratos td:first-child p:first-of-type,
+            #corpo-tabela-contratos .font-black,
+            #corpo-tabela-contratos .text-navy-900 { font-weight: 950 !important; }
+            #corpo-tabela-contratos .text-\\[9px\\] { font-size: 10px !important; }
+            #corpo-tabela-contratos .text-\\[10px\\] { font-size: 11px !important; }
+            #corpo-tabela-contratos .text-\\[11px\\],
+            #corpo-tabela-contratos .text-\\[12px\\] { font-size: 12px !important; }
+            #corpo-tabela-contratos span.rounded-full,
+            #corpo-tabela-contratos span.rounded-md {
+                border: 1px solid rgba(71,85,105,.38);
+                font-weight: 900 !important;
+            }
+            #tabela-contratos th:last-child,
+            #tabela-contratos td:last-child { border-left: 1px solid #cbd5e1; }
+            #tabela-contratos td:last-child > div > button {
+                border: 2px solid #0f172a !important;
+                font-size: 11px !important;
+                font-weight: 950 !important;
+            }
+
+            /* Menu Gerenciar */
+            .menu-gerenciamento-opcoes {
+                border-width: 2px !important;
+                border-color: #94a3b8 !important;
+            }
+            .menu-gerenciamento-opcoes button {
+                font-size: 12px !important;
+                font-weight: 850 !important;
+                border: 1px solid transparent;
+            }
+            .menu-gerenciamento-opcoes button:hover { border-color: #cbd5e1; }
+
+            /* Paginação */
+            #resumo-paginacao, #pagina-atual, #itens-por-pagina,
+            #pagina-primeira, #pagina-anterior, #proxima-pagina,
+            #pagina-ultima, #paginacao-numeros button {
+                font-weight: 850 !important;
+                color: #334155 !important;
+            }
+            #pagina-primeira, #pagina-anterior, #proxima-pagina,
+            #pagina-ultima, #paginacao-numeros button, #itens-por-pagina {
+                border-width: 2px !important;
+                border-color: #94a3b8 !important;
+            }
+
+            /* Modais */
+            #slideover-detalhes > div.relative,
+            #modal-atualizar-financeiro > div,
+            #modal-renovacao > div,
+            #modal-encerramento > div,
+            #modal-divergencia > div {
+                border: 2px solid #94a3b8 !important;
+            }
+            #slideover-detalhes h3,
+            #modal-atualizar-financeiro h3,
+            #modal-renovacao h3,
+            #modal-encerramento h3,
+            #modal-divergencia h3 {
+                font-weight: 950 !important;
+                color: #0f172a !important;
+            }
+            #slideover-detalhes label,
+            #modal-atualizar-financeiro label,
+            #modal-renovacao label,
+            #modal-encerramento label,
+            #modal-divergencia label {
+                color: #334155 !important;
+                font-weight: 850 !important;
+            }
+            #det-conteudo .border,
+            #det-conteudo [class*="border-"] { border-width: 2px !important; }
+            #det-conteudo p,
+            #det-conteudo span,
+            #det-conteudo strong { font-weight: 700; }
+            #det-conteudo strong,
+            #det-conteudo .font-black,
+            #det-conteudo .font-bold { font-weight: 900 !important; }
+
+            main .text-slate-300 {
+                color: #94a3b8 !important;
+                font-weight: 700 !important;
+            }
+
+            @media (max-width: 768px) {
+                #corpo-tabela-contratos { font-size: 11px !important; }
+                main input, main select, main button { font-size: 13px; }
+            }
+        </style>
+
+        <!-- V6: tabela inteligente, cabeçalho congelado, rolagem interna e paginação -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50/60">
+                <p class="text-[10px] font-bold text-slate-500">Visualização enxuta: campos sem informação não ocupam espaço na tabela.</p>
+                <span class="text-[9px] font-black uppercase tracking-wider text-slate-400 whitespace-nowrap">V6.1 • menu corrigido + filtros rápidos</span>
             </div>
-        </div>
+            <div id="tabela-scroll" class="w-full overflow-auto max-h-[58vh]" style="scrollbar-gutter: stable;">
+                <table id="tabela-contratos" class="w-full text-left border-collapse table-auto" style="min-width: <?php echo (int) $largura_minima_tabela; ?>px;">
+                    <thead class="bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500 sticky top-0 z-30 shadow-sm">
+                        <tr>
+                            <th class="min-w-[240px] px-4 py-3 border-b border-slate-200"><button type="button" class="ordenar-coluna font-black hover:text-navy-900" data-coluna="fornecedor">Contrato ↕</button></th>
+                            <th class="min-w-[150px] px-4 py-3 border-b border-slate-200"><button type="button" class="ordenar-coluna font-black hover:text-navy-900" data-coluna="setor">Setor / Empresa ↕</button></th>
+                            <?php if ($mostrar_col_valores): ?>
+                            <th class="min-w-[135px] px-4 py-3 border-b border-slate-200 text-right"><button type="button" class="ordenar-coluna font-black hover:text-navy-900" data-coluna="valor">Valor ↕</button></th>
+                            <?php endif; ?>
+                            <?php if ($mostrar_col_pagamento): ?>
+                            <th class="min-w-[145px] px-4 py-3 border-b border-slate-200">Pagamento</th>
+                            <?php endif; ?>
+                            <th class="min-w-[245px] px-4 py-3 border-b border-slate-200"><button type="button" class="ordenar-coluna font-black hover:text-navy-900" data-coluna="vigencia">Vigência / Alerta ↕</button></th>
+                            <?php if ($mostrar_col_condicoes): ?>
+                            <th class="min-w-[175px] px-4 py-3 border-b border-slate-200">Condições</th>
+                            <?php endif; ?>
+                            <th class="min-w-[125px] px-4 py-3 border-b border-slate-200"><button type="button" class="ordenar-coluna font-black hover:text-navy-900" data-coluna="situacao">Situação ↕</button></th>
+                            <th class="w-[105px] min-w-[105px] px-4 py-3 border-b border-slate-200 text-right sticky top-0 right-0 z-40 bg-slate-100">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-tabela-contratos" class="divide-y divide-slate-100 text-[11px]">
+                        <?php if (empty($contratos)): ?>
+                            <tr><td colspan="<?php echo (int) $colunas_tabela; ?>" class="text-center px-6 py-10 text-slate-400 font-medium">Nenhum contrato encontrado.</td></tr>
+                        <?php endif; ?>
+
+                        <?php foreach ($contratos as $c):
+                            $alerta   = calcularAlerta($c['data_vencimento'] ?? null, $c['setor'] ?? '', !empty($c['recorrente']), $c['status'] ?? 'ATIVO');
+                            $etapa    = (int) $c['etapa_atual'];
+                            $tem_div  = isset($divergencias_abertas[$c['id']]);
+                            $eh_responsavel = (int) $c['gestor_id'] === (int) $user_id_sessao;
+                            $eh_dono  = $eh_admin || $eh_responsavel;
+
+                            // Permissões agora são avaliadas CONTRATO A CONTRATO.
+                            // Diretoria: tudo nos próprios contratos; somente leitura nos demais.
+                            $contrato_encerrado = (($c['status'] ?? 'ATIVO') === 'ENCERRADO');
+
+                            $pode_editar_este = !$contrato_encerrado && $auth->podeNoContrato('editar', (int) $c['id']);
+                            $pode_compartilhar_este = !$contrato_encerrado && $auth->podeNoContrato('compartilhar', (int) $c['id']);
+                            $pode_confirmar_este = !$contrato_encerrado && $auth->podeNoContrato('confirmar_uso', (int) $c['id']);
+                            $pode_divergir_este = !$contrato_encerrado && $auth->podeNoContrato('registrar_divergencia', (int) $c['id']);
+                            $pode_excluir_este = !$contrato_encerrado && $auth->podeNoContrato('excluir', (int) $c['id']);
+                            $pode_financeiro_este = $auth->podeNoContrato('ver_financeiro', (int) $c['id']);
+                            $pode_restritos_este = $auth->podeNoContrato('ver_restritos', (int) $c['id']);
+                            $pode_baixar_este = $auth->podeNoContrato('baixar_anexo', (int) $c['id']);
+                            $somente_visualizacao = ($auth->isDiretoria() && !$eh_responsavel && !$eh_admin) || $contrato_encerrado;
+
+                            $pendentes = camposEssenciaisPendentes($c);
+
+                            $c_cliente = $c;
+                            if (!$pode_financeiro_este && !$eh_dono) {
+                                foreach (['valor','valor_parcela','forma_pagamento','quantidade_parcelas','periodicidade','indices_reajuste','centro_custo','multa_carencia','prazo_comunicacao_cancelamento','renovacao_automatica','aviso_previo','multa_contratual','carencia_contratual','dados_bancarios_fornecedor','retencoes_tributarias','condicoes_pagamento','responsavel_aprovacao_servico','contato_financeiro_nome','contato_financeiro_email','contato_financeiro_telefone'] as $campo) unset($c_cliente[$campo]);
+                            }
+                            if (!$pode_restritos_este && !$eh_dono && !$pode_financeiro_este) {
+                                foreach (['clausula_tecnica','codigo_sistema','arquivo_path'] as $campo) unset($c_cliente[$campo]);
+                            }
+                            $c_cliente['_pode_editar'] = $pode_editar_este;
+                            $c_cliente['_pode_compartilhar'] = $pode_compartilhar_este;
+                            $c_cliente['_pode_confirmar'] = $pode_confirmar_este;
+                            $c_cliente['_pode_divergir'] = $pode_divergir_este;
+                            $c_cliente['_pode_excluir'] = $pode_excluir_este;
+                            $c_cliente['_pode_financeiro'] = $pode_financeiro_este;
+                            $c_cliente['_pode_restritos'] = $pode_restritos_este;
+                            $c_cliente['_pode_baixar'] = $pode_baixar_este;
+                            $c_cliente['_somente_visualizacao'] = $somente_visualizacao;
+                            $c_cliente['divergencias'] = $divergencias_por_contrato[(int) $c['id']] ?? [];
+                            $c_cliente['renovacoes'] = $renovacoes_por_contrato[(int) $c['id']] ?? [];
+                            $c_cliente['campos_pendentes'] = array_keys(array_filter([
+                                'fornecedor'=>in_array('Fornecedor',$pendentes,true),'cnpj'=>in_array('CNPJ do fornecedor',$pendentes,true),
+                                'servico_objeto'=>in_array('Objeto / serviço',$pendentes,true),'setor'=>in_array('Setor responsável',$pendentes,true),
+                                'empresa'=>in_array('Empresa contratante',$pendentes,true),'cnpj_empresa_contratante'=>in_array('CNPJ da contratante',$pendentes,true),
+                                'data_inicio'=>in_array('Início da vigência',$pendentes,true),'tipo_prazo'=>in_array('Tipo de prazo',$pendentes,true),
+                                'tipo_pagamento'=>in_array('Tipo de pagamento',$pendentes,true),'forma_pagamento'=>in_array('Forma de pagamento',$pendentes,true),
+                                'arquivo_contrato'=>in_array('Contrato em PDF',$pendentes,true),'data_vencimento'=>in_array('Data final',$pendentes,true),
+                                'valor'=>in_array('Valor total',$pendentes,true),'valor_parcela'=>in_array('Valor mensal',$pendentes,true),
+                                'quantidade_parcelas'=>in_array('Quantidade de parcelas',$pendentes,true),'periodicidade'=>in_array('Periodicidade',$pendentes,true),
+                                'dia_vencimento'=>in_array('Dia do vencimento',$pendentes,true),'possui_reajuste'=>in_array('Reajuste',$pendentes,true),
+                                'indice_reajuste'=>in_array('Índice de reajuste',$pendentes,true),'periodicidade_reajuste'=>in_array('Periodicidade do reajuste',$pendentes,true),
+                                'mes_base_reajuste'=>in_array('Mês-base do reajuste',$pendentes,true),'possui_aviso_cancelamento'=>in_array('Aviso prévio',$pendentes,true),
+                                'possui_multa'=>in_array('Multa',$pendentes,true),'possui_carencia'=>in_array('Carência',$pendentes,true),
+                            ]));
+
+                            $situacoes = [];
+                            $status_fluxo = $c['status_fluxo'] ?? 'RASCUNHO';
+                            if ($tem_div || $status_fluxo === 'COM_DIVERGENCIA') $situacoes[] = 'divergencia';
+                            if ($status_fluxo === 'RASCUNHO') $situacoes[] = 'andamento';
+                            if ($status_fluxo === 'AGUARDANDO_FINANCEIRO') $situacoes[] = 'aguardando_financeiro';
+                            if ($status_fluxo === 'CONFIRMADO' && !$tem_div) $situacoes[] = 'confirmado';
+                            if (($c['status'] ?? '') === 'ATIVO') $situacoes[] = 'ativo';
+                            if (($c['status'] ?? '') === 'ENCERRADO') $situacoes[] = 'encerrado';
+                            if (!empty($alerta['ativo'])) $situacoes[] = 'alerta';
+                            if (in_array($alerta['situacao'], ['vencendo', 'vencido'], true)) $situacoes[] = $alerta['situacao'];
+                            if ($pendentes) $situacoes[] = 'incompleto';
+
+                            if ($contrato_encerrado) {
+                                $prioridade_alerta = 9;
+                                $linha_classe = 'bg-slate-50/70 hover:bg-slate-100';
+                                $borda_classe = 'border-l-4 border-l-slate-300';
+                                $badge_alerta = 'bg-slate-200 text-slate-600 border border-slate-300';
+                                $alerta = ['texto' => 'Encerrado', 'cor' => 'slate', 'ativo' => false, 'situacao' => 'sem_alerta'];
+                            } elseif (($alerta['situacao'] ?? '') === 'vencido') {
+                                $prioridade_alerta = 0;
+                                $linha_classe = 'bg-rose-50/70 hover:bg-rose-50';
+                                $borda_classe = 'border-l-4 border-l-rose-500';
+                                $badge_alerta = 'bg-rose-100 text-rose-700 border border-rose-200';
+                            } elseif (($alerta['situacao'] ?? '') === 'vencendo' && ($alerta['cor'] ?? '') === 'rose') {
+                                $prioridade_alerta = 1;
+                                $linha_classe = 'bg-rose-50/40 hover:bg-rose-50';
+                                $borda_classe = 'border-l-4 border-l-rose-400';
+                                $badge_alerta = 'bg-rose-100 text-rose-700 border border-rose-200';
+                            } elseif (($alerta['situacao'] ?? '') === 'vencendo') {
+                                $prioridade_alerta = 2;
+                                $linha_classe = 'bg-amber-50/60 hover:bg-amber-50';
+                                $borda_classe = 'border-l-4 border-l-amber-400';
+                                $badge_alerta = 'bg-amber-100 text-amber-800 border border-amber-200';
+                            } elseif (($alerta['situacao'] ?? '') === 'regular') {
+                                $prioridade_alerta = 3;
+                                $linha_classe = 'hover:bg-slate-50';
+                                $borda_classe = 'border-l-4 border-l-transparent';
+                                $badge_alerta = 'bg-slate-100 text-slate-600 border border-slate-200';
+                            } else {
+                                $prioridade_alerta = 4;
+                                $linha_classe = 'hover:bg-slate-50';
+                                $borda_classe = 'border-l-4 border-l-transparent';
+                                $badge_alerta = 'bg-slate-100 text-slate-500 border border-slate-200';
+                            }
+
+                            $inicio_fmt = !empty($c['data_inicio']) ? (new DateTime($c['data_inicio']))->format('d/m/Y') : '';
+                            $fim_fmt = !empty($c['data_vencimento']) ? (new DateTime($c['data_vencimento']))->format('d/m/Y') : '';
+                            $valor_parcela_num = (float) ($c['valor_parcela'] ?? 0);
+                            $valor_total_num = (float) ($c['valor'] ?? 0);
+                            $qtd_parcelas = (int) ($c['quantidade_parcelas'] ?? 0);
+
+                            $condicoes_linha = [];
+                            if (($c['possui_aviso_cancelamento'] ?? '') === 'SIM') {
+                                $dias_aviso = (int) ($c['prazo_comunicacao_cancelamento'] ?? 0);
+                                $condicoes_linha[] = $dias_aviso > 0 ? 'Aviso ' . $dias_aviso . 'd' : 'Com aviso';
+                            } elseif (($c['possui_aviso_cancelamento'] ?? '') === 'NAO') {
+                                $condicoes_linha[] = 'Sem aviso';
+                            }
+                            if ((string) ($c['possui_reajuste'] ?? '') === '1') {
+                                $indice = ($c['indice_reajuste'] ?? '') === 'OUTRO' ? ($c['indice_reajuste_outro'] ?? '') : ($c['indice_reajuste'] ?? '');
+                                $condicoes_linha[] = trim((string) $indice) !== '' ? 'Reajuste ' . $indice : 'Com reajuste';
+                            } elseif ((string) ($c['possui_reajuste'] ?? '') === '0') {
+                                $condicoes_linha[] = 'Sem reajuste';
+                            }
+                            if (($c['possui_multa'] ?? '') === 'SIM') $condicoes_linha[] = 'Com multa';
+                            elseif (($c['possui_multa'] ?? '') === 'NAO') $condicoes_linha[] = 'Sem multa';
+                            if (($c['possui_carencia'] ?? '') === 'SIM') $condicoes_linha[] = 'Com carência';
+                            elseif (($c['possui_carencia'] ?? '') === 'NAO') $condicoes_linha[] = 'Sem carência';
+
+                            $status_labels = [
+                                'RASCUNHO' => 'Rascunho',
+                                'AGUARDANDO_FINANCEIRO' => 'Aguard. Financeiro',
+                                'CONFIRMADO' => 'Confirmado',
+                                'COM_DIVERGENCIA' => 'Com divergência',
+                            ];
+                            $status_label = $contrato_encerrado
+                                ? 'Encerrado'
+                                : ($status_labels[$status_fluxo] ?? ucfirst(mb_strtolower(str_replace('_', ' ', $status_fluxo), 'UTF-8')));
+                        ?>
+                        <tr class="linha-contrato group transition-colors <?php echo $linha_classe; ?>"
+                            data-nome="<?php echo htmlspecialchars(mb_strtolower(($c['fornecedor'] ?? '') . ' ' . ($c['servico_objeto'] ?? '') . ' ' . ($c['cnpj'] ?? '') . ' ' . ($c['empresa'] ?? ''))); ?>"
+                            data-setor="<?php echo htmlspecialchars($c['setor'] ?? ''); ?>"
+                            data-situacao="<?php echo htmlspecialchars(implode(' ', $situacoes)); ?>"
+                            data-fornecedor="<?php echo htmlspecialchars(mb_strtolower($c['fornecedor'] ?? '')); ?>"
+                            data-valor="<?php echo $valor_parcela_num > 0 ? $valor_parcela_num : $valor_total_num; ?>"
+                            data-vigencia="<?php echo htmlspecialchars($c['data_vencimento'] ?: '9999-12-31'); ?>"
+                            data-alerta-prioridade="<?php echo $prioridade_alerta; ?>">
+
+                            <td class="px-4 py-3.5 align-middle <?php echo $borda_classe; ?>">
+                                <div class="min-w-0">
+                                    <div class="flex items-start gap-2">
+                                        <p class="font-black text-[12px] leading-tight text-navy-900 break-words"><?php echo htmlspecialchars($c['fornecedor']); ?></p>
+                                        <?php if ($tem_div): ?><span class="shrink-0 text-[9px] font-black uppercase text-rose-700">⚠</span><?php endif; ?>
+                                    </div>
+                                    <?php if (trim((string) ($c['servico_objeto'] ?? '')) !== ''): ?>
+                                        <p class="mt-1 text-[10px] font-semibold text-slate-500 truncate" title="<?php echo htmlspecialchars($c['servico_objeto']); ?>"><?php echo htmlspecialchars($c['servico_objeto']); ?></p>
+                                    <?php endif; ?>
+                                    <?php if (trim((string) ($c['cnpj'] ?? '')) !== ''): ?>
+                                        <p class="mt-0.5 text-[9px] text-slate-400 truncate"><?php echo htmlspecialchars($c['cnpj']); ?></p>
+                                    <?php elseif (trim((string) ($c['nome_fantasia'] ?? '')) !== ''): ?>
+                                        <p class="mt-0.5 text-[9px] text-slate-400 truncate"><?php echo htmlspecialchars($c['nome_fantasia']); ?></p>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+
+                            <td class="px-4 py-3.5 align-middle">
+                                <?php if (trim((string) ($c['setor'] ?? '')) !== ''): ?>
+                                    <span class="inline-flex max-w-full rounded-md bg-slate-100 px-2 py-1 text-[9px] font-black uppercase text-slate-700 break-words"><?php echo htmlspecialchars($c['setor']); ?></span>
+                                <?php endif; ?>
+                                <?php if (trim((string) ($c['empresa'] ?? '')) !== ''): ?>
+                                    <p class="mt-1.5 text-[10px] font-bold text-slate-500 truncate" title="<?php echo htmlspecialchars($c['empresa']); ?>"><?php echo htmlspecialchars($c['empresa']); ?></p>
+                                <?php endif; ?>
+                            </td>
+
+                            <?php if ($mostrar_col_valores): ?>
+                            <td class="px-4 py-3.5 align-middle text-right whitespace-nowrap">
+                                <?php if ($valor_parcela_num > 0): ?>
+                                    <p class="text-[12px] font-black text-navy-900">R$ <?php echo number_format($valor_parcela_num, 2, ',', '.'); ?></p>
+                                <?php elseif ($valor_total_num > 0): ?>
+                                    <p class="text-[12px] font-black text-navy-900">R$ <?php echo number_format($valor_total_num, 2, ',', '.'); ?></p>
+                                <?php else: ?>
+                                    <span class="text-slate-300">—</span>
+                                <?php endif; ?>
+                                <?php if ($valor_total_num > 0 && abs($valor_total_num - $valor_parcela_num) > 0.009): ?>
+                                    <p class="mt-1 text-[9px] text-slate-400">Total R$ <?php echo number_format($valor_total_num, 2, ',', '.'); ?></p>
+                                <?php endif; ?>
+                            </td>
+                            <?php endif; ?>
+
+                            <?php if ($mostrar_col_pagamento): ?>
+                            <td class="px-4 py-3.5 align-middle">
+                                <?php $tem_pagamento_linha = false; ?>
+                                <?php if (trim((string) ($c['periodicidade'] ?? '')) !== ''): $tem_pagamento_linha = true; ?>
+                                    <p class="font-bold text-slate-700"><?php echo htmlspecialchars($c['periodicidade']); ?></p>
+                                <?php endif; ?>
+                                <?php if (trim((string) ($c['forma_pagamento'] ?? '')) !== ''): $tem_pagamento_linha = true; ?>
+                                    <p class="mt-1 text-[9px] text-slate-400"><?php echo htmlspecialchars($c['forma_pagamento']); ?></p>
+                                <?php endif; ?>
+                                <?php if (($c['tipo_prazo'] ?? '') !== 'INDETERMINADO' && $qtd_parcelas > 0): $tem_pagamento_linha = true; ?>
+                                    <p class="mt-1 text-[9px] font-bold text-slate-500"><?php echo $qtd_parcelas; ?> parcela(s)</p>
+                                <?php endif; ?>
+                                <?php if (!$tem_pagamento_linha): ?><span class="text-slate-300">—</span><?php endif; ?>
+                            </td>
+                            <?php endif; ?>
+
+                            <td class="px-4 py-3.5 align-middle">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <?php if ($inicio_fmt !== '' || $fim_fmt !== ''): ?>
+                                            <p class="font-bold text-slate-800 whitespace-nowrap">
+                                                <?php if ($inicio_fmt !== '') echo $inicio_fmt; ?>
+                                                <?php if ($inicio_fmt !== '' && $fim_fmt !== ''): ?><span class="mx-1 text-slate-300">→</span><?php endif; ?>
+                                                <?php if ($fim_fmt !== '') echo $fim_fmt; ?>
+                                            </p>
+                                        <?php endif; ?>
+                                        <?php if (!empty($c['prazo_indeterminado'])): ?>
+                                            <p class="mt-1 text-[9px] text-slate-400">Prazo indeterminado</p>
+                                        <?php elseif (($c['tipo_prazo'] ?? '') === 'DETERMINADO'): ?>
+                                            <p class="mt-1 text-[9px] text-slate-400">Prazo determinado</p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <span class="shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black whitespace-nowrap <?php echo $badge_alerta; ?>"><?php echo htmlspecialchars($alerta['texto']); ?></span>
+                                </div>
+                            </td>
+
+                            <?php if ($mostrar_col_condicoes): ?>
+                            <td class="px-4 py-3.5 align-middle">
+                                <?php if ($condicoes_linha): ?>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <?php foreach ($condicoes_linha as $condicao_txt): ?>
+                                            <span class="inline-flex rounded-md bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-600"><?php echo htmlspecialchars($condicao_txt); ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="text-slate-300">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <?php endif; ?>
+
+                            <td class="px-4 py-3.5 align-middle" data-status-ordenacao="<?php echo htmlspecialchars($status_fluxo); ?>">
+                                <p class="text-[10px] font-black <?php echo $contrato_encerrado ? 'text-slate-500' : 'text-slate-700'; ?> leading-tight"><?php echo htmlspecialchars($status_label); ?></p>
+                                <?php if ($contrato_encerrado && !empty($c['data_encerramento'])): ?>
+                                    <span class="inline-flex mt-1.5 rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-black text-slate-600">
+                                        <?php echo (new DateTime($c['data_encerramento']))->format('d/m/Y'); ?>
+                                    </span>
+                                <?php elseif ($pendentes): ?>
+                                    <span title="<?php echo htmlspecialchars(implode(', ', $pendentes)); ?>" class="inline-flex mt-1.5 rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black text-rose-700 whitespace-nowrap"><?php echo count($pendentes); ?> pend.</span>
+                                <?php else: ?>
+                                    <span class="inline-flex mt-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black text-emerald-700">Completo</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <td class="px-4 py-3.5 align-middle text-right sticky right-0 <?php echo $prioridade_alerta <= 2 ? ($prioridade_alerta <= 1 ? 'bg-rose-50' : 'bg-amber-50') : 'bg-white'; ?> group-hover:bg-slate-50">
+                                <div class="relative menu-gerenciamento inline-block">
+                                    <button type="button" onclick="alternarMenuGerenciamento(event, 'menu-contrato-<?php echo (int) $c['id']; ?>')" class="inline-flex items-center gap-1 bg-navy-900 text-white text-[10px] font-black px-3 py-2 rounded-lg shadow-sm hover:bg-navy-800 whitespace-nowrap">
+                                        Gerenciar <span aria-hidden="true">▾</span>
+                                    </button>
+                                    <div id="menu-contrato-<?php echo (int) $c['id']; ?>" class="menu-gerenciamento-opcoes hidden fixed z-[70] w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 text-left">
+                                        <?php if ($pode_editar_este): ?>
+                                            <button onclick='fecharMenusGerenciamento(); abrirDetalhesEPendencias(<?php echo json_encode($c_cliente, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>)' class="w-full text-left text-xs font-black <?php echo $pendentes ? 'text-rose-700 bg-rose-50 hover:bg-rose-100' : 'text-slate-700 hover:bg-slate-50'; ?> px-3 py-2.5 rounded-xl">Ver detalhes<?php echo $pendentes ? ' e ' . count($pendentes) . ' pendência(s)' : ''; ?></button>
+                                        <?php else: ?>
+                                            <button onclick='fecharMenusGerenciamento(); abrirDetalhes(<?php echo json_encode($c_cliente, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>, <?php echo $eh_responsavel ? "true" : "false"; ?>)' class="w-full text-left text-xs font-bold text-slate-700 px-3 py-2.5 rounded-xl hover:bg-slate-50">Ver detalhes</button>
+                                        <?php endif; ?>
+
+                                        <?php if ($pode_compartilhar_este && ($status_fluxo === 'RASCUNHO' || $status_fluxo === 'COM_DIVERGENCIA')): ?>
+                                            <button onclick="fecharMenusGerenciamento(); compartilharContrato(<?php echo $c['id']; ?>)" class="w-full text-left text-xs font-bold text-blue-700 px-3 py-2.5 rounded-xl hover:bg-blue-50">Compartilhar com Contas a Pagar</button>
+                                        <?php endif; ?>
+
+                                        <?php if ($pode_confirmar_este && ($etapa === 5 || $tem_div)): ?>
+                                            <button onclick="fecharMenusGerenciamento(); confirmarUso(<?php echo $c['id']; ?>, <?php echo $tem_div ? 'true' : 'false'; ?>)" class="w-full text-left text-xs font-bold text-emerald-700 px-3 py-2.5 rounded-xl hover:bg-emerald-50"><?php echo $tem_div ? 'Confirmar correção' : 'Confirmar uso'; ?></button>
+                                        <?php endif; ?>
+
+                                        <?php if ($pode_divergir_este && $etapa >= 5 && !$tem_div): ?>
+                                            <button onclick="fecharMenusGerenciamento(); abrirDivergencia(<?php echo $c['id']; ?>)" class="w-full text-left text-xs font-bold text-rose-700 px-3 py-2.5 rounded-xl hover:bg-rose-50">Registrar divergência</button>
+                                        <?php endif; ?>
+
+                                        <?php if (
+                                            $pode_editar_este
+                                            && !$contrato_encerrado
+                                            && ($c['tipo_prazo'] ?? '') === 'DETERMINADO'
+                                            && ($alerta['situacao'] ?? '') === 'vencido'
+                                        ): ?>
+                                            <button onclick='fecharMenusGerenciamento(); abrirRenovacao(<?php echo json_encode($c_cliente, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>)' class="w-full text-left text-xs font-bold text-emerald-700 px-3 py-2.5 rounded-xl hover:bg-emerald-50">↻ Renovar contrato</button>
+                                        <?php endif; ?>
+
+                                        <?php if ($pode_editar_este && !$contrato_encerrado): ?>
+                                            <button onclick='fecharMenusGerenciamento(); abrirEncerramento(<?php echo json_encode($c_cliente, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>)' class="w-full text-left text-xs font-bold text-slate-600 px-3 py-2.5 rounded-xl hover:bg-slate-100">Encerrar contrato</button>
+                                        <?php endif; ?>
+
+                                        <?php if ($somente_visualizacao): ?>
+                                            <div class="mt-1 border-t border-slate-100 pt-2 px-3 pb-1">
+                                                <?php if ($contrato_encerrado): ?>
+                                                    <p class="text-[9px] font-black uppercase tracking-wide text-slate-400">Contrato encerrado · somente leitura</p>
+                                                    <p class="mt-1 text-[10px] leading-snug text-slate-500">O histórico permanece disponível, mas o registro não pode mais ser alterado.</p>
+                                                <?php else: ?>
+                                                    <p class="text-[9px] font-black uppercase tracking-wide text-slate-400">Diretoria · somente visualização</p>
+                                                    <p class="mt-1 text-[10px] leading-snug text-slate-500">Somente o dono deste contrato pode realizar alterações.</p>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="px-4 py-3 border-t border-slate-200 flex flex-col xl:flex-row items-center justify-between gap-3 text-xs bg-slate-50/80">
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <p id="resumo-paginacao" class="text-slate-500 font-medium"></p>
+                    <label class="text-slate-500">Exibir
+                        <select id="itens-por-pagina" class="ml-1 border border-slate-200 rounded-lg px-2 py-1 bg-white font-bold">
+                            <option value="10">10</option><option value="20" selected>20</option><option value="30">30</option><option value="50">50</option><option value="100">100</option>
+                        </select>
+                        por página
+                    </label>
+                </div>
+                <div class="flex flex-wrap items-center justify-center gap-1.5">
+                    <button type="button" id="pagina-primeira" class="border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 font-black disabled:opacity-35 hover:bg-slate-100" title="Primeira página">«</button>
+                    <button type="button" id="pagina-anterior" class="border border-slate-200 bg-white rounded-lg px-3 py-1.5 font-bold disabled:opacity-35 hover:bg-slate-100">Anterior</button>
+                    <div id="paginacao-numeros" class="flex items-center gap-1"></div>
+                    <button type="button" id="proxima-pagina" class="border border-slate-200 bg-white rounded-lg px-3 py-1.5 font-bold disabled:opacity-35 hover:bg-slate-100">Próxima</button>
+                    <button type="button" id="pagina-ultima" class="border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 font-black disabled:opacity-35 hover:bg-slate-100" title="Última página">»</button>
+                    <span id="pagina-atual" class="ml-1 font-bold text-navy-900 whitespace-nowrap"></span>
+                </div>
+            </div>
         </div>
     </div>
 </main>
@@ -393,6 +994,97 @@ $setores_distintos = $stmt_setores->fetchAll(PDO::FETCH_COLUMN);
             <label class="text-xs font-bold text-slate-500 uppercase">Carência Contratual *<input required name="carencia_contratual" placeholder="Ex: Sem carência" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-normal normal-case"></label>
             <label class="md:col-span-2 text-xs font-bold text-slate-500 uppercase">Cláusula Técnica / Regra de Cancelamento *<textarea required name="clausula_tecnica" rows="3" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-normal normal-case"></textarea></label>
             <div class="md:col-span-2 flex justify-end gap-2 pt-2"><button type="button" onclick="fecharAtualizacaoFinanceiro()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500">Cancelar</button><button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-navy-900">Salvar atualização</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL RENOVAÇÃO -->
+<div id="modal-renovacao" class="fixed inset-0 z-[65] hidden items-center justify-center bg-black/30 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6">
+        <div class="flex items-start justify-between gap-3 mb-4">
+            <div>
+                <h3 class="text-lg font-black text-navy-900">Renovar contrato</h3>
+                <p id="renovar-subtitulo" class="text-xs text-slate-400 mt-1"></p>
+            </div>
+            <button type="button" onclick="fecharRenovacao()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+        </div>
+
+        <form id="form-renovacao" class="space-y-4">
+            <input type="hidden" name="contrato_id">
+
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase">Nova vigência *</label>
+                <select required name="tipo_prazo_novo" id="renovar-tipo-prazo" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                    <option value="">Selecione</option>
+                    <option value="DETERMINADO">Possui prazo / data final</option>
+                    <option value="INDETERMINADO">Prazo indeterminado</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="text-xs font-bold text-slate-500 uppercase">
+                    Início da nova vigência *
+                    <input required type="date" name="data_inicio_nova" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-normal normal-case">
+                </label>
+
+                <label id="renovar-bloco-data-final" class="text-xs font-bold text-slate-500 uppercase hidden">
+                    Nova data final *
+                    <input type="date" name="data_vencimento_nova" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-normal normal-case">
+                </label>
+            </div>
+
+            <label class="block text-xs font-bold text-slate-500 uppercase">
+                Observação da renovação
+                <textarea name="observacao" rows="3" maxlength="1000" placeholder="Ex: renovado nas mesmas condições comerciais."
+                          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-normal normal-case"></textarea>
+            </label>
+
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-800">
+                A vigência anterior será preservada no histórico. O contrato continuará sendo o mesmo registro.
+            </div>
+
+            <div class="flex justify-end gap-2 pt-1">
+                <button type="button" onclick="fecharRenovacao()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50">Cancelar</button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-700 hover:bg-emerald-600">Confirmar renovação</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ENCERRAMENTO -->
+<div id="modal-encerramento" class="fixed inset-0 z-[65] hidden items-center justify-center bg-black/30 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+        <div class="flex items-start justify-between gap-3 mb-4">
+            <div>
+                <h3 class="text-lg font-black text-navy-900">Encerrar contrato</h3>
+                <p id="encerrar-subtitulo" class="text-xs text-slate-400 mt-1"></p>
+            </div>
+            <button type="button" onclick="fecharEncerramento()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+        </div>
+
+        <form id="form-encerramento" class="space-y-4">
+            <input type="hidden" name="contrato_id">
+
+            <label class="block text-xs font-bold text-slate-500 uppercase">
+                Data do encerramento *
+                <input required type="date" name="data_encerramento" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-normal normal-case">
+            </label>
+
+            <label class="block text-xs font-bold text-slate-500 uppercase">
+                Motivo / observação *
+                <textarea required name="motivo_encerramento" rows="4" maxlength="500"
+                          placeholder="Ex: contrato encerrado por término da prestação do serviço."
+                          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-normal normal-case"></textarea>
+            </label>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                O contrato será retirado da lista operacional e ficará disponível em <strong>Encerrados</strong> para consulta e auditoria.
+            </div>
+
+            <div class="flex justify-end gap-2 pt-1">
+                <button type="button" onclick="fecharEncerramento()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50">Cancelar</button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-slate-700 hover:bg-slate-600">Encerrar contrato</button>
+            </div>
         </form>
     </div>
 </div>
@@ -839,9 +1531,14 @@ function abrirDetalhes(c, ehDono) {
         <p class="font-bold text-navy-900">${escaparHtml(statusFluxo)}</p>
     </div>`;
 
-    const podeVerTudo = EH_ADMIN || ehDono || PODE_RESTRITOS;
-    const podeVerFinanceiro = podeVerTudo || (PODE_FINANCEIRO && Number(c.etapa_atual) >= 5);
-    const visaoExclusivaFinanceiro = PODE_FINANCEIRO && !podeVerTudo;
+    const podeRestritosContrato = Boolean(c._pode_restritos);
+    const podeFinanceiroContrato = Boolean(c._pode_financeiro);
+    const podeBaixarContrato = Boolean(c._pode_baixar);
+    const podeEditarContrato = Boolean(c._pode_editar);
+
+    const podeVerTudo = EH_ADMIN || ehDono || podeRestritosContrato;
+    const podeVerFinanceiro = podeVerTudo || (podeFinanceiroContrato && Number(c.etapa_atual) >= 5);
+    const visaoExclusivaFinanceiro = podeFinanceiroContrato && !podeVerTudo;
     const visaoResumoContratual = visaoExclusivaFinanceiro || ehDono;
 
     if (visaoResumoContratual && podeVerFinanceiro) {
@@ -878,12 +1575,16 @@ function abrirDetalhes(c, ehDono) {
               + campoFinanceiro('Empresa Contratante', c.empresa)
               + campoFinanceiro('Departamento / Setor Contratante', c.setor)
               + `</div>`;
-        if (ehDono) {
+        if (podeEditarContrato) {
             html += `<button type="button" onclick="fecharDetalhes(); editarContrato(contratoDetalheAtual)" class="w-full mt-4 bg-blue-50 text-blue-800 border border-blue-200 font-bold text-sm py-2.5 rounded-xl hover:bg-blue-100">✏ Editar contrato completo</button>`;
+        } else if (String(c.status || '') === 'ENCERRADO') {
+            html += `<div class="mt-4 bg-slate-50 text-slate-600 border border-slate-200 font-medium text-sm p-3 rounded-xl"><strong>Contrato encerrado.</strong> O registro permanece disponível somente para consulta e histórico.</div>`;
+        } else if (Boolean(c._somente_visualizacao)) {
+            html += `<div class="mt-4 bg-slate-50 text-slate-600 border border-slate-200 font-medium text-sm p-3 rounded-xl"><strong>Somente visualização.</strong> Este contrato pertence a outro responsável e não pode ser alterado pela Diretoria.</div>`;
         } else {
             html += `<div class="mt-4 bg-blue-50 text-blue-800 border border-blue-200 font-medium text-sm p-3 rounded-xl">O Contas a Pagar confere as informações. Se algo estiver incorreto, registre uma divergência para o responsável corrigir.</div>`;
         }
-        if (PODE_BAIXAR) {
+        if (podeBaixarContrato) {
             html += `<a href="api/ContratoDownload.php?id=${Number(c.id)}" class="block text-center bg-navy-900 text-white font-bold text-sm py-2.5 rounded-xl mt-4 hover:bg-navy-800 transition-colors">📎 Baixar contrato anexado</a>`;
         }
     } else {
@@ -912,7 +1613,7 @@ function abrirDetalhes(c, ehDono) {
               
     }
 
-    if (PODE_BAIXAR) {
+    if (podeBaixarContrato) {
         html += `<a href="api/ContratoDownload.php?id=${Number(c.id)}" class="block text-center bg-navy-900 text-white font-bold text-sm py-2.5 rounded-xl mt-3 mb-4 hover:bg-navy-800 transition-colors">📎 Baixar contrato anexado</a>`;
     }
 
@@ -937,6 +1638,33 @@ function abrirDetalhes(c, ehDono) {
     } else if (!podeVerTudo) {
         html += `<div class="bg-amber-50 text-amber-700 text-sm font-medium rounded-xl p-4 mt-3">Este contrato ainda não foi compartilhado.</div>`;
     }
+    }
+
+    if (String(c.status || '') === 'ENCERRADO') {
+        html += `<div class="pt-3 mt-3 border-t border-slate-100"><p class="text-xs font-black uppercase text-slate-400 mb-2">Encerramento</p></div>`;
+        html += `<div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p class="text-[11px] font-black uppercase text-slate-500">Contrato encerrado</p>
+            <p class="text-sm text-slate-700 mt-1"><strong>Data:</strong> ${escaparHtml(formatarDataDetalhe(c.data_encerramento) || '—')}</p>
+            <p class="text-sm text-slate-700 mt-1"><strong>Motivo:</strong> ${escaparHtml(c.motivo_encerramento || 'Não informado')}</p>
+        </div>`;
+    }
+
+    if (Array.isArray(c.renovacoes) && c.renovacoes.length) {
+        html += `<div class="pt-3 mt-3 border-t border-slate-100"><p class="text-xs font-black uppercase text-slate-400 mb-2">Histórico de renovações</p></div>`;
+        html += c.renovacoes.map(ren => {
+            const anterior = ren.tipo_prazo_anterior === 'INDETERMINADO'
+                ? 'Prazo indeterminado'
+                : `${formatarDataDetalhe(ren.data_inicio_anterior) || '—'} → ${formatarDataDetalhe(ren.data_vencimento_anterior) || '—'}`;
+            const novo = ren.tipo_prazo_novo === 'INDETERMINADO'
+                ? `${formatarDataDetalhe(ren.data_inicio_nova) || '—'} → prazo indeterminado`
+                : `${formatarDataDetalhe(ren.data_inicio_nova) || '—'} → ${formatarDataDetalhe(ren.data_vencimento_nova) || '—'}`;
+            return `<div class="rounded-xl border border-emerald-100 bg-emerald-50 p-3 mb-2">
+                <p class="text-[11px] font-black uppercase text-emerald-700">Renovação registrada</p>
+                <p class="text-sm text-slate-700 mt-1"><strong>Anterior:</strong> ${escaparHtml(anterior)}</p>
+                <p class="text-sm text-slate-700 mt-1"><strong>Nova vigência:</strong> ${escaparHtml(novo)}</p>
+                ${ren.observacao ? `<p class="text-sm text-slate-600 mt-1">${escaparHtml(ren.observacao)}</p>` : ''}
+            </div>`;
+        }).join('');
     }
 
     if (Array.isArray(c.divergencias) && c.divergencias.length) {
@@ -1013,35 +1741,190 @@ function fecharDetalhes() {
 }
 
 // =====================================================================
-// AÇÕES DE FLUXO (AJAX)
+// RENOVAÇÃO / ENCERRAMENTO
 // =====================================================================
-function fecharMenusGerenciamento() {
-    document.querySelectorAll('.menu-gerenciamento-opcoes').forEach(menu => menu.classList.add('hidden'));
+function somarUmDiaISO(dataIso) {
+    if (!dataIso) return '';
+    const data = new Date(`${String(dataIso).slice(0, 10)}T12:00:00`);
+    if (Number.isNaN(data.getTime())) return '';
+    data.setDate(data.getDate() + 1);
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
 }
 
-function alternarMenuGerenciamento(event, menuId) {
-    event.stopPropagation();
-    const menu = document.getElementById(menuId);
-    const estavaFechado = menu.classList.contains('hidden');
-    fecharMenusGerenciamento();
-    if (estavaFechado) {
-        menu.classList.remove('hidden');
-        const botao = event.currentTarget;
-        const retangulo = botao.getBoundingClientRect();
-        const largura = 224;
-        const esquerda = Math.max(12, Math.min(window.innerWidth - largura - 12, retangulo.right - largura));
-        menu.style.left = `${esquerda}px`;
-        menu.style.top = `${retangulo.bottom + 6}px`;
-        const altura = menu.getBoundingClientRect().height;
-        if (retangulo.bottom + altura + 12 > window.innerHeight) {
-            menu.style.top = `${Math.max(12, retangulo.top - altura - 6)}px`;
-        }
+function abrirRenovacao(c) {
+    const form = document.getElementById('form-renovacao');
+    form.reset();
+    form.elements.contrato_id.value = c.id;
+    form.elements.data_inicio_nova.value = somarUmDiaISO(c.data_vencimento);
+    document.getElementById('renovar-subtitulo').textContent =
+        `${c.fornecedor} · vencimento atual ${formatarDataDetalhe(c.data_vencimento) || 'não informado'}`;
+    atualizarCamposRenovacao();
+    document.getElementById('modal-renovacao').classList.remove('hidden');
+    document.getElementById('modal-renovacao').classList.add('flex');
+}
+
+function fecharRenovacao() {
+    document.getElementById('modal-renovacao').classList.add('hidden');
+    document.getElementById('modal-renovacao').classList.remove('flex');
+}
+
+function atualizarCamposRenovacao() {
+    const tipo = document.getElementById('renovar-tipo-prazo').value;
+    const bloco = document.getElementById('renovar-bloco-data-final');
+    const campo = document.querySelector('#form-renovacao [name="data_vencimento_nova"]');
+    const determinado = tipo === 'DETERMINADO';
+    bloco.classList.toggle('hidden', !determinado);
+    campo.required = determinado;
+    if (!determinado) campo.value = '';
+}
+
+document.getElementById('renovar-tipo-prazo').addEventListener('change', atualizarCamposRenovacao);
+
+document.getElementById('form-renovacao').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    fd.append('acao', 'renovar_contrato');
+    fd.append('csrf_token', CSRF_TOKEN);
+
+    fetch('api/ContratoController.php', { method: 'POST', body: fd })
+        .then(r => r.text())
+        .then(resp => {
+            if (resp.trim() === 'sucesso') {
+                location.href = 'contratos.php?sucesso=' + encodeURIComponent('Contrato renovado com sucesso.');
+            } else {
+                alert(resp);
+            }
+        });
+});
+
+function dataHojeISO() {
+    const data = new Date();
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
+
+function abrirEncerramento(c) {
+    const form = document.getElementById('form-encerramento');
+    form.reset();
+    form.elements.contrato_id.value = c.id;
+    form.elements.data_encerramento.value = dataHojeISO();
+    document.getElementById('encerrar-subtitulo').textContent = `${c.fornecedor} · ${c.servico_objeto || 'contrato'}`;
+    document.getElementById('modal-encerramento').classList.remove('hidden');
+    document.getElementById('modal-encerramento').classList.add('flex');
+}
+
+function fecharEncerramento() {
+    document.getElementById('modal-encerramento').classList.add('hidden');
+    document.getElementById('modal-encerramento').classList.remove('flex');
+}
+
+document.getElementById('form-encerramento').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    if (!confirm('Encerrar este contrato e removê-lo da lista operacional?')) return;
+
+    const fd = new FormData(this);
+    fd.append('acao', 'encerrar_contrato');
+    fd.append('csrf_token', CSRF_TOKEN);
+
+    fetch('api/ContratoController.php', { method: 'POST', body: fd })
+        .then(r => r.text())
+        .then(resp => {
+            if (resp.trim() === 'sucesso') {
+                location.href = 'contratos.php?sucesso=' + encodeURIComponent('Contrato encerrado e arquivado com sucesso.');
+            } else {
+                alert(resp);
+            }
+        });
+});
+
+// =====================================================================
+// AÇÕES DE FLUXO (AJAX)
+// =====================================================================
+// O menu de Gerenciar é movido temporariamente para o <body> quando aberto.
+// Isso evita que o overflow/scroll da tabela e a coluna sticky de Ações recortem o menu.
+const origemMenusGerenciamento = new Map();
+let menuGerenciamentoAberto = null;
+
+function restaurarMenuGerenciamento(menu) {
+    if (!menu) return;
+    menu.classList.add('hidden');
+    menu.style.left = '';
+    menu.style.top = '';
+    menu.style.zIndex = '';
+
+    const origem = origemMenusGerenciamento.get(menu.id);
+    if (origem && origem.isConnected) origem.appendChild(menu);
+    origemMenusGerenciamento.delete(menu.id);
+
+    if (menuGerenciamentoAberto === menu) menuGerenciamentoAberto = null;
+}
+
+function fecharMenusGerenciamento() {
+    if (menuGerenciamentoAberto) {
+        restaurarMenuGerenciamento(menuGerenciamentoAberto);
+        return;
+    }
+    document.querySelectorAll('.menu-gerenciamento-opcoes').forEach(restaurarMenuGerenciamento);
+}
+
+function posicionarMenuGerenciamento(menu, botao) {
+    const retangulo = botao.getBoundingClientRect();
+    const margem = 12;
+    const largura = Math.max(224, menu.offsetWidth || 224);
+
+    let esquerda = retangulo.right - largura;
+    esquerda = Math.max(margem, Math.min(window.innerWidth - largura - margem, esquerda));
+
+    menu.style.left = `${Math.round(esquerda)}px`;
+    menu.style.top = `${Math.round(retangulo.bottom + 7)}px`;
+    menu.style.zIndex = '99999';
+
+    const altura = menu.getBoundingClientRect().height;
+    if (retangulo.bottom + altura + margem > window.innerHeight) {
+        menu.style.top = `${Math.max(margem, Math.round(retangulo.top - altura - 7))}px`;
     }
 }
 
+function alternarMenuGerenciamento(event, menuId) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const botao = event.currentTarget;
+    const menu = document.getElementById(menuId);
+    if (!menu) return;
+
+    const estavaFechado = menu.classList.contains('hidden') || menuGerenciamentoAberto !== menu;
+    fecharMenusGerenciamento();
+    if (!estavaFechado) return;
+
+    const origem = botao.closest('.menu-gerenciamento');
+    if (origem) origemMenusGerenciamento.set(menu.id, origem);
+
+    // Portal para fora da área com overflow/sticky.
+    document.body.appendChild(menu);
+    menu.classList.remove('hidden');
+    menuGerenciamentoAberto = menu;
+    posicionarMenuGerenciamento(menu, botao);
+}
+
 document.addEventListener('click', event => {
-    if (!event.target.closest('.menu-gerenciamento')) fecharMenusGerenciamento();
+    if (!event.target.closest('.menu-gerenciamento') && !event.target.closest('.menu-gerenciamento-opcoes')) {
+        fecharMenusGerenciamento();
+    }
 });
+
+// Ao rolar a tabela ou redimensionar a janela, fecha o menu para ele nunca ficar solto.
+const tabelaScrollGerenciamento = document.getElementById('tabela-scroll');
+if (tabelaScrollGerenciamento) {
+    tabelaScrollGerenciamento.addEventListener('scroll', fecharMenusGerenciamento, { passive: true });
+}
+window.addEventListener('resize', fecharMenusGerenciamento, { passive: true });
 
 function postAcao(acao, campos) {
     const fd = new FormData();
@@ -1091,52 +1974,125 @@ function enviarDivergencia() {
 }
 
 // =====================================================================
-// FILTROS
+// FILTROS / ORDENAÇÃO GERENCIAL - V6
 // =====================================================================
-const inputBusca   = document.getElementById('busca-contrato');
-const selectSetor  = document.getElementById('filtro-setor');
-const selectSituacao = document.getElementById('filtro-situacao');
-const corpoTabela  = document.getElementById('corpo-tabela-contratos');
-const linhas       = Array.from(document.querySelectorAll('.linha-contrato'));
-const itensPorPagina = document.getElementById('itens-por-pagina');
-const botaoAnterior = document.getElementById('pagina-anterior');
-const botaoProxima = document.getElementById('proxima-pagina');
+const inputBusca      = document.getElementById('busca-contrato');
+const selectSetor     = document.getElementById('filtro-setor');
+const selectSituacao  = document.getElementById('filtro-situacao');
+const corpoTabela     = document.getElementById('corpo-tabela-contratos');
+const tabelaScroll    = document.getElementById('tabela-scroll');
+const linhas          = Array.from(document.querySelectorAll('.linha-contrato'));
+const itensPorPagina  = document.getElementById('itens-por-pagina');
+const botaoPrimeira   = document.getElementById('pagina-primeira');
+const botaoAnterior   = document.getElementById('pagina-anterior');
+const botaoProxima    = document.getElementById('proxima-pagina');
+const botaoUltima     = document.getElementById('pagina-ultima');
+const paginacaoNumeros = document.getElementById('paginacao-numeros');
+const botaoPriorizar  = document.getElementById('priorizar-vencimentos');
+const kpiBotoes       = Array.from(document.querySelectorAll('.kpi-filtro'));
+
 let paginaAtual = 1;
-let colunaOrdenacao = '';
+let totalPaginasAtual = 1;
+let colunaOrdenacao = 'prioridade';
 let direcaoOrdenacao = 1;
 
 function linhasFiltradas() {
     const termo = inputBusca.value.toLowerCase().trim();
     const setor = selectSetor ? selectSetor.value.toLowerCase().trim() : '';
     const situacao = selectSituacao.value;
+
     return linhas.filter(linha => {
-        const bateuNome = termo === '' || linha.dataset.nome.includes(termo);
-        const bateuSetor = setor === '' || linha.dataset.setor.toLowerCase() === setor;
-        const bateuSituacao = situacao === '' || linha.dataset.situacao.split(' ').includes(situacao);
+        const situacoesLinha = (linha.dataset.situacao || '').split(' ').filter(Boolean);
+        const bateuNome = termo === '' || (linha.dataset.nome || '').includes(termo);
+        const bateuSetor = setor === '' || (linha.dataset.setor || '').toLowerCase() === setor;
+        const bateuSituacao = situacao === '' || situacoesLinha.includes(situacao);
         return bateuNome && bateuSetor && bateuSituacao;
     });
 }
 
 function valorOrdenacao(linha, coluna) {
+    if (coluna === 'prioridade') return Number(linha.dataset.alertaPrioridade ?? 99);
     if (coluna === 'valor') return Number(linha.dataset.valor || 0);
     if (coluna === 'situacao') return linha.dataset.situacao || '';
+    if (coluna === 'vigencia') return linha.dataset.vigencia || '9999-12-31';
     return (linha.dataset[coluna] || '').toLocaleLowerCase('pt-BR');
 }
 
-function aplicarFiltros() {
-    let filtradas = linhasFiltradas();
-    if (colunaOrdenacao) {
-        filtradas.sort((a, b) => {
-            const va = valorOrdenacao(a, colunaOrdenacao);
-            const vb = valorOrdenacao(b, colunaOrdenacao);
-            return (typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb), 'pt-BR', {numeric: true})) * direcaoOrdenacao;
-        });
-        filtradas.forEach(linha => corpoTabela.appendChild(linha));
+function compararLinhas(a, b) {
+    if (colunaOrdenacao === 'prioridade') {
+        const prioridadeA = Number(a.dataset.alertaPrioridade ?? 99);
+        const prioridadeB = Number(b.dataset.alertaPrioridade ?? 99);
+        if (prioridadeA !== prioridadeB) return (prioridadeA - prioridadeB) * direcaoOrdenacao;
+
+        const vigenciaA = a.dataset.vigencia || '9999-12-31';
+        const vigenciaB = b.dataset.vigencia || '9999-12-31';
+        const cmpData = vigenciaA.localeCompare(vigenciaB);
+        if (cmpData !== 0) return cmpData;
+
+        return (a.dataset.fornecedor || '').localeCompare(b.dataset.fornecedor || '', 'pt-BR');
     }
+
+    const va = valorOrdenacao(a, colunaOrdenacao);
+    const vb = valorOrdenacao(b, colunaOrdenacao);
+    const cmp = typeof va === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb), 'pt-BR', { numeric: true });
+    return cmp * direcaoOrdenacao;
+}
+
+function rolarTabelaParaTopo() {
+    if (tabelaScroll) tabelaScroll.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function marcarKpiAtivo() {
+    const situacao = selectSituacao.value;
+    kpiBotoes.forEach(botao => {
+        const filtro = botao.dataset.filtroKpi;
+        let ativo = false;
+        if (filtro === 'todos') ativo = situacao === '';
+        else if (filtro === 'alerta') ativo = ['alerta', 'vencido', 'vencendo'].includes(situacao);
+        else ativo = situacao === filtro;
+
+        botao.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+        botao.classList.toggle('ring-2', ativo);
+        botao.classList.toggle('ring-offset-1', ativo);
+        botao.classList.toggle('ring-blue-300', ativo && !['alerta', 'incompleto'].includes(filtro));
+        botao.classList.toggle('ring-amber-300', ativo && filtro === 'alerta');
+        botao.classList.toggle('ring-rose-300', ativo && filtro === 'incompleto');
+    });
+}
+
+function renderizarPaginacao(totalPaginas) {
+    totalPaginasAtual = totalPaginas;
+    paginacaoNumeros.innerHTML = '';
+
+    const inicio = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+    const fim = Math.min(totalPaginas, Math.max(5, paginaAtual + 2));
+
+    for (let pagina = inicio; pagina <= fim; pagina++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = String(pagina);
+        btn.className = pagina === paginaAtual
+            ? 'min-w-8 rounded-lg bg-navy-900 px-2.5 py-1.5 font-black text-white shadow-sm'
+            : 'min-w-8 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-bold text-slate-600 hover:bg-slate-100';
+        btn.addEventListener('click', () => {
+            paginaAtual = pagina;
+            aplicarFiltros(true);
+        });
+        paginacaoNumeros.appendChild(btn);
+    }
+}
+
+function aplicarFiltros(rolarTopo = false) {
+    const filtradas = linhasFiltradas();
+    filtradas.sort(compararLinhas);
+    filtradas.forEach(linha => corpoTabela.appendChild(linha));
 
     const porPagina = Number(itensPorPagina.value || 20);
     const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina));
-    paginaAtual = Math.min(paginaAtual, totalPaginas);
+    paginaAtual = Math.min(Math.max(1, paginaAtual), totalPaginas);
+
     const inicio = (paginaAtual - 1) * porPagina;
     const visiveis = new Set(filtradas.slice(inicio, inicio + porPagina));
     linhas.forEach(linha => linha.style.display = visiveis.has(linha) ? '' : 'none');
@@ -1145,25 +2101,94 @@ function aplicarFiltros() {
     const ultimo = Math.min(inicio + porPagina, filtradas.length);
     document.getElementById('resumo-paginacao').textContent = `Exibindo ${primeiro}–${ultimo} de ${filtradas.length} contrato(s)`;
     document.getElementById('pagina-atual').textContent = `Página ${paginaAtual} de ${totalPaginas}`;
+
+    botaoPrimeira.disabled = paginaAtual <= 1;
     botaoAnterior.disabled = paginaAtual <= 1;
     botaoProxima.disabled = paginaAtual >= totalPaginas;
+    botaoUltima.disabled = paginaAtual >= totalPaginas;
+    renderizarPaginacao(totalPaginas);
+    marcarKpiAtivo();
+
+    if (botaoPriorizar) {
+        const ativo = colunaOrdenacao === 'prioridade';
+        botaoPriorizar.classList.toggle('ring-2', ativo);
+        botaoPriorizar.classList.toggle('ring-amber-300', ativo);
+    }
+
+    if (rolarTopo) rolarTabelaParaTopo();
 }
 
-function reiniciarFiltros() { paginaAtual = 1; aplicarFiltros(); }
+function reiniciarFiltros() {
+    paginaAtual = 1;
+    aplicarFiltros(true);
+}
+
 inputBusca.addEventListener('input', reiniciarFiltros);
 if (selectSetor) selectSetor.addEventListener('change', reiniciarFiltros);
 selectSituacao.addEventListener('change', reiniciarFiltros);
 itensPorPagina.addEventListener('change', reiniciarFiltros);
-botaoAnterior.addEventListener('click', () => { if (paginaAtual > 1) { paginaAtual--; aplicarFiltros(); } });
-botaoProxima.addEventListener('click', () => { paginaAtual++; aplicarFiltros(); });
-document.querySelectorAll('.ordenar-coluna').forEach(botao => botao.addEventListener('click', () => {
-    const coluna = botao.dataset.coluna;
-    direcaoOrdenacao = colunaOrdenacao === coluna ? direcaoOrdenacao * -1 : 1;
-    colunaOrdenacao = coluna;
-    paginaAtual = 1;
-    aplicarFiltros();
-}));
-aplicarFiltros();
+
+botaoPrimeira.addEventListener('click', () => {
+    if (paginaAtual !== 1) {
+        paginaAtual = 1;
+        aplicarFiltros(true);
+    }
+});
+botaoAnterior.addEventListener('click', () => {
+    if (paginaAtual > 1) {
+        paginaAtual--;
+        aplicarFiltros(true);
+    }
+});
+botaoProxima.addEventListener('click', () => {
+    if (paginaAtual < totalPaginasAtual) {
+        paginaAtual++;
+        aplicarFiltros(true);
+    }
+});
+botaoUltima.addEventListener('click', () => {
+    if (paginaAtual !== totalPaginasAtual) {
+        paginaAtual = totalPaginasAtual;
+        aplicarFiltros(true);
+    }
+});
+
+if (botaoPriorizar) {
+    botaoPriorizar.addEventListener('click', () => {
+        colunaOrdenacao = 'prioridade';
+        direcaoOrdenacao = 1;
+        paginaAtual = 1;
+        aplicarFiltros(true);
+    });
+}
+
+kpiBotoes.forEach(botao => {
+    botao.addEventListener('click', () => {
+        const filtro = botao.dataset.filtroKpi || 'todos';
+
+        // O clique no KPI é um atalho gerencial: limpa os demais filtros para mostrar a categoria inteira.
+        inputBusca.value = '';
+        if (selectSetor) selectSetor.value = '';
+        selectSituacao.value = filtro === 'todos' ? '' : filtro;
+
+        colunaOrdenacao = 'prioridade';
+        direcaoOrdenacao = 1;
+        paginaAtual = 1;
+        aplicarFiltros(true);
+    });
+});
+
+document.querySelectorAll('.ordenar-coluna').forEach(botao => {
+    botao.addEventListener('click', () => {
+        const coluna = botao.dataset.coluna;
+        direcaoOrdenacao = colunaOrdenacao === coluna ? direcaoOrdenacao * -1 : 1;
+        colunaOrdenacao = coluna;
+        paginaAtual = 1;
+        aplicarFiltros(true);
+    });
+});
+
+aplicarFiltros(false);
 </script>
 
 <?php include 'includes/footer.php'; ?>

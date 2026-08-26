@@ -71,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $g_docs  = isset($_POST['g_docs']) ? 1 : 0;
             $g_feed  = isset($_POST['g_feed']) ? 1 : 0;
             $g_aces  = isset($_POST['g_acessos']) ? 1 : 0; 
+            $g_winthor = isset($_POST['g_winthor']) ? 1 : 0;
 
             if (empty($gid)) {
                 // TRAVA DE ENGENHARIA: Verifica se já existe um grupo com esse nome
@@ -81,13 +82,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     exit;
                 }
 
-                $sql = "INSERT INTO grupos_intranet (nome, is_admin, pode_gerenciar_docs, pode_postar_feed, pode_gerenciar_acessos) VALUES (?, ?, ?, ?, ?)";
-                $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces]);
+                $sql = "INSERT INTO grupos_intranet (nome, is_admin, pode_gerenciar_docs, pode_postar_feed, pode_gerenciar_acessos, pode_visualizar_winthor) VALUES (?, ?, ?, ?, ?, ?)";
+                $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces, $g_winthor]);
                 $gid = $pdo_intra->lastInsertId();
                 registrarLog($pdo_intra, 'CRIOU GRUPO', "Criou o novo grupo de acessos: $nome", $admin_id, $admin_ip);
             } else {
-                $sql = "UPDATE grupos_intranet SET nome = ?, is_admin = ?, pode_gerenciar_docs = ?, pode_postar_feed = ?, pode_gerenciar_acessos = ? WHERE id = ?";
-                $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces, $gid]);
+                $sql = "UPDATE grupos_intranet SET nome = ?, is_admin = ?, pode_gerenciar_docs = ?, pode_postar_feed = ?, pode_gerenciar_acessos = ?, pode_visualizar_winthor = ? WHERE id = ?";
+                $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces, $g_winthor, $gid]);
                 registrarLog($pdo_intra, 'EDITOU GRUPO', "Alterou as regras do grupo: $nome", $admin_id, $admin_ip);
             }
 
@@ -752,6 +753,13 @@ unset($u);
                                 <p class="text-[9px] text-slate-500 font-medium">Editar usuários e grupos</p>
                             </div>
                         </label>
+                        <label class="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100 hover:border-blue-300 cursor-pointer transition-all">
+                            <input type="checkbox" name="g_winthor" id="mg_g_winthor" class="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500">
+                            <div>
+                                <p class="text-xs font-black text-navy-900 uppercase">Visualizar WinThor</p>
+                                <p class="text-[9px] text-slate-500 font-medium">Acesso somente ao painel de acompanhamento</p>
+                            </div>
+                        </label>
                     </div>
                 </div>
                 </section>
@@ -963,6 +971,7 @@ unset($u);
         document.getElementById('mg_g_feed').checked = false;
         document.getElementById('mg_g_docs').checked = false;
         document.getElementById('mg_g_acessos').checked = false;
+        document.getElementById('mg_g_winthor').checked = false;
         
         document.querySelectorAll('.chk-mg-sistema').forEach(cb => cb.checked = false);
         document.querySelectorAll('.chk-mg-pasta').forEach(cb => cb.checked = false);
@@ -983,6 +992,7 @@ unset($u);
                 document.getElementById('mg_g_feed').checked = (g.pode_postar_feed == 1);
                 document.getElementById('mg_g_docs').checked = (g.pode_gerenciar_docs == 1);
                 document.getElementById('mg_g_acessos').checked = (g.pode_gerenciar_acessos == 1);
+                document.getElementById('mg_g_winthor').checked = (g.pode_visualizar_winthor == 1);
 
                 if(g.sistemas) {
                     g.sistemas.forEach(sid => {

@@ -423,105 +423,10 @@ if (empty($aniversariantes)) {
     </div>
 </main>
 
-<div id="modalSistemas" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 backdrop-blur-xl bg-navy-900/40 transition-all duration-500">
-    <div class="relative bg-navy-900/90 border border-white/10 w-full max-w-4xl rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
-        
-        <button id="btnVoltarModal" onclick="exibirPrincipalSistemas()" class="hidden absolute top-6 left-6 text-blue-400 hover:text-white hover:scale-105 transition-all text-xs font-black flex items-center gap-2 z-30 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
-            ⬅️ VOLTAR
-        </button>
-
-        <div class="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <button onclick="fecharModalSistemas()" class="absolute top-5 right-6 text-white/30 hover:text-white transition-colors text-3xl font-light z-30">&times;</button>
-
-       <div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-white/5 pb-4 mt-4 md:mt-0">
-            <div>
-                <h2 id="tituloModalSistemas" class="text-white text-xl font-black tracking-tighter uppercase italic">Sistemas de Navegação</h2>
-                <p id="subtituloModalSistemas" class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Sistemas e ferramentas autorizados para seu perfil</p>
-            </div>
-            <!-- Caixinha de Pesquisa -->
-            <div class="mt-3 md:mt-0">
-                <input type="text" id="inputBuscaSistemas" onkeyup="filtrarSistemas()" placeholder="Pesquisar sistema..." class="bg-slate-800 text-white text-xs px-3 py-2 rounded border border-white/10 focus:outline-none focus:border-blue-500 w-48 md:w-64">
-            </div>
-        </div>
-
-        <?php 
-            $sistemas_permitidos = [];
-            
-            // RBAC: Resgata as permissões associadas ao usuário
-            if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
-                $stmt_sys = $pdo_intra->query("SELECT * FROM sistemas_lista ORDER BY nome");
-                $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
-            } else {
-                $stmt_sys = $pdo_intra->prepare("
-                    SELECT DISTINCT sl.* FROM sistemas_lista sl
-                    LEFT JOIN permissoes_sistemas ps ON sl.id = ps.sistema_id AND ps.user_id = ?
-                    LEFT JOIN grupos_sistemas gs ON sl.id = gs.sistema_id
-                    LEFT JOIN usuarios_grupos ug ON gs.grupo_id = ug.grupo_id AND ug.usuario_id = ?
-                    WHERE ps.user_id IS NOT NULL OR ug.usuario_id IS NOT NULL
-                    ORDER BY sl.nome
-                ");
-                $stmt_sys->execute([$user_id_logado, $user_id_logado]);
-                $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
-            }
-
-            $sistemas_raiz = [];
-            $sistemas_filhos = [];
-
-            foreach ($sistemas_permitidos as $sys) {
-                if (!empty($sys['pai_id'])) {
-                    $sistemas_filhos[$sys['pai_id']][] = $sys;
-                } else {
-                    $sistemas_raiz[] = $sys;
-                }
-            }
-        ?>
-
-        <div id="gridSistemasPrincipal" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in fade-in duration-300">
-                <?php if (empty($sistemas_raiz)): ?>
-            <div class="col-span-full text-center py-10 text-white/40 text-xs font-bold uppercase tracking-widest">
-                ⚠️ NENHUM ACESSO LIBERADO PARA SEU PERFIL.
-            </div>
-        <?php else: ?>
-            <?php foreach ($sistemas_raiz as $sys): 
-                $is_grupo = ($sys['url'] === '#');
-                $cor_base = !empty($sys['cor']) ? str_replace('bg-', '', $sys['cor']) : 'slate-600';
-            ?>
-                <?php if ($is_grupo): 
-                    $sub_json = isset($sistemas_filhos[$sys['id']]) ? json_encode($sistemas_filhos[$sys['id']], JSON_HEX_APOS | JSON_HEX_QUOT) : '[]';
-                ?>
-                
-                <div onclick='abrirPastaSistemas(<?php echo json_encode($sys['nome']); ?>, <?php echo $sub_json; ?>)' class="sistema-card cursor-pointer group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300" data-nome="<?php echo strtoupper(htmlspecialchars($sys['nome'], ENT_QUOTES, 'UTF-8')); ?>" data-subitens='<?php echo htmlspecialchars($sub_json, ENT_QUOTES, 'UTF-8'); ?>'>
-                    <div class="w-14 h-14 rounded-full bg-white/5 border-2 border-dashed border-<?= $cor_base ?>/40 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-solid group-hover:ring-4 group-hover:ring-<?= $cor_base ?>/20 transition-all duration-300 relative">
-                        <?php echo $sys['icone']; ?>
-                        <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-blue-500 rounded-full border border-navy-900 shadow-sm"></span>
-                        </div>
-                        <span class="mt-2 text-white/70 font-bold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                            <?php echo htmlspecialchars($sys['nome']); ?>
-                        </span>
-                    </div>
-                <?php else: ?>
-                    <a href="<?php echo htmlspecialchars($sys['url']); ?>" target="_blank" class="sistema-card group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300" data-nome="<?php echo strtoupper(htmlspecialchars($sys['nome'])); ?>">
-                        <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-<?= $cor_base ?>/60 transition-all duration-300">
-                            <?php echo $sys['icone']; ?>
-                        </div>
-                        <span class="mt-2 text-white/50 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                            <?php echo htmlspecialchars($sys['nome']); ?>
-                        </span>
-                    </a>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        <?php endif; ?>
-        </div>
-
-        <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in slide-in-from-right-5 duration-300"></div>
-
-        <div class="mt-8 pt-4 border-t border-white/5 flex justify-between items-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
-            <span>Launchpad de Aplicações</span>
-            <span>Comercial Souza Atacado</span>
-        </div>
-    </div>
-</div>
-
+<?php
+// Módulo separado: Sistemas de Navegação / NOC
+include __DIR__ . '/includes/sistemas_navegacao.php';
+?>
 
 <div id="modalAgendamento" class="fixed inset-0 z-[1100] hidden items-center justify-center p-4 backdrop-blur-md bg-navy-900/40">
     <div class="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-300">
@@ -676,72 +581,6 @@ if (totalSlides <= 1) return;
         container.style.transform = `translateX(-${slideAtual * 100}%)`;
     }
 if (totalSlides > 1) { setInterval(() => moverCarrossel(1), 7000); }
-
-
-function abrirPastaSistemas(nomePasta, subitens) {
-    const gridPrincipal = document.getElementById('gridSistemasPrincipal');
-    const gridSub = document.getElementById('gridSistemasSub');
-    const btnVoltar = document.getElementById('btnVoltarModal');
-    const titulo = document.getElementById('tituloModalSistemas');
-    const subtitulo = document.getElementById('subtituloModalSistemas');
-
-    // 1. Chaveamento de visibilidade
-    gridPrincipal.classList.add('hidden');
-    gridSub.classList.remove('hidden');
-    btnVoltar.classList.remove('hidden');
-
-    // 2. Atualização dos textos do Header do Modal
-    titulo.innerText = nomePasta;
-    subtitulo.innerText = "Módulo interno • Aplicações liberadas para seu perfil";
-
-    // 3. Validação de segurança
-    if (!subitens || subitens.length === 0) {
-        gridSub.innerHTML = `
-            <div class="col-span-full text-center py-12">
-                <span class="text-xl block mb-2">📭</span>
-                <p class="text-[10px] text-white/30 font-black uppercase tracking-widest">Nenhuma aplicação vinculada a este grupo ainda.</p>
-            </div>`;
-        return;
-    }
-
-    // 4. Renderização limpa e padronizada dos filhos
-    gridSub.innerHTML = subitens.map(item => {
-        const corBase = item.cor ? item.cor.replace('bg-', '') : 'white/10';
-        return `
-            <a href="${item.url}" target="_blank" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
-                <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-${corBase} transition-all duration-300">
-                    ${item.icone}
-                </div>
-                <span class="mt-2 text-white/60 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                    ${item.nome}
-                </span>
-            </a>
-        `;
-    }).join('');
-}
-
-function exibirPrincipalSistemas() {
-    document.getElementById('gridSistemasPrincipal').classList.remove('hidden');
-    document.getElementById('gridSistemasSub').classList.add('hidden');
-    document.getElementById('btnVoltarModal').classList.add('hidden');
-    
-    document.getElementById('tituloModalSistemas').innerText = "Sistemas de Navegação";
-    document.getElementById('subtituloModalSistemas').innerText = "Selecione o sistema desejado";
-}
-
-function abrirModalSistemas() {
-    const modal = document.getElementById('modalSistemas');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.body.style.overflow = 'hidden';
-}
-
-function fecharModalSistemas() {
-    const modal = document.getElementById('modalSistemas');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    document.body.style.overflow = 'auto';
-}
 
 // SCRIPTS DO MODAL DE PROJETOS
 function abrirModalProjetos() {
@@ -1024,66 +863,6 @@ setInterval(function() {
         el.querySelector('.c-segs').innerText = Math.floor((distancia % (1000 * 60)) / 1000).toString().padStart(2, '0');
     });
 }, 1000);
-
- function filtrarSistemas() {
-    let input = document.getElementById('inputBuscaSistemas');
-    let filtro = input.value.toUpperCase();
-    let gridPrincipal = document.getElementById('gridSistemasPrincipal');
-    let cards = document.querySelectorAll('.sistema-card');
-
-    if (filtro === "") {
-        // Se limpou a busca, restaura os cards normais e remove os injetados
-        cards.forEach(card => card.style.display = "");
-        let dinamicos = document.querySelectorAll('.card-dinamico-busca');
-        dinamicos.forEach(d => d.remove());
-        return;
-    }
-
-    // Esconde tudo primeiro
-    cards.forEach(card => card.style.display = "none");
-    
-    // Remove resultados dinâmicos anteriores
-    let dinamicosAntigos = document.querySelectorAll('.card-dinamico-busca');
-    dinamicosAntigos.forEach(d => d.remove());
-
-    cards.forEach(card => {
-        let nomeSistema = card.getAttribute('data-nome') || '';
-        let subitensJson = card.getAttribute('data-subitens') || '';
-
-        // Se o pai bateu com a busca, mostra o pai normal
-        if (nomeSistema.includes(filtro)) {
-            card.style.display = "";
-        }
-
-        // Se tem subitens, varre para ver se algum filho bate com a busca
-        if (subitensJson) {
-            try {
-                let subitens = JSON.parse(subitensJson);
-                subitens.forEach(sub => {
-                    if (sub.nome.toUpperCase().includes(filtro)) {
-                        // O pulo do gato: cria o card do subitem direto no grid principal!
-                        let corBase = sub.cor ? sub.cor.replace('bg-', '') : 'white/10';
-                        let novoCard = document.createElement('a');
-                        novoCard.href = sub.url;
-                        novoCard.target = "_blank";
-                        novoCard.className = "sistema-card card-dinamico-busca group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300";
-                        novoCard.innerHTML = `
-                            <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-${corBase} transition-all duration-300">
-                                ${sub.icone}
-                            </div>
-                            <span class="mt-2 text-white/60 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                                ${sub.nome}
-                            </span>
-                        `;
-                        gridPrincipal.appendChild(novoCard);
-                    }
-                });
-            } catch (e) {
-                console.error("Erro ao interpretar subitens:", e);
-            }
-        }
-    });
-}
 
 </script>
 

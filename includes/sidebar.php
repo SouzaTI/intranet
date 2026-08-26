@@ -12,6 +12,22 @@ $contratoAuthSidebar = new ContratoAuth(
 
 $mostrarGestaoContratos = $contratoAuthSidebar->pode('acessar_modulo');
 
+$podeVisualizarWinthorSidebar = $ehAdminSidebar
+    || (!empty($_SESSION['pode_gerenciar_acessos']));
+
+if (!$podeVisualizarWinthorSidebar && $usuarioIdSidebar > 0) {
+    $stmtWinthorSidebar = $pdo_intra->prepare(
+        "SELECT 1
+           FROM usuarios_grupos UG
+           JOIN grupos_intranet G ON G.id = UG.grupo_id
+          WHERE UG.usuario_id = ?
+            AND G.pode_visualizar_winthor = 1
+          LIMIT 1"
+    );
+    $stmtWinthorSidebar->execute([$usuarioIdSidebar]);
+    $podeVisualizarWinthorSidebar = (bool) $stmtWinthorSidebar->fetchColumn();
+}
+
 // Identifica a página atual para o estado "selecionado"
 $current_page = basename($_SERVER['PHP_SELF']);
 $is_docs_active = ($current_page == 'view.php' || isset($_GET['path']));
@@ -125,13 +141,25 @@ $setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_ori
             // Trava de segurança: Só exibe o link da Base de Erros se for Admin ou tiver permissão específica (Ajuste a variável conforme a regra da sua TI)
             if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true || isset($_SESSION['pode_gerenciar_acessos']) && $_SESSION['pode_gerenciar_acessos'] === true): 
             ?>
-            <a href="ti_base_erros.php" class="flex items-center gap-3 p-3 rounded-2xl transition-all hover:bg-slate-100 border border-transparent text-slate-500 hover:text-navy-900 group">
-                <div class="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center font-black group-hover:bg-amber-500 group-hover:text-white transition-colors">
+            <a href="ti_base_erros.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-navy-800 group">
+                <div class="w-9 h-9 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center font-black shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                     🛠️
                 </div>
                 <div class="flex-1">
-                    <h4 class="text-xs font-black uppercase tracking-widest text-navy-900">Base de Erros</h4>
-                    <p class="text-[9px] text-slate-400 font-bold uppercase">Exclusivo T.I</p>
+                    <h4 class="text-[11px] font-black uppercase tracking-wider text-slate-300 group-hover:text-white">Base de Erros</h4>
+                    <p class="text-[8px] text-slate-500 font-bold uppercase">Exclusivo T.I</p>
+                </div>
+            </a>
+            <?php endif; ?>
+
+            <?php if ($podeVisualizarWinthorSidebar): ?>
+            <a href="acompanhamento_winthor.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-navy-800 group">
+                <div class="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    📊
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-[11px] font-black uppercase tracking-wider text-slate-300 group-hover:text-white">Acompanhamento WinThor</h4>
+                    <p class="text-[8px] text-slate-500 font-bold uppercase">Monitoramento TOTVS</p>
                 </div>
             </a>
             <?php endif; ?>
