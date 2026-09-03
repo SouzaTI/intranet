@@ -153,13 +153,25 @@ $setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_ori
             <?php endif; ?>
 
             <?php if ($podeVisualizarWinthorSidebar): ?>
-            <a href="acompanhamento_winthor.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-navy-800 group">
+            <a href="acompanhamento_winthor.php"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group <?php echo ($current_page === 'acompanhamento_winthor.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
                 <div class="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                     📊
                 </div>
                 <div class="flex-1">
-                    <h4 class="text-[11px] font-black uppercase tracking-wider text-slate-300 group-hover:text-white">Acompanhamento WinThor</h4>
-                    <p class="text-[8px] text-slate-500 font-bold uppercase">Monitoramento TOTVS</p>
+                    <h4 class="text-[11px] font-black uppercase tracking-wider <?php echo ($current_page === 'acompanhamento_winthor.php') ? 'text-white' : 'text-slate-300 group-hover:text-white'; ?>">Acompanhamento WinThor</h4>
+                    <p class="text-[8px] <?php echo ($current_page === 'acompanhamento_winthor.php') ? 'text-blue-100' : 'text-slate-500'; ?> font-bold uppercase">Monitoramento TOTVS</p>
+                </div>
+            </a>
+
+            <a href="acompanhamento_implantacao.php"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group <?php echo ($current_page === 'acompanhamento_implantacao.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                <div class="w-9 h-9 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-black shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    🗓️
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-[11px] font-black uppercase tracking-wider <?php echo ($current_page === 'acompanhamento_implantacao.php') ? 'text-white' : 'text-slate-300 group-hover:text-white'; ?>">Acompanhamento Implantação</h4>
+                    <p class="text-[8px] <?php echo ($current_page === 'acompanhamento_implantacao.php') ? 'text-blue-100' : 'text-slate-500'; ?> font-bold uppercase">Cronograma ERP / WMS</p>
                 </div>
             </a>
             <?php endif; ?>
