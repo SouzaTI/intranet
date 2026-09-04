@@ -1,0 +1,15 @@
+<?php
+$e = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+$titulo = $dados['titulo'] ?? 'Documento assinado';
+$assinante = $dados['assinante'] ?? 'Assinante';
+$setor = $dados['setor'] ?? 'Não informado';
+$assinadoEm = $dados['assinado_em'] ?? 'Data não informada';
+$progresso = $dados['progresso'] ?? 'Assinatura registrada';
+$url = $dados['url_acao'] ?? '#';
+$bannerCid = $dados['banner_cid'] ?? null;
+?>
+<div style="margin:0;background:#f1f5f9;padding:28px 12px;font-family:Arial,sans-serif;color:#0f172a"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="680" style="width:100%;max-width:680px;background:#fff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden" cellspacing="0" cellpadding="0">
+<?php if ($bannerCid): ?><tr><td><img src="cid:<?= $e($bannerCid) ?>" alt="Documento assinado" width="680" style="display:block;width:100%;height:auto;border:0"></td></tr><?php else: ?><tr><td style="background:#0f172a;padding:27px 30px;color:#fff"><div style="font-size:11px;letter-spacing:2px;color:#6ee7b7;font-weight:bold">PORTAL INTERNO DE ASSINATURAS</div><div style="font-size:22px;font-weight:bold;margin-top:10px">Assinatura registrada com sucesso</div></td></tr><?php endif; ?>
+<tr><td style="padding:30px"><p style="font-size:15px;line-height:1.65;margin:0">A assinatura de <strong><?= $e($assinante) ?></strong> foi registrada no envelope <strong><?= $e($titulo) ?></strong>.</p><div style="margin:22px 0;padding:17px;border:1px solid #a7f3d0;border-radius:12px;background:#ecfdf5"><strong style="color:#047857">Etapa concluída</strong><p style="margin:7px 0 0;color:#475569;font-size:13px;line-height:1.5">O registro foi incorporado aos documentos e o fluxo avançou conforme a configuração definida.</p></div>
+<table role="presentation" width="100%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;font-size:13px" cellspacing="0" cellpadding="0"><tr><td style="padding:18px"><p style="margin:0 0 9px;color:#64748b">Assinante: <strong style="color:#0f172a"><?= $e($assinante) ?></strong></p><p style="margin:0 0 9px;color:#64748b">Setor: <strong style="color:#0f172a"><?= $e($setor) ?></strong></p><p style="margin:0 0 9px;color:#64748b">Registrado em: <strong style="color:#0f172a"><?= $e($assinadoEm) ?></strong></p><p style="margin:0;color:#64748b">Andamento: <strong style="color:#047857"><?= $e($progresso) ?></strong></p></td></tr></table>
+<div style="text-align:center;margin:24px 0"><a href="<?= $e($url) ?>" style="display:inline-block;background:#059669;color:#fff;text-decoration:none;font-size:12px;font-weight:bold;padding:15px 24px;border-radius:10px">ACOMPANHAR ENVELOPE</a></div><div style="padding:15px;border-left:4px solid #059669;background:#ecfdf5;color:#065f46;font-size:12px;line-height:1.5">Esta confirmação representa uma etapa. O resultado final será enviado após a conclusão de todas as assinaturas.</div><p style="margin:25px 0 0;color:#94a3b8;font-size:11px;text-align:center">Mensagem automática da Intranet Souza.</p></td></tr></table></td></tr></table></div>

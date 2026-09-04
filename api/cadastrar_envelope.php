@@ -1,158 +1,144 @@
 <?php
-// api/cadastrar_envelope.php
+declare(strict_types=1);
 
-require_once '../config.php';
+require_once dirname(__DIR__) . '/config.php';
+require_once dirname(__DIR__) . '/services/EmailAssinaturaService.php';
+header('Content-Type: application/json; charset=utf-8');
 
-// ── Guarda de sessão ──────────────────────────────────────────────────────
-if (!isset($_SESSION['user_id']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(403);
+function responder(bool $ok, string $msg, int $http = 200, array $extra = []): never
+{
+    http_response_code($http);
+    echo json_encode(['ok' => $ok, 'msg' => $msg] + $extra, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// ── Constantes ────────────────────────────────────────────────────────────
-const UPLOAD_DIR  = __DIR__ . '/../uploads/assinaturas/';
-const MAX_SIZE    = 10_485_760; // 10 MB
-const PIN_PADRAO  = '1234';
-const REDIRECT_OK = '../minhas_assinaturas.php?sucesso=1';
-const REDIRECT_ER = '../criar_envelope.php?erro=';
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-function redirecionar(string $url): never {
-    header('Location: ' . $url);
-    exit;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_SESSION['user_id'])) {
+    responder(false, 'Acesso negado.', 403);
 }
 
-function abortar(string $motivo, ?string $arquivoParaRemover = null): never {
-    if ($arquivoParaRemover && file_exists($arquivoParaRemover)) {
-        unlink($arquivoParaRemover);
+$titulo = trim((string) ($_POST['titulo'] ?? ''));
+$tipo = (string) ($_POST['tipo_fluxo'] ?? 'sequencial');
+$criador = (int) $_SESSION['user_id'];
+$emails = trim((string) ($_POST['emails_finalizacao'] ?? ''));
+$assinantes = array_values(array_filter(array_map('intval', (array) ($_POST['assinantes'] ?? []))));
+$ordensInformadas = array_map('intval', (array) ($_POST['ordem'] ?? []));
+
+if ($titulo === '' || mb_strlen($titulo) > 255) responder(false, 'Informe um título válido.', 422);
+if (!in_array($tipo, ['sequencial', 'paralelo'], true)) responder(false, 'Tipo de fluxo inválido.', 422);
+if (!$assinantes) responder(false, 'Adicione pelo menos um assinante.', 422);
+if (count($assinantes) !== count(array_unique($assinantes))) responder(false, 'O mesmo usuário não pode aparecer duas vezes.', 422);
+
+$ordens = [];
+foreach ($assinantes as $i => $uid) {
+    $ordens[] = $tipo === 'sequencial' ? ($ordensInformadas[$i] ?? $i + 1) : 1;
+}
+if ($tipo === 'sequencial') {
+    sort($ordens);
+    if ($ordens !== range(1, count($assinantes))) responder(false, 'A ordem deve ser sequencial, sem repetições.', 422);
+}
+
+$listaEmails = [];
+foreach (preg_split('/[,;\r\n]+/', $emails, -1, PREG_SPLIT_NO_EMPTY) as $email) {
+    $email = trim($email);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) responder(false, "E-mail inválido: {$email}", 422);
+    $listaEmails[strtolower($email)] = $email;
+}
+$emailsNormalizados = implode(',', array_values($listaEmails));
+
+$files = $_FILES['pdfs'] ?? $_FILES['pdf'] ?? null;
+if (!$files) responder(false, 'Adicione pelo menos um PDF.', 422);
+if (!is_array($files['name'])) {
+    foreach (['name', 'type', 'tmp_name', 'error', 'size'] as $campo) $files[$campo] = [$files[$campo]];
+}
+if (count($files['name']) > 20) responder(false, 'Limite de 20 PDFs por envelope.', 422);
+
+$uploadBase = dirname(__DIR__) . '/uploads/assinaturas';
+if (!is_dir($uploadBase) && !mkdir($uploadBase, 0750, true)) responder(false, 'Não foi possível preparar o armazenamento.', 500);
+
+$finfo = new finfo(FILEINFO_MIME_TYPE);
+$preparados = [];
+foreach ($files['name'] as $i => $nome) {
+    $erro = (int) ($files['error'][$i] ?? UPLOAD_ERR_NO_FILE);
+    $tmp = (string) ($files['tmp_name'][$i] ?? '');
+    $tamanho = (int) ($files['size'][$i] ?? 0);
+    if ($erro !== UPLOAD_ERR_OK || !is_uploaded_file($tmp)) responder(false, "Falha no upload de {$nome}.", 422);
+    if ($tamanho <= 0 || $tamanho > 25 * 1024 * 1024) responder(false, "{$nome}: limite de 25 MB por arquivo.", 422);
+    if ($finfo->file($tmp) !== 'application/pdf' || file_get_contents($tmp, false, null, 0, 5) !== '%PDF-') {
+        responder(false, "{$nome} não é um PDF válido.", 422);
     }
-    redirecionar(REDIRECT_ER . urlencode($motivo));
+    $preparados[] = ['tmp' => $tmp, 'nome' => basename((string) $nome)];
 }
 
-// ── 1. Validação dos campos de texto ─────────────────────────────────────
-$titulo     = trim($_POST['titulo']     ?? '');
-$tipo_fluxo = trim($_POST['tipo_fluxo'] ?? '');
-$assinantes = array_map('intval', (array) ($_POST['assinantes'] ?? []));
-$ordens     = array_map('intval', (array) ($_POST['ordem']      ?? []));
-
-if ($titulo === '')                                        abortar('Título obrigatório.');
-if (mb_strlen($titulo) > 255)                             abortar('Título excede 255 caracteres.');
-if (!in_array($tipo_fluxo, ['paralelo','sequencial'], true)) abortar('Tipo de fluxo inválido.');
-
-$assinantes = array_filter($assinantes); // remove zeros
-if (empty($assinantes))                                   abortar('Informe ao menos um assinante.');
-if (count($assinantes) !== count(array_unique($assinantes))) abortar('Assinantes duplicados.');
-if ($tipo_fluxo === 'sequencial' && count($ordens) !== count($assinantes))
-                                                          abortar('Ordem deve ser definida para todos os assinantes.');
-
-// ── 2. Validação do arquivo ───────────────────────────────────────────────
-$arquivo = $_FILES['pdf'] ?? null;
-
-if (!$arquivo || ($arquivo['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-    $erros = [
-        UPLOAD_ERR_INI_SIZE   => 'Arquivo excede o limite do servidor.',
-        UPLOAD_ERR_FORM_SIZE  => 'Arquivo excede o limite do formulário.',
-        UPLOAD_ERR_PARTIAL    => 'Upload incompleto. Tente novamente.',
-        UPLOAD_ERR_NO_FILE    => 'Nenhum arquivo enviado.',
-        UPLOAD_ERR_NO_TMP_DIR => 'Diretório temporário ausente.',
-        UPLOAD_ERR_CANT_WRITE => 'Falha ao gravar arquivo temporário.',
-        UPLOAD_ERR_EXTENSION  => 'Upload bloqueado por extensão do servidor.',
-    ];
-    abortar($erros[$arquivo['error'] ?? UPLOAD_ERR_NO_FILE] ?? 'Erro desconhecido no upload.');
-}
-
-if ($arquivo['size'] > MAX_SIZE) {
-    abortar('O arquivo excede o limite de 10 MB.');
-}
-
-// MIME real — não confia em $_FILES['type']
-$finfo     = new finfo(FILEINFO_MIME_TYPE);
-$mime_real = $finfo->file($arquivo['tmp_name']);
-if ($mime_real !== 'application/pdf') {
-    abortar('Apenas arquivos PDF são aceitos.');
-}
-
-// Hash do conteúdo original (antes de mover)
-$arquivo_hash = hash_file('sha256', $arquivo['tmp_name']);
-
-// ── 3. Prepara diretório e move o arquivo ────────────────────────────────
-if (!is_dir(UPLOAD_DIR)) {
-    mkdir(UPLOAD_DIR, 0750, true);
-    file_put_contents(UPLOAD_DIR . '.htaccess', "Deny from all\n");
-}
-
-$uuid = sprintf('%s-%s-%s-%s-%s',
-    bin2hex(random_bytes(4)), bin2hex(random_bytes(2)),
-    bin2hex(random_bytes(2)), bin2hex(random_bytes(2)),
-    bin2hex(random_bytes(6))
-);
-$nome_disco    = $uuid . '.pdf';
-$destino_disco = UPLOAD_DIR . $nome_disco;
-$path_relativo = 'uploads/assinaturas/' . $nome_disco;
-
-if (!move_uploaded_file($arquivo['tmp_name'], $destino_disco)) {
-    abortar('Falha ao mover o arquivo para o diretório seguro.');
-}
-
-// ── 4–7. Transação atômica ────────────────────────────────────────────────
+$movidos = [];
 $pdo_intra->beginTransaction();
 try {
-    // ── 5. Insere o envelope ─────────────────────────────────────────────
-    $stmt_env = $pdo_intra->prepare("
-        INSERT INTO sistemas_assinaturas
-            (titulo, arquivo_path, arquivo_hash, tipo_fluxo, criado_por, status)
-        VALUES
-            (:titulo, :path, :hash, :tipo_fluxo, :criado_por, 'aguardando')
-    ");
-    $stmt_env->execute([
-        ':titulo'      => $titulo,
-        ':path'        => $path_relativo,
-        ':hash'        => $arquivo_hash,
-        ':tipo_fluxo'  => $tipo_fluxo,
-        ':criado_por'  => (int) $_SESSION['user_id'],
-    ]);
-    $envelope_id = (int) $pdo_intra->lastInsertId();
+    $stmtEnv = $pdo_intra->prepare("INSERT INTO sistemas_assinaturas
+        (titulo, arquivo_path, arquivo_hash, tipo_fluxo, criado_por, emails_finalizacao, status)
+        VALUES (?, '', ?, ?, ?, ?, 'em_andamento')");
+    $hashEnvelope = hash('sha256', $titulo . microtime(true) . random_bytes(16));
+    $stmtEnv->execute([$titulo, $hashEnvelope, $tipo, $criador, $emailsNormalizados ?: null]);
+    $envelopeId = (int) $pdo_intra->lastInsertId();
 
-    // ── 6. Insere assinantes ─────────────────────────────────────────────
-    $stmt_flu = $pdo_intra->prepare("
-        INSERT INTO assinaturas_fluxo
-            (fk_assinatura, glpi_user_id, ordem, pin_hash, pin_salt, status)
-        VALUES
-            (:fk, :uid, :ordem, :pin_hash, :salt, 'pendente')
-    ");
+    $dirEnvelope = $uploadBase . '/' . $envelopeId;
+    if (!mkdir($dirEnvelope, 0750, true) && !is_dir($dirEnvelope)) throw new RuntimeException('Falha ao criar diretório do envelope.');
 
-    $assinantes = array_values($assinantes); // reindexação após array_filter
-    foreach ($assinantes as $idx => $glpi_user_id) {
-        $salt     = bin2hex(random_bytes(16));
-        $pin_hash = hash('sha256', PIN_PADRAO . $salt);
-
-        // Paralelo → ordem fixa 1; Sequencial → usa o valor enviado
-        $ordem = ($tipo_fluxo === 'sequencial')
-            ? max(1, (int) ($ordens[$idx] ?? ($idx + 1)))
-            : 1;
-
-        $stmt_flu->execute([
-            ':fk'       => $envelope_id,
-            ':uid'      => $glpi_user_id,
-            ':ordem'    => $ordem,
-            ':pin_hash' => $pin_hash,
-            ':salt'     => $salt,
-        ]);
+    $stmtDoc = $pdo_intra->prepare("INSERT INTO assinatura_documentos
+        (envelope_id, nome_original, arquivo_original_path, arquivo_atual_path, hash_original, hash_atual, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'em_assinatura')");
+    $primeiroPath = '';
+    $hashes = [];
+    foreach ($preparados as $i => $arquivo) {
+        $nomeDisco = sprintf('%02d_%s.pdf', $i + 1, bin2hex(random_bytes(12)));
+        $destino = $dirEnvelope . '/' . $nomeDisco;
+        if (!move_uploaded_file($arquivo['tmp'], $destino)) throw new RuntimeException('Falha ao armazenar ' . $arquivo['nome']);
+        $movidos[] = $destino;
+        $relativo = 'uploads/assinaturas/' . $envelopeId . '/' . $nomeDisco;
+        $hash = hash_file('sha256', $destino);
+        $hashes[] = $hash;
+        if ($primeiroPath === '') $primeiroPath = $relativo;
+        $stmtDoc->execute([$envelopeId, $arquivo['nome'], $relativo, $relativo, $hash, $hash]);
     }
+
+    $hashEnvelope = hash('sha256', implode('|', $hashes));
+    $pdo_intra->prepare('UPDATE sistemas_assinaturas SET arquivo_path = ?, arquivo_hash = ? WHERE id = ?')
+        ->execute([$primeiroPath, $hashEnvelope, $envelopeId]);
+
+    $stmtFluxo = $pdo_intra->prepare("INSERT INTO assinaturas_fluxo
+        (fk_assinatura, glpi_user_id, ordem, status) VALUES (?, ?, ?, ?)");
+    foreach ($assinantes as $i => $uid) {
+        $ordem = $tipo === 'sequencial' ? ($ordensInformadas[$i] ?? $i + 1) : 1;
+        $status = $tipo === 'paralelo' || $ordem === 1 ? 'pendente' : 'aguardando';
+        $stmtFluxo->execute([$envelopeId, $uid, $ordem, $status]);
+    }
+
+    $pdo_intra->prepare("INSERT INTO assinatura_eventos
+        (envelope_id, glpi_user_id, evento, descricao, ip_origem, user_agent)
+        VALUES (?, ?, 'CRIADO', ?, ?, ?)")
+        ->execute([$envelopeId, $criador, 'Envelope criado com ' . count($preparados) . ' documento(s).', $_SERVER['REMOTE_ADDR'] ?? null, $_SERVER['HTTP_USER_AGENT'] ?? null]);
 
     $pdo_intra->commit();
 
-    // ── Log e redirecionamento ────────────────────────────────────────────
-    registrarLog(
-        $pdo_intra,
-        'CRIAR ENVELOPE',
-        "Envelope #{$envelope_id} — \"{$titulo}\" criado com " . count($assinantes) . " assinante(s). Fluxo: {$tipo_fluxo}."
-    );
+    $falhasEmail = 0;
+    $stmtAtivos = $pdo_intra->prepare("SELECT glpi_user_id FROM assinaturas_fluxo WHERE fk_assinatura = ? AND status = 'pendente'");
+    $stmtAtivos->execute([$envelopeId]);
+    $emailService = new EmailAssinaturaService();
+    foreach ($stmtAtivos->fetchAll(PDO::FETCH_COLUMN) as $usuarioPendente) {
+        try {
+            $emailService->enviarNovoPendente($pdo_intra, $pdo_glpi, $envelopeId, (int)$usuarioPendente);
+        } catch (Throwable $emailErro) {
+            $falhasEmail++;
+            error_log('Assinaturas/novo-pendente: ' . $emailErro->getMessage());
+            $pdo_intra->prepare("INSERT INTO assinatura_eventos (envelope_id, glpi_user_id, evento, descricao, ip_origem)
+                VALUES (?, ?, 'ERRO', ?, ?)")->execute([$envelopeId, (int)$usuarioPendente, 'E-mail NOVO_PENDENTE falhou: ' . mb_substr($emailErro->getMessage(), 0, 400), $_SERVER['REMOTE_ADDR'] ?? null]);
+        }
+    }
 
-    redirecionar(REDIRECT_OK);
-
+    responder(true, $falhasEmail ? 'Envelope criado. Uma ou mais notificações por e-mail falharam.' : 'Envelope criado e assinantes notificados.', 201, [
+        'envelope_id' => $envelopeId, 'falhas_email' => $falhasEmail,
+    ]);
 } catch (Throwable $e) {
-    $pdo_intra->rollBack();
-    // Remove o PDF do disco para não deixar órfão
-    abortar('Falha interna ao salvar. Tente novamente.', $destino_disco);
+    if ($pdo_intra->inTransaction()) $pdo_intra->rollBack();
+    foreach ($movidos as $arquivo) if (is_file($arquivo)) @unlink($arquivo);
+    error_log('Assinaturas/cadastrar: ' . $e->getMessage());
+    responder(false, 'Não foi possível criar o envelope.', 500);
 }

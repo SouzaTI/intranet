@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once __DIR__ . '/services/EmailAssinaturaService.php';
 
 $user_id = $_SESSION['user_id'] ?? 0;
 $envelope_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -15,21 +16,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
               ->execute([$envelope_id, $user_id]);
     
     // 2. Trava quem ainda não assinou
-    $pdo_intra->prepare("UPDATE assinaturas_fluxo SET status = 'recusado' WHERE fk_assinatura = ? AND status = 'pendente'")
+    $pdo_intra->prepare("UPDATE assinaturas_fluxo SET status = 'recusado', justificativa_recusa = 'Cancelado pelo criador' WHERE fk_assinatura = ? AND status IN ('pendente','aguardando')")
               ->execute([$envelope_id]);
               
-    registrarLog($pdo_intra, 'CANCELOU ENVELOPE', "Cancelou o envelope ID: $envelope_id", $user_id, $_SERVER['REMOTE_ADDR']);
+    registrarLog($pdo_intra, 'CANCELOU ENVELOPE', "Cancelou o envelope ID: $envelope_id");
     header("Location: detalhe_envelope.php?id=$envelope_id&sucesso=cancelado");
     exit;
 }
 
 // ── Busca os dados do Envelope ──────────────────────────────────────────────
-$stmt = $pdo_intra->prepare("SELECT * FROM sistemas_assinaturas WHERE id = ? AND criado_por = ?");
-$stmt->execute([$envelope_id, $user_id]);
+$stmt = $pdo_intra->prepare("SELECT sa.*,
+    EXISTS(SELECT 1 FROM assinaturas_fluxo af WHERE af.fk_assinatura = sa.id AND af.glpi_user_id = ?) AS participa
+    FROM sistemas_assinaturas sa WHERE sa.id = ?");
+$stmt->execute([$user_id, $envelope_id]);
 $envelope = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$envelope) {
+if (!$envelope || ((int)$envelope['criado_por'] !== (int)$user_id && !$envelope['participa'] && empty($_SESSION['is_admin']))) {
     die("<main class='flex-1 p-10'><div class='bg-red-50 text-red-600 p-6 rounded-2xl font-bold'>Acesso negado ou envelope não encontrado.</div></main>");
+}
+
+$pode_gerenciar = (int)$envelope['criado_por'] === (int)$user_id || !empty($_SESSION['is_admin']);
+$mensagem_email = null;
+$erro_email_tela = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'reenviar_email') {
+    if (!$pode_gerenciar || $envelope['status'] !== 'concluido') {
+        $erro_email_tela = 'Você não possui permissão para enviar este documento.';
+    } else {
+        try {
+            (new EmailAssinaturaService())->enviarEnvelope($pdo_intra, $pdo_glpi, (int)$envelope_id, true);
+            $mensagem_email = 'Documento enviado ao criador, participantes e e-mails adicionais.';
+            $stmt->execute([$user_id, $envelope_id]);
+            $envelope = $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $erro_email_tela = $e->getMessage();
+            $pdo_intra->prepare('UPDATE sistemas_assinaturas SET erro_email = ? WHERE id = ?')
+                ->execute([$e->getMessage(), $envelope_id]);
+            error_log('Assinaturas/reenvio-email: ' . $e->getMessage());
+        }
+    }
 }
 
 
@@ -46,6 +71,10 @@ $stmt_fluxo = $pdo_intra->prepare("
 ");
 $stmt_fluxo->execute([$envelope_id]);
 $assinantes = $stmt_fluxo->fetchAll(PDO::FETCH_ASSOC);
+
+$stmt_docs = $pdo_intra->prepare("SELECT * FROM assinatura_documentos WHERE envelope_id = ? ORDER BY id");
+$stmt_docs->execute([$envelope_id]);
+$documentos = $stmt_docs->fetchAll(PDO::FETCH_ASSOC);
 
 // Configuração visual do Status Principal
 $status_cfg = match($envelope['status']) {
@@ -65,6 +94,17 @@ $status_cfg = match($envelope['status']) {
         <?php if(isset($_GET['sucesso'])): ?>
             <div class="bg-emerald-50 text-emerald-600 p-4 rounded-2xl font-bold text-sm border border-emerald-100 animate-pulse">
                 Ação realizada com sucesso!
+            </div>
+        <?php endif; ?>
+
+        <?php if ($mensagem_email): ?>
+            <div class="bg-emerald-50 text-emerald-700 p-4 rounded-2xl font-bold text-sm border border-emerald-200">
+                <?= htmlspecialchars($mensagem_email) ?>
+            </div>
+        <?php elseif ($erro_email_tela): ?>
+            <div class="bg-rose-50 text-rose-700 p-4 rounded-2xl text-sm border border-rose-200">
+                <p class="font-black">O envelope está concluído, mas o e-mail não foi enviado.</p>
+                <p class="mt-1 break-words"><?= htmlspecialchars($erro_email_tela) ?></p>
             </div>
         <?php endif; ?>
 
@@ -88,11 +128,20 @@ $status_cfg = match($envelope['status']) {
                 </div>
                 
                 <div class="flex flex-col gap-2 shrink-0">
-                    <button onclick="abrirPDF('<?= $envelope['arquivo_path'] ?>')" class="bg-blue-50 hover:bg-corporate-blue text-corporate-blue hover:text-white px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2">
-                        <span>👁️</span> Ver Documento Original
-                    </button>
-                    
-                    <?php if ($envelope['status'] === 'aguardando' || $envelope['status'] === 'em_andamento'): ?>
+                    <?php if ($pode_gerenciar && $envelope['status'] === 'concluido'): ?>
+                        <form method="POST" onsubmit="return confirm('Enviar novamente para todos os participantes, criador e e-mails adicionais?');">
+                            <input type="hidden" name="acao" value="reenviar_email">
+                            <button type="submit" class="w-full bg-navy-900 hover:bg-corporate-blue text-white px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-sm">
+                                ✉ Enviar documentos por e-mail
+                            </button>
+                        </form>
+                        <?php if (!empty($envelope['email_enviado_em'])): ?>
+                            <p class="text-[10px] text-emerald-600 font-bold text-center">Último envio: <?= date('d/m/Y H:i', strtotime($envelope['email_enviado_em'])) ?></p>
+                        <?php elseif (!empty($envelope['erro_email'])): ?>
+                            <p class="text-[10px] text-rose-600 font-bold max-w-xs break-words">Falha anterior: <?= htmlspecialchars($envelope['erro_email']) ?></p>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                    <?php if ((int)$envelope['criado_por'] === (int)$user_id && ($envelope['status'] === 'aguardando' || $envelope['status'] === 'em_andamento')): ?>
                         <form method="POST" onsubmit="return confirm('ATENÇÃO: Deseja realmente cancelar este envelope? Todas as assinaturas pendentes serão invalidadas e não será possível reverter.');">
                             <input type="hidden" name="acao" value="cancelar">
                             <button type="submit" class="w-full bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-400 hover:text-rose-500 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-sm">
@@ -101,6 +150,32 @@ $status_cfg = match($envelope['status']) {
                         </form>
                     <?php endif; ?>
                 </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-[2rem] border border-slate-200 p-5 md:p-8 shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between gap-4 mb-5">
+                <h2 class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Documentos do envelope</h2>
+                <span class="shrink-0 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
+                    <?= count($documentos) ?> arquivo<?= count($documentos) === 1 ? '' : 's' ?>
+                </span>
+            </div>
+            <div class="max-h-[28rem] overflow-y-auto overscroll-contain space-y-3 pr-1 md:pr-2">
+                <?php foreach ($documentos as $indice => $doc): ?>
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[9px] uppercase font-black tracking-widest text-slate-400 mb-1">Documento <?= $indice + 1 ?> de <?= count($documentos) ?></p>
+                            <p class="font-bold text-navy-900 text-sm break-words"><?= htmlspecialchars($doc['nome_original']) ?></p>
+                            <p class="text-[10px] uppercase font-black tracking-widest text-slate-400"><?= htmlspecialchars($doc['status']) ?></p>
+                        </div>
+                        <div class="flex flex-wrap sm:flex-nowrap gap-2 shrink-0">
+                            <button type="button" onclick='abrirPDF(<?= (int)$doc['id'] ?>, <?= json_encode($doc['nome_original'], JSON_HEX_APOS|JSON_HEX_QUOT) ?>)' class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-blue-50 text-blue-600 font-black text-[10px] uppercase whitespace-nowrap">Visualizar</button>
+                            <?php if ($envelope['status'] === 'concluido'): ?>
+                                <a href="serve_documento.php?assinatura_doc_id=<?= (int)$doc['id'] ?>&modo=baixar" class="flex-1 sm:flex-none text-center px-4 py-2.5 rounded-xl bg-navy-900 text-white font-black text-[10px] uppercase whitespace-nowrap">Baixar</a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
             </div>
         </div>
 
@@ -156,10 +231,13 @@ $status_cfg = match($envelope['status']) {
     </div>
 </main>
 
-<div id="modalPDF" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-4xl h-[85vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 class="font-black text-navy-900 text-sm">Visualização do Documento</h3>
+<div id="modalPDF" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-2 md:p-4">
+    <div class="bg-white w-full max-w-6xl h-[92vh] md:h-[88vh] rounded-2xl md:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center gap-4 bg-slate-50 shrink-0">
+            <div class="min-w-0">
+                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Visualização do documento</p>
+                <h3 id="modalPDFTitulo" class="font-black text-navy-900 text-sm truncate">Documento</h3>
+            </div>
             <button onclick="fecharPDF()" class="text-slate-400 hover:text-rose-500 text-2xl font-black">&times;</button>
         </div>
         <iframe id="iframeEnvelope" class="w-full h-full border-0 bg-slate-100"></iframe>
@@ -167,8 +245,9 @@ $status_cfg = match($envelope['status']) {
 </div>
 
 <script>
-function abrirPDF(path) {
-    document.getElementById('iframeEnvelope').src = 'api/serve_envelope.php?path=' + encodeURIComponent(path);
+function abrirPDF(documentoId, nomeDocumento) {
+    document.getElementById('modalPDFTitulo').textContent = nomeDocumento || 'Documento';
+    document.getElementById('iframeEnvelope').src = 'serve_documento.php?assinatura_doc_id=' + documentoId;
     document.getElementById('modalPDF').classList.remove('hidden');
 }
 function fecharPDF() {

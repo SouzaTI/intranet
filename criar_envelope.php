@@ -116,7 +116,7 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
 
         <!-- 3 · Dropzone PDF -->
         <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 space-y-3">
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documento PDF</p>
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documentos PDF</p>
 
             <div id="dropzone"
                  class="relative border-2 border-dashed border-slate-200 rounded-2xl
@@ -139,12 +139,12 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
                         </svg>
                     </div>
                     <div class="text-center">
-                        <p class="font-black text-navy-900 text-sm">Arraste o PDF aqui</p>
-                        <p class="text-slate-400 text-xs font-medium mt-0.5">ou clique para selecionar</p>
+                        <p class="font-black text-navy-900 text-sm">Arraste um ou vários PDFs aqui</p>
+                        <p class="text-slate-400 text-xs font-medium mt-0.5">ou clique para selecionar até 20 arquivos</p>
                     </div>
                     <span class="text-[10px] font-black uppercase tracking-widest text-slate-300 bg-slate-100
                                  px-3 py-1 rounded-full">
-                        Apenas PDF · Máx. 10 MB
+                        Apenas PDF · Máx. 25 MB por arquivo
                     </span>
                 </div>
 
@@ -176,8 +176,8 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
                 </div>
             </div>
 
-            <input type="file" id="inputPDF" name="pdf" accept="application/pdf"
-                   class="sr-only" onchange="selecionarArquivo(this.files[0])" />
+            <input type="file" id="inputPDF" name="pdfs[]" accept="application/pdf" multiple
+                   class="sr-only" onchange="selecionarArquivos(this.files)" />
             <p id="erroPDF" class="hidden text-rose-500 text-[11px] font-bold"></p>
         </div>
 
@@ -219,6 +219,16 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
             </div>
 
             <p id="erroAssinantes" class="hidden text-rose-500 text-[11px] font-bold"></p>
+        </div>
+
+        <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 space-y-2">
+            <label for="emails_finalizacao" class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block">
+                Enviar documentos concluídos para
+            </label>
+            <textarea id="emails_finalizacao" name="emails_finalizacao" rows="2"
+                      placeholder="email1@empresa.com; email2@empresa.com"
+                      class="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-navy-900 font-bold focus:border-corporate-blue focus:bg-white focus:outline-none transition-all"></textarea>
+            <p class="text-[11px] text-slate-400 font-medium">Separe vários e-mails por vírgula ou ponto e vírgula. Se ficar vazio, o resultado será enviado ao criador.</p>
         </div>
 
         <!-- ── Submit ──────────────────────────────────────────────────── -->
@@ -421,7 +431,7 @@ function atualizarBadges() {
 }
 
 // ── Dropzone ──────────────────────────────────────────────────────────────
-const MAX_MB = 10;
+const MAX_MB = 25;
 
 function dragOver(e) {
     e.preventDefault();
@@ -435,35 +445,39 @@ function dragLeave(e) {
 function dropArquivo(e) {
     e.preventDefault();
     dragLeave(e);
-    const arquivo = e.dataTransfer.files[0];
-    if (arquivo) selecionarArquivo(arquivo);
+    if (e.dataTransfer.files.length) selecionarArquivos(e.dataTransfer.files);
 }
 
-function selecionarArquivo(arquivo) {
+function selecionarArquivos(arquivosEntrada) {
     const erroEl = document.getElementById('erroPDF');
     erroEl.classList.add('hidden');
-
-    if (!arquivo) return;
-    if (arquivo.type !== 'application/pdf') {
-        mostrarErroCampo(erroEl, 'Apenas arquivos PDF são aceitos.');
+    const arquivos = [...arquivosEntrada];
+    if (!arquivos.length) return;
+    if (arquivos.length > 20) {
+        mostrarErroCampo(erroEl, 'Selecione no máximo 20 PDFs.');
         return;
     }
-    if (arquivo.size > MAX_MB * 1024 * 1024) {
-        mostrarErroCampo(erroEl, `O arquivo excede ${MAX_MB} MB.`);
+    if (arquivos.some(a => a.type !== 'application/pdf' && !a.name.toLowerCase().endsWith('.pdf'))) {
+        mostrarErroCampo(erroEl, 'Todos os arquivos precisam ser PDFs.');
         return;
     }
-
-    // Transfere para o input real (necessário para submit)
+    if (arquivos.some(a => a.size > MAX_MB * 1024 * 1024)) {
+        mostrarErroCampo(erroEl, `Cada arquivo pode ter no máximo ${MAX_MB} MB.`);
+        return;
+    }
     const dt = new DataTransfer();
-    dt.items.add(arquivo);
+    arquivos.forEach(arquivo => dt.items.add(arquivo));
     document.getElementById('inputPDF').files = dt.files;
 
     document.getElementById('dropzoneVazio').classList.add('hidden');
     const est = document.getElementById('dropzoneArquivo');
     est.classList.remove('hidden');
     est.classList.add('flex');
-    document.getElementById('nomeArquivo').textContent    = arquivo.name;
-    document.getElementById('tamanhoArquivo').textContent = formatarBytes(arquivo.size);
+    document.getElementById('nomeArquivo').textContent = arquivos.length === 1
+        ? arquivos[0].name
+        : `${arquivos.length} documentos selecionados`;
+    document.getElementById('tamanhoArquivo').textContent = arquivos
+        .map(a => `${a.name} (${formatarBytes(a.size)})`).join(' • ');
 }
 
 function removerArquivo(e) {
@@ -492,7 +506,7 @@ document.getElementById('formEnvelope').addEventListener('submit', function(e) {
     // PDF
     const erroPDF = document.getElementById('erroPDF');
     if (!document.getElementById('inputPDF').files.length) {
-        mostrarErroCampo(erroPDF, 'Selecione um arquivo PDF.');
+        mostrarErroCampo(erroPDF, 'Selecione pelo menos um arquivo PDF.');
         valido = false;
     } else { erroPDF.classList.add('hidden'); }
 
@@ -526,7 +540,19 @@ document.getElementById('formEnvelope').addEventListener('submit', function(e) {
     txt.textContent = 'Enviando…';
     spinner.classList.remove('hidden');
 
-    this.submit();
+    const dados = new FormData(this);
+    fetch(this.action, { method: 'POST', body: dados })
+        .then(async resposta => {
+            const data = await resposta.json().catch(() => ({ ok: false, msg: 'Resposta inválida do servidor.' }));
+            if (!resposta.ok || !data.ok) throw new Error(data.msg || 'Falha ao criar envelope.');
+            window.location.href = 'detalhe_envelope.php?id=' + data.envelope_id + '&sucesso=criado';
+        })
+        .catch(erro => {
+            mostrarErroCampo(document.getElementById('erroPDF'), erro.message);
+            btn.disabled = false;
+            txt.textContent = '🚀 Criar Envelope e Enviar';
+            spinner.classList.add('hidden');
+        });
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────

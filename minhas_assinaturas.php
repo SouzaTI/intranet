@@ -7,10 +7,11 @@ include 'includes/sidebar.php';
 $user_id = $_SESSION['user_id'] ?? 0;
 
 // ── ADICIONE APENAS ESTE TRECHO AQUI EMBAIXO ──────────────────────────
-$stmt_check_pin = $pdo_intra->prepare("SELECT assinatura_pin FROM usuarios_permissoes WHERE usuario_id = ?");
+$stmt_check_pin = $pdo_intra->prepare("SELECT assinatura_pin, is_admin FROM usuarios_permissoes WHERE usuario_id = ?");
 $stmt_check_pin->execute([$user_id]);
 $dados_permissoes = $stmt_check_pin->fetch(PDO::FETCH_ASSOC);
 $usuario_possui_pin = !empty($dados_permissoes['assinatura_pin']);
+$usuario_admin = !empty($_SESSION['is_admin']) || (int)($dados_permissoes['is_admin'] ?? 0) === 1;
 // ─────────────────────────────────────────────────────────────────────
 
 $stmt_pendentes = $pdo_intra->prepare("
@@ -77,6 +78,13 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
 <main class="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
 <div class="max-w-6xl mx-auto space-y-10">
 
+    <?php if (!$usuario_possui_pin): ?>
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div><p class="font-black text-amber-800">Configure seu PIN de assinatura</p><p class="text-xs text-amber-700">Você precisa de um PIN pessoal antes de assinar documentos.</p></div>
+            <a href="configurar_pin_assinatura.php" class="px-5 py-3 rounded-xl bg-amber-600 text-white font-black text-xs uppercase tracking-widest">Configurar PIN</a>
+        </div>
+    <?php endif; ?>
+
     <!-- ── Cabeçalho da página ───────────────────────────────────────────── -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
@@ -85,15 +93,63 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
                 Assinaturas Digitais
             </h1>
         </div>
+        <div class="flex flex-wrap items-center gap-2">
+        <?php if ($usuario_admin): ?>
+            <a href="configuracoes_assinaturas.php" class="px-4 py-3 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest shadow-sm">Configurar e-mails</a>
+        <?php endif; ?>
         <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-5 py-3 shadow-sm">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span class="text-[11px] font-black uppercase tracking-widest text-slate-500">
                 <?= count($pendentes) ?> aguardando sua assinatura
             </span>
         </div>
+        </div>
     </div>
 
     <!-- ── SEÇÃO 1 · Pendentes ───────────────────────────────────────────── -->
+    <?php if (!empty($pendentes)): ?>
+    <section class="mb-10">
+        <h2 class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-4 px-1">
+            Aguardando minha assinatura
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            <?php foreach ($pendentes as $env):
+                $total = (int) $env['total_assinantes'];
+                $assinados = (int) $env['ja_assinaram'];
+                $pct = $total > 0 ? (int) round(($assinados / $total) * 100) : 0;
+                $criador = trim($env['criador_nome'] . ' ' . $env['criador_sobrenome']);
+            ?>
+            <article class="bg-white rounded-[2rem] border-2 border-emerald-100 shadow-sm p-6 flex flex-col gap-4 hover:shadow-md transition-all">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <span class="inline-block text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 mb-3">Pendente para mim</span>
+                        <h3 class="font-black text-navy-900 text-base leading-snug"><?= htmlspecialchars($env['titulo']) ?></h3>
+                        <p class="text-[11px] text-slate-400 mt-2">Enviado por <?= htmlspecialchars($criador) ?></p>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">✍</div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                        <span>Progresso</span><span><?= $assinados ?>/<?= $total ?></span>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" style="width: <?= $pct ?>%"></div></div>
+                </div>
+                <button type="button"
+                        onclick='abrirModal(<?= (int)$env['envelope_id'] ?>, <?= json_encode($env['titulo'], JSON_HEX_APOS|JSON_HEX_QUOT) ?>, <?= json_encode($env['arquivo_path'], JSON_HEX_APOS|JSON_HEX_QUOT) ?>)'
+                        class="w-full py-3.5 rounded-xl bg-navy-900 hover:bg-corporate-blue text-white font-black text-xs uppercase tracking-widest transition-all">
+                    Visualizar e assinar
+                </button>
+            </article>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php else: ?>
+    <section class="mb-10 bg-white border border-slate-200 rounded-[2rem] p-8 text-center">
+        <p class="text-slate-400 font-bold text-sm">Nenhum documento aguardando sua assinatura.</p>
+    </section>
+    <?php endif; ?>
+
+    <!-- ── SEÇÃO 2 · Enviados ────────────────────────────────────────────── -->
     <?php if (!empty($enviados)): ?>
     <section class="mb-10">
         <h2 class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-4 px-1">
@@ -184,18 +240,11 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
                 <span class="text-[10px] text-slate-400 font-medium">
                     <?= date('d/m/Y \à\s H:i', strtotime($env['criado_em'])) ?>
                 </span>
-                <?php if (!$concluido && !$cancelado): ?>
                 <a href="detalhe_envelope.php?id=<?= $env['id'] ?>"
                 class="text-[10px] font-black uppercase tracking-widest text-corporate-blue
                         hover:text-navy-900 transition-colors">
                     Ver detalhes →
                 </a>
-                <?php else: ?>
-                <span class="text-[10px] font-black uppercase tracking-widest
-                             <?= $concluido ? 'text-emerald-500' : 'text-slate-300' ?>">
-                    <?= $concluido ? '✔ Lacrado' : '—' ?>
-                </span>
-                <?php endif; ?>
             </div>
         </div>
         <?php endforeach; ?>
@@ -216,6 +265,7 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
                         <th class="text-left px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400 hidden lg:table-cell">Lacre Digital</th>
                         <th class="text-left px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Status</th>
                         <th class="text-left px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400 hidden md:table-cell">Data</th>
+                        <th class="text-right px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Ação</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
@@ -250,6 +300,12 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
                         </td>
                         <td class="px-6 py-4 text-[11px] text-slate-400 font-bold hidden md:table-cell">
                             <?= $h['assinado_em'] ? date('d/m/Y H:i', strtotime($h['assinado_em'])) : '—' ?>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <a href="detalhe_envelope.php?id=<?= (int)$h['envelope_id'] ?>"
+                               class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-navy-900 hover:bg-corporate-blue text-white text-[9px] font-black uppercase tracking-widest transition-colors whitespace-nowrap">
+                                Ver documento
+                            </a>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -312,7 +368,7 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
                 <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
                     <span class="text-amber-500 text-lg shrink-0 mt-0.5">⚠️</span>
                     <p class="text-amber-800 text-[11px] font-bold leading-snug">
-                        Revise o documento ao lado antes de assinar. Sua assinatura é juridicamente vinculante e irrevogável.
+                        Revise os documentos do envelope antes de confirmar. A ação ficará registrada no histórico interno.
                     </p>
                 </div>
 
@@ -358,10 +414,13 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
                     </svg>
                 </button>
 
-                <!-- Botão recusar -->
+                <button onclick="recusarAssinatura()"
+                        class="w-full border border-rose-200 text-rose-500 hover:bg-rose-50 font-black text-xs uppercase tracking-widest transition-colors py-3 rounded-xl">
+                    Recusar documento
+                </button>
                 <button onclick="fecharModal()"
-                        class="w-full text-slate-400 hover:text-rose-500 font-black text-xs uppercase tracking-widest transition-colors py-2">
-                    Cancelar e Fechar
+                        class="w-full text-slate-400 hover:text-navy-900 font-black text-xs uppercase tracking-widest transition-colors py-2">
+                    Fechar
                 </button>
 
                 <!-- Rodapé de segurança -->
@@ -533,6 +592,32 @@ function confirmarAssinatura() {
             btn.disabled = false;
             txt.textContent = '✍ Confirmar Assinatura Digital';
             spinner.classList.add('hidden');
+        });
+}
+
+function recusarAssinatura() {
+    if (!_envelopeId) return;
+    const justificativa = prompt('Informe o motivo da recusa (mínimo de 5 caracteres):');
+    if (justificativa === null) return;
+    if (justificativa.trim().length < 5) {
+        document.getElementById('pinErro').textContent = 'Informe uma justificativa válida.';
+        document.getElementById('pinErro').classList.remove('hidden');
+        return;
+    }
+    const body = new FormData();
+    body.append('envelope_id', _envelopeId);
+    body.append('justificativa', justificativa.trim());
+    fetch('api/recusar_assinatura.php', { method: 'POST', body })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.ok) throw new Error(data.msg || 'Falha ao registrar recusa.');
+            mostrarToast('Documento recusado.', 'bg-rose-600');
+            fecharModal();
+            setTimeout(() => location.reload(), 1200);
+        })
+        .catch(erro => {
+            document.getElementById('pinErro').textContent = erro.message;
+            document.getElementById('pinErro').classList.remove('hidden');
         });
 }
 

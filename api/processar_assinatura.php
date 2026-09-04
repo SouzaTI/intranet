@@ -1,258 +1,196 @@
 <?php
-// api/processar_assinatura.php
+declare(strict_types=1);
 
-require_once '../config.php';
+require_once dirname(__DIR__) . '/config.php';
+require_once dirname(__DIR__) . '/services/CarimbadorService.php';
+require_once dirname(__DIR__) . '/services/EmailAssinaturaService.php';
 
-if (!isset($_SESSION['user_id']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(403);
-    exit(json_encode(['ok' => false, 'msg' => 'Acesso negado.']));
-}
+header('Content-Type: application/json; charset=utf-8');
 
-header('Content-Type: application/json');
-
-class ProcessadorAssinatura
+function resposta(bool $ok, string $msg, int $http = 200, array $extra = []): never
 {
-    private PDO $pdo;
-    private const MAX_TENTATIVAS = 3;
-
-    public function __construct(PDO $pdo)
-    {
-        $this->pdo = $pdo;
-    }
-
-    // -----------------------------------------------------------------
-    // Ponto de entrada
-    // -----------------------------------------------------------------
-    public function assinar(array $post): array
-    {
-        $envelope_id  = (int)   ($post['envelope_id'] ?? 0);
-        $pin_digitado =          trim($post['pin_digitado'] ?? '');
-        $user_id      = (int)   ($_SESSION['user_id'] ?? 0);
-
-        if ($envelope_id <= 0)                        return $this->erro('Envelope inválido.');
-        if (!preg_match('/^\d{4}$/', $pin_digitado))  return $this->erro('PIN deve ter exatamente 4 dígitos.');
-
-        $this->pdo->beginTransaction();
-        try {
-            // 1. Carrega o fluxo do usuário com lock para evitar race condition
-            $fluxo = $this->buscarFluxo($envelope_id, $user_id);
-            if (!$fluxo) {
-                $this->pdo->rollBack();
-                return $this->erro('Você não é um assinante deste envelope ou já assinou.');
-            }
-
-            // 2. Verifica bloqueio por tentativas
-            if ($this->estaBloqueado($fluxo)) {
-                $this->pdo->rollBack();
-                return $this->erro('PIN bloqueado temporariamente. Tente novamente em 15 minutos.');
-            }
-
-            // 3. Valida posição no fluxo sequencial
-            $envelope = $this->buscarEnvelope($envelope_id);
-            if ($envelope['tipo_fluxo'] === 'sequencial' && !$this->ehProximo($envelope_id, $user_id)) {
-                $this->pdo->rollBack();
-                return $this->erro('Aguarde: não é sua vez de assinar neste fluxo sequencial.');
-            }
-
-            // 4. Verifica PIN
-            $hash_bcrypt = $this->buscarPinBcrypt($user_id);
-            if (!$hash_bcrypt) {
-                $this->pdo->rollBack();
-                return $this->erro('PIN de assinatura não cadastrado. Acesse "Cadastrar PIN" antes de assinar.');
-            }
-
-            if (!password_verify($pin_digitado, $hash_bcrypt)) {
-                $this->registrarTentativaFalha($fluxo['id']);
-                $this->pdo->commit();
-                $restantes = self::MAX_TENTATIVAS - ((int)$fluxo['tentativas_pin'] + 1);
-                return $this->erro($restantes > 0
-                    ? "PIN incorreto. {$restantes} tentativa(s) restante(s)."
-                    : 'PIN bloqueado por excesso de tentativas.'
-                );
-            }
-
-            // 5. Gera o Lacre Digital e assina
-            $ip        = $this->capturarIP();
-            $timestamp = date('Y-m-d H:i:s');
-            $lacre     = hash('sha256', $envelope['arquivo_hash'] . $user_id . $ip . $timestamp);
-
-            $this->registrarAssinatura($fluxo['id'], $lacre, $ip, $timestamp);
-
-            // 6. Verifica se envelope está 100% concluído
-            if ($this->todosAssinaram($envelope_id)) {
-                $this->concluirEnvelope($envelope_id);
-            }
-
-            $this->pdo->commit();
-
-            registrarLog(
-                $this->pdo,
-                'ASSINATURA DIGITAL',
-                "Usuário assinou o envelope #{$envelope_id}. Lacre: {$lacre}"
-            );
-
-            return ['ok' => true, 'msg' => 'Documento assinado com sucesso.', 'lacre' => $lacre];
-
-        } catch (\Throwable $e) {
-            $this->pdo->rollBack();
-            return $this->erro('Falha interna. Tente novamente.');
-        }
-    }
-
-    // -----------------------------------------------------------------
-    // Busca o registro do fluxo do usuário com SELECT ... FOR UPDATE
-    // Garante que nenhuma outra requisição paralela processe o mesmo registro
-    // -----------------------------------------------------------------
-    private function buscarFluxo(int $envelope_id, int $user_id): array|false
-    {
-        $stmt = $this->pdo->prepare("
-            SELECT id, tentativas_pin, bloqueado_ate
-            FROM   assinaturas_fluxo
-            WHERE  fk_assinatura = :eid
-            AND  glpi_user_id  = :uid
-            AND  status        = 'pendente'
-            FOR UPDATE
-        ");
-        $stmt->execute([':eid' => $envelope_id, ':uid' => $user_id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    private function buscarPinBcrypt(int $user_id): string|false
-    {
-        $stmt = $this->pdo->prepare("
-            SELECT assinatura_pin
-            FROM   usuarios_permissoes
-            WHERE  usuario_id     = :uid
-            AND  assinatura_pin IS NOT NULL
-        ");
-        $stmt->execute([':uid' => $user_id]);
-        return $stmt->fetchColumn();
-    }
-
-    // -----------------------------------------------------------------
-    // Busca envelope — também com lock para o UPDATE de conclusão
-    // -----------------------------------------------------------------
-    private function buscarEnvelope(int $envelope_id): array
-    {
-        $stmt = $this->pdo->prepare("
-            SELECT tipo_fluxo, arquivo_hash, status
-            FROM   sistemas_assinaturas
-            WHERE  id = :eid
-            FOR UPDATE
-        ");
-        $stmt->execute([':eid' => $envelope_id]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$row) throw new \RuntimeException('Envelope não encontrado.');
-        if ($row['status'] === 'concluido') throw new \RuntimeException('Envelope já concluído.');
-        return $row;
-    }
-
-    // -----------------------------------------------------------------
-    // Consulta a VIEW: usuário é o próximo no fluxo sequencial?
-    // -----------------------------------------------------------------
-    private function ehProximo(int $envelope_id, int $user_id): bool
-    {
-        $stmt = $this->pdo->prepare("
-            SELECT COUNT(*) FROM v_proximo_assinante
-            WHERE  fk_assinatura = :eid
-              AND  glpi_user_id  = :uid
-        ");
-        $stmt->execute([':eid' => $envelope_id, ':uid' => $user_id]);
-        return (int) $stmt->fetchColumn() > 0;
-    }
-
-    // -----------------------------------------------------------------
-    private function estaBloqueado(array $fluxo): bool
-    {
-        return !empty($fluxo['bloqueado_ate'])
-            && new \DateTime() < new \DateTime($fluxo['bloqueado_ate']);
-    }
-
-    // -----------------------------------------------------------------
-    // Incrementa tentativa; bloqueia por 15 min ao atingir o limite
-    // -----------------------------------------------------------------
-    private function registrarTentativaFalha(int $fluxo_id): void
-    {
-        $this->pdo->prepare("
-            UPDATE assinaturas_fluxo
-            SET    tentativas_pin = tentativas_pin + 1,
-                   bloqueado_ate  = CASE
-                       WHEN tentativas_pin + 1 >= :max
-                       THEN DATE_ADD(NOW(), INTERVAL 15 MINUTE)
-                       ELSE bloqueado_ate
-                   END
-            WHERE  id = :id
-        ")->execute([':max' => self::MAX_TENTATIVAS, ':id' => $fluxo_id]);
-    }
-
-    // -----------------------------------------------------------------
-    // Grava assinatura e zera tentativas (PIN correto)
-    // -----------------------------------------------------------------
-    private function registrarAssinatura(int $fluxo_id, string $lacre, string $ip, string $timestamp): void
-    {
-        $this->pdo->prepare("
-            UPDATE assinaturas_fluxo
-            SET    status         = 'assinado',
-                   lacre_hash     = :lacre,
-                   ip_assinatura  = :ip,
-                   assinado_em    = :ts,
-                   tentativas_pin = 0,
-                   bloqueado_ate  = NULL
-            WHERE  id = :id
-        ")->execute([':lacre' => $lacre, ':ip' => $ip, ':ts' => $timestamp, ':id' => $fluxo_id]);
-    }
-
-    // -----------------------------------------------------------------
-    // Retorna true se não há mais nenhum 'pendente' no envelope
-    // -----------------------------------------------------------------
-    private function todosAssinaram(int $envelope_id): bool
-    {
-        $stmt = $this->pdo->prepare("
-            SELECT COUNT(*) FROM assinaturas_fluxo
-            WHERE  fk_assinatura = :eid AND status = 'pendente'
-        ");
-        $stmt->execute([':eid' => $envelope_id]);
-        return (int) $stmt->fetchColumn() === 0;
-    }
-
-    // -----------------------------------------------------------------
-    private function concluirEnvelope(int $envelope_id): void
-    {
-        $this->pdo->prepare("
-            UPDATE sistemas_assinaturas SET status = 'concluido'
-            WHERE  id = :eid
-        ")->execute([':eid' => $envelope_id]);
-    }
-
-    // -----------------------------------------------------------------
-    // Captura IP real respeitando proxies confiáveis
-    // ATENÇÃO: confie em X-Forwarded-For apenas se sua infra garantir
-    // que esse header não pode ser forjado pelo cliente
-    // -----------------------------------------------------------------
-    private function capturarIP(): string
-    {
-        $candidatos = [
-            $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '',   // proxy/load-balancer
-            $_SERVER['HTTP_X_REAL_IP']        ?? '',
-            $_SERVER['REMOTE_ADDR']           ?? '',
-        ];
-        foreach ($candidatos as $ip_raw) {
-            // X-Forwarded-For pode vir como "IP_cliente, IP_proxy" — pega o primeiro
-            $ip = trim(explode(',', $ip_raw)[0]);
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                return $ip;
-            }
-        }
-        // Fallback: aceita IP privado (ambiente interno de intranet)
-        return trim(explode(',', $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1')[0]);
-    }
-
-    private function erro(string $msg): array
-    {
-        return ['ok' => false, 'msg' => $msg];
-    }
+    http_response_code($http);
+    echo json_encode(['ok' => $ok, 'msg' => $msg] + $extra, JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
-// -----------------------------------------------------------------
-$processador = new ProcessadorAssinatura($pdo_intra);
-echo json_encode($processador->assinar($_POST));
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_SESSION['user_id'])) {
+    resposta(false, 'Acesso negado.', 403);
+}
+
+$envelopeId = (int) ($_POST['envelope_id'] ?? 0);
+$pin = trim((string) ($_POST['pin_digitado'] ?? ''));
+$usuarioId = (int) $_SESSION['user_id'];
+$ip = trim(explode(',', $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1')[0]);
+$userAgent = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
+
+if ($envelopeId <= 0) resposta(false, 'Envelope inválido.', 422);
+if (!preg_match('/^\d{4,6}$/', $pin)) resposta(false, 'Informe seu PIN de assinatura.', 422);
+
+$arquivosCriados = [];
+$concluido = false;
+$proximoUsuarioId = null;
+$pdo_intra->beginTransaction();
+
+try {
+    $stmtEnv = $pdo_intra->prepare("SELECT * FROM sistemas_assinaturas WHERE id = ? FOR UPDATE");
+    $stmtEnv->execute([$envelopeId]);
+    $envelope = $stmtEnv->fetch(PDO::FETCH_ASSOC);
+    if (!$envelope || in_array($envelope['status'], ['concluido', 'cancelado'], true)) {
+        throw new DomainException('Envelope indisponível para assinatura.');
+    }
+
+    $stmtFluxo = $pdo_intra->prepare("SELECT * FROM assinaturas_fluxo
+        WHERE fk_assinatura = ? AND glpi_user_id = ? AND status = 'pendente' FOR UPDATE");
+    $stmtFluxo->execute([$envelopeId, $usuarioId]);
+    $fluxo = $stmtFluxo->fetch(PDO::FETCH_ASSOC);
+    if (!$fluxo) throw new DomainException('O documento não está pendente para você neste momento.');
+
+    if (!empty($fluxo['bloqueado_ate']) && strtotime($fluxo['bloqueado_ate']) > time()) {
+        throw new DomainException('PIN temporariamente bloqueado. Aguarde 15 minutos.');
+    }
+
+    $stmtPin = $pdo_intra->prepare('SELECT assinatura_pin FROM usuarios_permissoes WHERE usuario_id = ?');
+    $stmtPin->execute([$usuarioId]);
+    $pinHash = $stmtPin->fetchColumn();
+    if (!$pinHash) throw new DomainException('Cadastre seu PIN antes de assinar.');
+
+    if (!password_verify($pin, (string) $pinHash)) {
+        $tentativas = (int) $fluxo['tentativas_pin'] + 1;
+        $bloqueio = $tentativas >= 3 ? date('Y-m-d H:i:s', time() + 900) : null;
+        $pdo_intra->prepare('UPDATE assinaturas_fluxo SET tentativas_pin = ?, bloqueado_ate = ? WHERE id = ?')
+            ->execute([$tentativas, $bloqueio, $fluxo['id']]);
+        $pdo_intra->commit();
+        resposta(false, $bloqueio ? 'PIN bloqueado por 15 minutos.' : 'PIN incorreto.', 422);
+    }
+
+    $stmtNome = $pdo_glpi->prepare("SELECT
+        TRIM(CONCAT(COALESCE(u.firstname,''), ' ', COALESCE(u.realname,''))) AS nome,
+        COALESCE(NULLIF(TRIM(l.name), ''), 'Não informado') AS setor,
+        COALESCE((
+            SELECT ue.email
+            FROM glpi_useremails ue
+            WHERE ue.users_id = u.id AND ue.email IS NOT NULL AND ue.email <> ''
+            ORDER BY ue.is_default DESC, ue.id ASC
+            LIMIT 1
+        ), 'Não informado') AS email
+        FROM glpi_users u
+        LEFT JOIN glpi_locations l ON l.id = u.locations_id
+        WHERE u.id = ?");
+    $stmtNome->execute([$usuarioId]);
+    $dadosAssinante = $stmtNome->fetch(PDO::FETCH_ASSOC) ?: [];
+    $nome = trim((string) ($dadosAssinante['nome'] ?? '')) ?: ('Usuário #' . $usuarioId);
+    $setor = trim((string) ($dadosAssinante['setor'] ?? '')) ?: 'Não informado';
+    $emailAssinante = trim((string) ($dadosAssinante['email'] ?? '')) ?: 'Não informado';
+
+    $stmtDocs = $pdo_intra->prepare('SELECT * FROM assinatura_documentos WHERE envelope_id = ? ORDER BY id FOR UPDATE');
+    $stmtDocs->execute([$envelopeId]);
+    $documentos = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+    if (!$documentos) throw new RuntimeException('Envelope sem documentos cadastrados.');
+
+    $carimbador = new CarimbadorService($_ENV['CARIMBADOR_URL'] ?? 'http://127.0.0.1:5000/api/carimbar');
+    $hashesAtuais = [];
+    foreach ($documentos as $documento) {
+        $entrada = dirname(__DIR__) . '/' . ltrim($documento['arquivo_atual_path'], '/\\');
+        if (!is_file($entrada)) throw new RuntimeException('Arquivo não encontrado: ' . $documento['nome_original']);
+        if (!hash_equals($documento['hash_atual'], hash_file('sha256', $entrada))) {
+            throw new RuntimeException('Integridade inválida: ' . $documento['nome_original']);
+        }
+
+        $dir = dirname($entrada);
+        $saida = $dir . '/' . pathinfo($entrada, PATHINFO_FILENAME)
+            . '_a' . (int) $fluxo['ordem'] . '_' . date('YmdHis') . '.pdf';
+        $carimbador->carimbar($entrada, $saida, $nome, $setor, $emailAssinante, (int) $fluxo['ordem'], $ip);
+        $arquivosCriados[] = $saida;
+        $relativo = str_replace('\\', '/', substr($saida, strlen(dirname(__DIR__)) + 1));
+        $novoHash = hash_file('sha256', $saida);
+        $hashesAtuais[] = $novoHash;
+
+        $pdo_intra->prepare("UPDATE assinatura_documentos
+            SET arquivo_atual_path = ?, hash_atual = ?, status = 'em_assinatura' WHERE id = ?")
+            ->execute([$relativo, $novoHash, $documento['id']]);
+        $pdo_intra->prepare("INSERT INTO assinatura_eventos
+            (envelope_id, documento_id, fluxo_id, glpi_user_id, evento, descricao, ip_origem, user_agent)
+            VALUES (?, ?, ?, ?, 'ASSINADO', ?, ?, ?)")
+            ->execute([$envelopeId, $documento['id'], $fluxo['id'], $usuarioId, 'Documento assinado por ' . $nome, $ip, $userAgent]);
+    }
+
+    $momento = date('Y-m-d H:i:s');
+    $lacre = hash('sha256', implode('|', $hashesAtuais) . '|' . $usuarioId . '|' . $momento);
+    $pdo_intra->prepare("UPDATE assinaturas_fluxo SET status = 'assinado', lacre_hash = ?,
+        ip_assinatura = ?, assinado_em = ?, tentativas_pin = 0, bloqueado_ate = NULL WHERE id = ?")
+        ->execute([$lacre, $ip, $momento, $fluxo['id']]);
+
+    if ($envelope['tipo_fluxo'] === 'sequencial') {
+        $stmtProx = $pdo_intra->prepare("SELECT id, glpi_user_id FROM assinaturas_fluxo
+            WHERE fk_assinatura = ? AND status = 'aguardando' ORDER BY ordem, id LIMIT 1 FOR UPDATE");
+        $stmtProx->execute([$envelopeId]);
+        $proximo = $stmtProx->fetch(PDO::FETCH_ASSOC);
+        if ($proximo) {
+            $proximoId = (int)$proximo['id'];
+            $proximoUsuarioId = (int)$proximo['glpi_user_id'];
+            $pdo_intra->prepare("UPDATE assinaturas_fluxo SET status = 'pendente' WHERE id = ?")
+                ->execute([$proximoId]);
+        }
+    }
+
+    $stmtRestantes = $pdo_intra->prepare("SELECT COUNT(*) FROM assinaturas_fluxo
+        WHERE fk_assinatura = ? AND status IN ('pendente','aguardando')");
+    $stmtRestantes->execute([$envelopeId]);
+    $concluido = (int) $stmtRestantes->fetchColumn() === 0;
+
+    if ($concluido) {
+        $pdo_intra->prepare("UPDATE sistemas_assinaturas SET status = 'concluido', concluido_em = NOW() WHERE id = ?")
+            ->execute([$envelopeId]);
+        $pdo_intra->prepare("UPDATE assinatura_documentos SET status = 'concluido' WHERE envelope_id = ?")
+            ->execute([$envelopeId]);
+        $pdo_intra->prepare("INSERT INTO assinatura_eventos
+            (envelope_id, glpi_user_id, evento, descricao, ip_origem, user_agent)
+            VALUES (?, ?, 'CONCLUIDO', 'Fluxo concluído.', ?, ?)")
+            ->execute([$envelopeId, $usuarioId, $ip, $userAgent]);
+    }
+
+    $pdo_intra->commit();
+} catch (DomainException $e) {
+    if ($pdo_intra->inTransaction()) $pdo_intra->rollBack();
+    foreach ($arquivosCriados as $arquivo) if (is_file($arquivo)) @unlink($arquivo);
+    resposta(false, $e->getMessage(), 422);
+} catch (Throwable $e) {
+    if ($pdo_intra->inTransaction()) $pdo_intra->rollBack();
+    foreach ($arquivosCriados as $arquivo) if (is_file($arquivo)) @unlink($arquivo);
+    error_log('Assinaturas/processar: ' . $e->getMessage());
+    resposta(false, 'Não foi possível concluir a assinatura.', 500);
+}
+
+$falhasEmail = [];
+$email = new EmailAssinaturaService();
+$notificacoes = [
+    ['codigo' => 'DOCUMENTO_ASSINADO', 'usuario' => $usuarioId,
+     'acao' => static fn() => $email->enviarDocumentoAssinado($pdo_intra, $pdo_glpi, $envelopeId, $usuarioId)],
+];
+if ($proximoUsuarioId) {
+    $notificacoes[] = ['codigo' => 'NOVO_PENDENTE', 'usuario' => $proximoUsuarioId,
+        'acao' => static fn() => $email->enviarNovoPendente($pdo_intra, $pdo_glpi, $envelopeId, $proximoUsuarioId)];
+}
+if ($concluido) {
+    $notificacoes[] = ['codigo' => 'FLUXO_CONCLUIDO', 'usuario' => $usuarioId,
+        'acao' => static fn() => $email->enviarEnvelope($pdo_intra, $pdo_glpi, $envelopeId)];
+}
+foreach ($notificacoes as $notificacao) {
+    try {
+        $notificacao['acao']();
+    } catch (Throwable $e) {
+        $falhasEmail[] = $notificacao['codigo'];
+        error_log('Assinaturas/email/' . $notificacao['codigo'] . ': ' . $e->getMessage());
+        $pdo_intra->prepare("INSERT INTO assinatura_eventos
+            (envelope_id, glpi_user_id, evento, descricao, ip_origem) VALUES (?, ?, 'ERRO', ?, ?)")
+            ->execute([$envelopeId, $notificacao['usuario'], 'E-mail ' . $notificacao['codigo'] . ' falhou: ' . mb_substr($e->getMessage(), 0, 400), $ip]);
+    }
+}
+$emailAviso = $falhasEmail ? 'Assinatura registrada, mas uma ou mais notificações por e-mail falharam.' : null;
+
+resposta(true, $emailAviso ?: ($concluido ? 'Assinatura registrada e fluxo concluído.' : 'Assinatura registrada. O fluxo avançou.'), 200, [
+    'concluido' => $concluido,
+    'email_ok' => !$falhasEmail,
+    'falhas_email' => $falhasEmail,
+]);

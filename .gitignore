@@ -32,3 +32,22 @@ uploads/
 # Ignora tudo dentro da pasta campanhas
 img/comunicacao/campanhas/
 img/
+
+# Dependências instaladas pelo Composer
+vendor/
+
+# Temporários e cache do Python
+python/__pycache__/
+*.pyc
+*.pyo
+*.log
+
+# PDFs utilizados e gerados pelos testes
+python/testes/*.pdf
+python/testes/RESULTADO_TESTE_*
+
+# Permitir somente os templates de e-mail
+!templates/
+templates/*
+!templates/emails/
+!templates/emails/**

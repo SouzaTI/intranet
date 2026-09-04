@@ -11,28 +11,61 @@ if (!isset($_SESSION['user_id'])) {
     die("Acesso negado: Usuário não autenticado.");
 }
 
-// ── Modo Assinaturas: serve PDF por path relativo ─────────────────────────
-if (isset($_GET['path'])) {
-    $path_raw     = $_GET['path'] ?? '';
-    // Sanitiza: remove traversal e permite apenas o diretório autorizado
-    $path_real    = realpath(__DIR__ . '/' . $path_raw);
-    $dir_permitido = realpath(__DIR__ . '/uploads/assinaturas/');
-
-    if (!$path_real || !$dir_permitido || strncmp($path_real, $dir_permitido, strlen($dir_permitido)) !== 0) {
-        http_response_code(403);
-        die("Acesso negado: caminho inválido.");
+// ── Modo Assinaturas: resolve o arquivo pelo banco e valida participação ──
+if (isset($_GET['assinatura_doc_id']) || isset($_GET['path'])) {
+    $usuarioId = (int) $_SESSION['user_id'];
+    $docId = filter_input(INPUT_GET, 'assinatura_doc_id', FILTER_VALIDATE_INT);
+    $pathInformado = (string) ($_GET['path'] ?? '');
+    if ($docId) {
+        $stmt = $pdo_intra->prepare("SELECT ad.*, sa.criado_por
+            FROM assinatura_documentos ad JOIN sistemas_assinaturas sa ON sa.id = ad.envelope_id
+            WHERE ad.id = ?");
+        $stmt->execute([$docId]);
+    } else {
+        $stmt = $pdo_intra->prepare("SELECT ad.*, sa.criado_por
+            FROM assinatura_documentos ad JOIN sistemas_assinaturas sa ON sa.id = ad.envelope_id
+            WHERE ad.arquivo_original_path = ? OR ad.arquivo_atual_path = ? LIMIT 1");
+        $stmt->execute([$pathInformado, $pathInformado]);
     }
-    if (!file_exists($path_real)) {
+    $assinaturaDoc = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$assinaturaDoc) {
         http_response_code(404);
-        die("Arquivo não encontrado.");
+        die('Documento de assinatura não encontrado.');
+    }
+    $stmtAcesso = $pdo_intra->prepare("SELECT COUNT(*) FROM assinaturas_fluxo
+        WHERE fk_assinatura = ? AND glpi_user_id = ?");
+    $stmtAcesso->execute([$assinaturaDoc['envelope_id'], $usuarioId]);
+    $podeAcessar = (int) $assinaturaDoc['criado_por'] === $usuarioId
+        || (int) $stmtAcesso->fetchColumn() > 0
+        || !empty($_SESSION['is_admin']);
+    if (!$podeAcessar) {
+        http_response_code(403);
+        die('Acesso negado ao documento.');
     }
 
+    $usarOriginal = ($_GET['versao'] ?? '') === 'original';
+    $pathRelativo = $usarOriginal ? $assinaturaDoc['arquivo_original_path'] : $assinaturaDoc['arquivo_atual_path'];
+    $pathReal = realpath(__DIR__ . '/' . ltrim($pathRelativo, '/\\'));
+    $dirPermitido = realpath(__DIR__ . '/uploads/assinaturas/');
+    if (!$pathReal || !$dirPermitido || ($pathReal !== $dirPermitido && $dirPermitido !== dirname($pathReal)
+        && strncmp($pathReal, $dirPermitido . DIRECTORY_SEPARATOR, strlen($dirPermitido) + 1) !== 0)) {
+        http_response_code(403);
+        die('Caminho de documento inválido.');
+    }
+    if (!is_file($pathReal)) {
+        http_response_code(404);
+        die('Arquivo não encontrado.');
+    }
+
+    $modo = $_GET['modo'] ?? 'visualizar';
+    $nome = preg_replace('/[^A-Za-z0-9._-]/u', '_', $assinaturaDoc['nome_original']);
     header('Content-Type: application/pdf');
-    header('Content-Disposition: inline; filename="' . basename($path_real) . '"');
+    header('Content-Disposition: ' . ($modo === 'baixar' ? 'attachment' : 'inline') . '; filename="' . $nome . '"');
     header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: private, no-store, max-age=0');
     if (ob_get_length()) ob_clean();
     flush();
-    readfile($path_real);
+    readfile($pathReal);
     exit;
 }
 
